@@ -2,7 +2,12 @@ module pdn-shield
 
 go 1.26
 
-require gopkg.in/yaml.v3 v3.0.1
+require (
+	github.com/redis/go-redis/v9 v9.22.0
+	gopkg.in/yaml.v3 v3.0.1
+)
+
+require go.uber.org/atomic v1.11.0 // indirect
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect

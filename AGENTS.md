@@ -1,6 +1,6 @@
 # pdn-shield — conventions
 
-- Go 1.26, stdlib + gopkg.in/yaml.v3 only. Ask before adding any other dependency.
+- Go 1.26, stdlib + gopkg.in/yaml.v3, prometheus/client_golang, redis/go-redis/v9. Ask before adding any other dependency.
 - Layout: cmd/pdn-shield (entrypoint), internal/pii (core), internal/pii/detectors (detectors), configs/ (yaml).
 - Every detector is a plugin: implements pii.Detector and registers itself in the Registry. Adding a PII
   type must never require editing pipeline/resolve code.
