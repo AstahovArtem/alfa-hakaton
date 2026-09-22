@@ -1,7 +1,7 @@
 {"id":"blind-00000","text":"Уважаемый Поляков Вячеслав Викторович, ваша карта 4768397582321547 готова к выдаче","spans":[{"start":19,"end":71,"category":"full_name"},{"start":93,"end":109,"category":"card_number"}]}
 {"id":"blind-00001","text":"Поддержка, я Ефремова Марта Дмитриевна, email vorobev@gmail.com, телефон +7 (992) 250-98-47","spans":[{"start":23,"end":71,"category":"full_name"},{"start":79,"end":96,"category":"email"},{"start":113,"end":131,"category":"phone"}]}
 {"id":"blind-00002","text":"Я Герасимова Ирина Петровна, адрес г. йошкар-ола, ул. Красная, д. 133, кв. 30","spans":[{"start":3,"end":51,"category":"full_name"},{"start":64,"end":128,"category":"address"}]}
-{"id":"blind-neg-00003","text":"снилс 112-233-445 96","spans":null}
+{"id":"blind-neg-00003","text":"снилс 112-233-445 96","spans":[{"value":"112-233-445 96","category":"snils"}]}
 {"id":"blind-00004","text":"Уважаемый Миронов Макар Павлович, ваш заказ готов, телефон 8(974)816-55-68","spans":[{"start":19,"end":61,"category":"full_name"},{"start":108,"end":123,"category":"phone"}]}
 {"id":"blind-00005","text":"Добрый день, я Денисов Спиридон Сергеевич, СНИЛС 04143693337, не могу получить выплату","spans":[{"start":26,"end":76,"category":"full_name"},{"start":89,"end":100,"category":"snils"}]}
 {"id":"blind-00006","text":"Паспортные данные: Григорьева Дарья Николаевна, серия и номер 42 81 731056, дата рождения 03.01.1982","spans":[{"start":35,"end":87,"category":"full_name"},{"start":114,"end":126,"category":"passport"},{"start":154,"end":164,"category":"birth_date"}]}
@@ -68,7 +68,7 @@
 {"id":"blind-neg-00067","text":"IVAN IVANOV","spans":null}
 {"id":"blind-neg-00068","text":"дата 31.02.2020","spans":null}
 {"id":"blind-00069","text":"DOBRYNYA GUSEV 5100 7124 9107 6087","spans":[{"start":0,"end":14,"category":"card_holder"},{"start":15,"end":34,"category":"card_number"}]}
-{"id":"blind-neg-00070","text":"снилс 112-233-445 96","spans":null}
+{"id":"blind-neg-00070","text":"снилс 112-233-445 96","spans":[{"value":"112-233-445 96","category":"snils"}]}
 {"id":"blind-00071","text":"Здравствуйте, я Тарасов Роман Константинович, дата рождения 1966-06-04, подтвердите личность","spans":[{"start":29,"end":83,"category":"full_name"},{"start":111,"end":121,"category":"birth_date"}]}
 {"id":"blind-00072","text":"NIKODIM SKVORTSOV 4444-8023-2717-4186","spans":[{"start":0,"end":17,"category":"card_holder"},{"start":18,"end":37,"category":"card_number"}]}
 {"id":"blind-neg-00073","text":"доп. офис: г. Москва, ул. Ленина, д. 5","spans":null}
@@ -149,7 +149,7 @@
 {"id":"blind-00148","text":"Добрый день, я Калинин Валериан Фёдорович, СНИЛС 76318842428, не могу получить выплату","spans":[{"start":26,"end":76,"category":"full_name"},{"start":89,"end":100,"category":"snils"}]}
 {"id":"blind-00149","text":"Заявление от Родионова Мефодя Петровича, паспорт 42 81 922234, выдан ОУФМС России по г. нижний тагил","spans":[{"start":24,"end":74,"category":""},{"start":91,"end":103,"category":"passport"},{"start":116,"end":172,"category":"passport_issuer"}]}
 {"id":"blind-00150","text":"Заявление от Зайцева Аникитаа Сергеевича, дата рождения 1992-11-18, место рождения: города уфы","spans":[{"start":24,"end":76,"category":""},{"start":104,"end":114,"category":"birth_date"},{"start":145,"end":164,"category":"birth_place"}]}
-{"id":"blind-neg-00151","text":"снилс 112-233-445 96","spans":null}
+{"id":"blind-neg-00151","text":"снилс 112-233-445 96","spans":[{"value":"112-233-445 96","category":"snils"}]}
 {"id":"blind-00152","text":"Уважаемый Макаров Адам Викторович, ваша дата рождения 19.04.1991 уточнена","spans":[{"start":19,"end":63,"category":"full_name"},{"start":100,"end":110,"category":"birth_date"}]}
 {"id":"blind-00153","text":"Я Гришин Андриан Викторович, адрес тамбове, Лесная 71","spans":[{"start":3,"end":51,"category":"full_name"},{"start":64,"end":95,"category":"address"}]}
 {"id":"blind-00154","text":"Анкета: Куликова Дина Дмитриевна, паспорт 4313 520582, выдан УФМС России по г. оренбург, код подразделения 700-576","spans":[{"start":14,"end":60,"category":"full_name"},{"start":77,"end":88,"category":"passport"},{"start":101,"end":148,"category":"passport_issuer"},{"start":184,"end":191,"category":"division_code"}]}
@@ -188,7 +188,7 @@
 {"id":"blind-00187","text":"Менеджер: Харитонов Игорь Константинович, загранпаспорт 69 1485150","spans":[{"start":18,"end":76,"category":"full_name"},{"start":105,"end":115,"category":"foreign_passport"}]}
 {"id":"blind-00188","text":"Здравствуйте, Герасимова Ася Ивановна, ваш email efimov@bank.ru подтверждён","spans":[{"start":26,"end":70,"category":"full_name"},{"start":85,"end":99,"category":"email"}]}
 {"id":"blind-00189","text":"Заявление от Волкова Николая Петровича, паспорт 4549 973879, выдан ОУФМС России по г. волгоград","spans":[{"start":24,"end":72,"category":""},{"start":89,"end":100,"category":"passport"},{"start":113,"end":164,"category":"passport_issuer"}]}
-{"id":"blind-neg-00190","text":"карта 4111 1111 1111 1112","spans":null}
+{"id":"blind-neg-00190","text":"карта 4111 1111 1111 1112","spans":[{"value":"4111 1111 1111 1112","category":"card_number"}]}
 {"id":"blind-00191","text":"Заметка: Лазарев Аркадий Николаевич, паспорт серия 4818 номер 871663, выдан ГУ МВД России по г. рязань","spans":[{"start":16,"end":66,"category":"full_name"},{"start":83,"end":116,"category":"passport"},{"start":129,"end":175,"category":"passport_issuer"}]}
 {"id":"blind-neg-00192","text":"версия 1.2.3","spans":null}
 {"id":"blind-neg-00193","text":"номер 1234567890","spans":null}
@@ -202,7 +202,7 @@
 {"id":"blind-00201","text":"Здравствуйте, меня зовут Крылов Сергей Александрович, мой номер 89076876309, помогите с заказом","spans":[{"start":46,"end":98,"category":"full_name"},{"start":118,"end":129,"category":"phone"}]}
 {"id":"blind-00202","text":"FEDOR KARPOV 5605-8158-5269-2663","spans":[{"start":0,"end":12,"category":"card_holder"},{"start":13,"end":32,"category":"card_number"}]}
 {"id":"blind-00203","text":"Прошу выдать справку, Комарова Милана Дмитриевна, дата рождения 01 июня 1979 года","spans":[{"start":40,"end":90,"category":"full_name"},{"start":118,"end":143,"category":"birth_date"}]}
-{"id":"blind-neg-00204","text":"ИНН 500100732258","spans":null}
+{"id":"blind-neg-00204","text":"ИНН 500100732258","spans":[{"value":"500100732258","category":"inn"}]}
 {"id":"blind-00205","text":"Cardholder AGAP BELYAEV, card 4618085975813202","spans":[{"start":11,"end":23,"category":"card_holder"},{"start":30,"end":46,"category":"card_number"}]}
 {"id":"blind-00206","text":"Здравствуйте, Григорьев Макар Евгеньевич, ваш ИНН 317979096117 подтверждён","spans":[{"start":26,"end":76,"category":"full_name"},{"start":92,"end":104,"category":"inn"}]}
 {"id":"blind-00207","text":"Клиент Маслов Федот Андреевич, телефон 8(983)405-12-23, email bykov@yandex.ru","spans":[{"start":13,"end":55,"category":"full_name"},{"start":72,"end":87,"category":"phone"},{"start":95,"end":110,"category":"email"}]}
@@ -300,8 +300,8 @@
 {"id":"blind-neg-00299","text":"загранпаспорт 71 123456","spans":null}
 {"id":"blind-00300","text":"Здравствуйте, Андреев Фома Александрович, ваш паспорт 4015 153158 на проверке","spans":[{"start":26,"end":76,"category":"full_name"},{"start":100,"end":111,"category":"passport"}]}
 {"id":"blind-neg-00301","text":"улица Иванова","spans":null}
-{"id":"blind-neg-00302","text":"снилс 112-233-445 96","spans":null}
-{"id":"blind-neg-00303","text":"ИНН 500100732258","spans":null}
+{"id":"blind-neg-00302","text":"снилс 112-233-445 96","spans":[{"value":"112-233-445 96","category":"snils"}]}
+{"id":"blind-neg-00303","text":"ИНН 500100732258","spans":[{"value":"500100732258","category":"inn"}]}
 {"id":"blind-00304","text":"Ваш код безопасности: 890, Анисимов Александр Юрьевич","spans":[{"start":40,"end":43,"category":"cvv"},{"start":45,"end":95,"category":"full_name"}]}
 {"id":"blind-00305","text":"Заявление: Прокофьев Аполлинарий Игоревич, адрес г. калининград, ул. Набережная, д. 140, кв. 41, телефон 7 909 677 40 09","spans":[{"start":20,"end":78,"category":"full_name"},{"start":91,"end":164,"category":"address"},{"start":181,"end":196,"category":"phone"}]}
 {"id":"blind-00306","text":"Уважаемый Николаева Абдулла Михайловна, ваше водительское 12АА 224080 готово","spans":[{"start":19,"end":73,"category":"full_name"},{"start":109,"end":122,"category":"driver_license"}]}
@@ -318,7 +318,7 @@
 {"id":"blind-neg-00317","text":"в 1990 году","spans":null}
 {"id":"blind-neg-00318","text":"в 1990 году","spans":null}
 {"id":"blind-00319","text":"Заполните анкету: ФИО Карпов Авраам Михайлович, дата рождения 05.11.1980, адрес курске, Молодёжная 4","spans":[{"start":40,"end":86,"category":"full_name"},{"start":114,"end":124,"category":"birth_date"},{"start":137,"end":173,"category":"address"}]}
-{"id":"blind-neg-00320","text":"карта 4111 1111 1111 1112","spans":null}
+{"id":"blind-neg-00320","text":"карта 4111 1111 1111 1112","spans":[{"value":"4111 1111 1111 1112","category":"card_number"}]}
 {"id":"blind-00321","text":"Ваш номер 8 943 447 27 54 подтверждён, Колесников Игорь Михайлович","spans":[{"start":18,"end":33,"category":"phone"},{"start":58,"end":110,"category":"full_name"}]}
 {"id":"blind-neg-00322","text":"загранпаспорт 71 123456","spans":null}
 {"id":"blind-00323","text":"Уважаемый Леонов Никанор Петрович, ваш заказ готов, телефон +7 (929) 149-47-38","spans":[{"start":19,"end":63,"category":"full_name"},{"start":110,"end":128,"category":"phone"}]}
@@ -343,7 +343,7 @@
 {"id":"blind-00342","text":"Меня зовут Климова Ирина Викторовна, мой номер +7 (967) 757-03-92","spans":[{"start":20,"end":66,"category":"full_name"},{"start":86,"end":104,"category":"phone"}]}
 {"id":"blind-00343","text":"Мой email ermakov@gmail.com, имя Гусев Юлиан Иванович","spans":[{"start":13,"end":30,"category":"email"},{"start":39,"end":77,"category":"full_name"}]}
 {"id":"blind-00344","text":"Здравствуйте, я Малышев Данила Васильевич, дата рождения 25 июля 1986 года, подтвердите личность","spans":[{"start":29,"end":77,"category":"full_name"},{"start":105,"end":130,"category":"birth_date"}]}
-{"id":"blind-neg-00345","text":"снилс 112-233-445 96","spans":null}
+{"id":"blind-neg-00345","text":"снилс 112-233-445 96","spans":[{"value":"112-233-445 96","category":"snils"}]}
 {"id":"blind-neg-00346","text":"поэт юрий гагарин родился в 1799 году","spans":null}
 {"id":"blind-neg-00347","text":"Номер заказа 1234567890","spans":null}
 {"id":"blind-00348","text":"Менеджер: Леонов Кондрат Николаевич, загранпаспорт 53 8893689","spans":[{"start":18,"end":66,"category":"full_name"},{"start":95,"end":105,"category":"foreign_passport"}]}
@@ -357,7 +357,7 @@
 {"id":"blind-00356","text":"Я Моисеев Борислав Петрович, мой номер 7 984 502 32 98, карта 5500-0231-7131-4087, CVV 208","spans":[{"start":3,"end":51,"category":"full_name"},{"start":71,"end":86,"category":"phone"},{"start":99,"end":118,"category":"card_number"},{"start":124,"end":127,"category":"cvv"}]}
 {"id":"blind-00357","text":"Заявление: Куликов Анисим Владимирович, водительское удостоверение 82 70 918390","spans":[{"start":20,"end":72,"category":"full_name"},{"start":126,"end":138,"category":"driver_license"}]}
 {"id":"blind-00358","text":"Уважаемый Кузьмин Афанасий Владимирович, ваша карта 5768141948218626 готова к выдаче","spans":[{"start":19,"end":75,"category":"full_name"},{"start":97,"end":113,"category":"card_number"}]}
-{"id":"blind-neg-00359","text":"снилс 112-233-445 96","spans":null}
+{"id":"blind-neg-00359","text":"снилс 112-233-445 96","spans":[{"value":"112-233-445 96","category":"snils"}]}
 {"id":"blind-00360","text":"От Медведева Викентя Борисовича: прошу изменить адрес на г. тула, ул. Парковая, д. 87, кв. 24","spans":[{"start":5,"end":59,"category":""},{"start":105,"end":159,"category":"address"}]}
 {"id":"blind-00361","text":"Заполните анкету: ФИО Смирнов Савва Петрович, дата рождения 2001-09-17, адрес г. севастополь, ул. Комсомольская, д. 104","spans":[{"start":40,"end":82,"category":"full_name"},{"start":110,"end":120,"category":"birth_date"},{"start":133,"end":202,"category":"address"}]}
 {"id":"blind-neg-00362","text":"улица Иванова","spans":null}
@@ -382,7 +382,7 @@
 {"id":"blind-00381","text":"Уважаемый Голубев Аскольд Сергеевич, ваш заказ готов, телефон 89440251462","spans":[{"start":19,"end":67,"category":"full_name"},{"start":114,"end":125,"category":"phone"}]}
 {"id":"blind-neg-00382","text":"дата 31.02.2020","spans":null}
 {"id":"blind-00383","text":"Анкета: Маслов Гавриил Иванович, паспорт 45 96 772579, выдан ГУ МВД России по г. калуга, код подразделения 666-665","spans":[{"start":14,"end":58,"category":"full_name"},{"start":75,"end":87,"category":"passport"},{"start":100,"end":146,"category":"passport_issuer"},{"start":182,"end":189,"category":"division_code"}]}
-{"id":"blind-neg-00384","text":"ИНН 500100732258","spans":null}
+{"id":"blind-neg-00384","text":"ИНН 500100732258","spans":[{"value":"500100732258","category":"inn"}]}
 {"id":"blind-00385","text":"Я Никифоров Владилен Александрович, мой номер +7 (922) 387-08-78, карта 4158 9862 6646 9586, CVV 106","spans":[{"start":3,"end":65,"category":"full_name"},{"start":85,"end":103,"category":"phone"},{"start":116,"end":135,"category":"card_number"},{"start":141,"end":144,"category":"cvv"}]}
 {"id":"blind-00386","text":"Уважаемый Соколов Григорий Дмитриевич, ваш договор готов, телефон +7-948-740-69-28","spans":[{"start":19,"end":71,"category":"full_name"},{"start":122,"end":138,"category":"phone"}]}
 {"id":"blind-00387","text":"Ваш номер 8 969 549 63 41 подтверждён, Прокофьев Данила Евгеньевич","spans":[{"start":18,"end":33,"category":"phone"},{"start":58,"end":110,"category":"full_name"}]}
@@ -420,7 +420,7 @@
 {"id":"blind-00419","text":"Уважаемый Кузнецов Герасим Сергеевич, ваш email komarov@bank.ru изменён","spans":[{"start":19,"end":69,"category":"full_name"},{"start":84,"end":99,"category":"email"}]}
 {"id":"blind-00420","text":"Прошу оформить, Румянцев Савва Сергеевич, гражданство Российская Федерация","spans":[{"start":29,"end":75,"category":"full_name"},{"start":100,"end":139,"category":"citizenship"}]}
 {"id":"blind-00421","text":"Прошу оформить, Антонова Людмила Ивановна, гражданство Российская Федерация","spans":[{"start":29,"end":77,"category":"full_name"},{"start":102,"end":141,"category":"citizenship"}]}
-{"id":"blind-neg-00422","text":"карта 4111 1111 1111 1112","spans":null}
+{"id":"blind-neg-00422","text":"карта 4111 1111 1111 1112","spans":[{"value":"4111 1111 1111 1112","category":"card_number"}]}
 {"id":"blind-neg-00423","text":"стихи иван тургенев изучают в школе","spans":null}
 {"id":"blind-00424","text":"Я Медведева Александра Евгеньевна, хочу узнать баланс карты 4068-4424-9905-7029","spans":[{"start":3,"end":63,"category":"full_name"},{"start":111,"end":130,"category":"card_number"}]}
 {"id":"blind-neg-00425","text":"ИНН 3664069398","spans":null}
@@ -569,7 +569,7 @@
 {"id":"blind-00568","text":"ASKOLD ERMAKOV 4762-4710-1088-1236","spans":[{"start":0,"end":14,"category":"card_holder"},{"start":15,"end":34,"category":"card_number"}]}
 {"id":"blind-00569","text":"Здравствуйте, Иванова Зинаида Владимировна, ваш паспорт 49 61 518068 на проверке","spans":[{"start":26,"end":80,"category":"full_name"},{"start":104,"end":116,"category":"passport"}]}
 {"id":"blind-neg-00570","text":"дата 32.01.2020","spans":null}
-{"id":"blind-neg-00571","text":"карта 4111 1111 1111 1112","spans":null}
+{"id":"blind-neg-00571","text":"карта 4111 1111 1111 1112","spans":[{"value":"4111 1111 1111 1112","category":"card_number"}]}
 {"id":"blind-neg-00572","text":"доп. офис: г. Москва, ул. Ленина, д. 5","spans":null}
 {"id":"blind-00573","text":"Прошу пересчитать, Юдина Глафира Павловна, ИНН 081033138991, СНИЛС 65537846440","spans":[{"start":35,"end":77,"category":"full_name"},{"start":86,"end":98,"category":"inn"},{"start":111,"end":122,"category":"snils"}]}
 {"id":"blind-00574","text":"Ваш номер 89054834968 подтверждён, Харитонов Фома Евгеньевич","spans":[{"start":18,"end":29,"category":"phone"},{"start":54,"end":102,"category":"full_name"}]}
@@ -591,7 +591,7 @@
 {"id":"blind-00590","text":"Регистрация: Назаров Ярослав Фёдорович, дата рождения 1962-12-12, адрес г. калининград, ул. Набережная, д. 117, тел. 8(983)657-53-99","spans":[{"start":24,"end":72,"category":"full_name"},{"start":100,"end":110,"category":"birth_date"},{"start":123,"end":186,"category":"address"},{"start":196,"end":211,"category":"phone"}]}
 {"id":"blind-00591","text":"Клиент Никитин Устин Сергеевич, адрес балашихе, Первомайская 189, нужна проверка","spans":[{"start":13,"end":57,"category":"full_name"},{"start":70,"end":116,"category":"address"}]}
 {"id":"blind-00592","text":"От Киселёва Киприана Петровича: прошу изменить адрес на г. воронеж, ул. Пушкина, д. 29, кв. 148","spans":[{"start":5,"end":57,"category":""},{"start":103,"end":162,"category":"address"}]}
-{"id":"blind-neg-00593","text":"ИНН 500100732258","spans":null}
+{"id":"blind-neg-00593","text":"ИНН 500100732258","spans":[{"value":"500100732258","category":"inn"}]}
 {"id":"blind-00594","text":"Ваш код безопасности для Миронова Зарина Фёдоровна: 214","spans":[{"start":46,"end":94,"category":"full_name"},{"start":96,"end":99,"category":"cvv"}]}
 {"id":"blind-00595","text":"Здравствуйте, Матвеев Адриан Викторович, ваш ИНН 394600931692 подтверждён","spans":[{"start":26,"end":74,"category":"full_name"},{"start":90,"end":102,"category":"inn"}]}
 {"id":"blind-00596","text":"Клиент Карпова Мария Васильевна, адрес г. сургут, ул. Кирова, д. 38, нужна проверка","spans":[{"start":13,"end":59,"category":"full_name"},{"start":72,"end":116,"category":"address"}]}
@@ -629,7 +629,7 @@
 {"id":"blind-neg-00628","text":"код 1234","spans":null}
 {"id":"blind-00629","text":"Подтвердите, что вы Степанов Илья Олегович, дата рождения 27 сентября 2003 года","spans":[{"start":36,"end":78,"category":"full_name"},{"start":106,"end":139,"category":"birth_date"}]}
 {"id":"blind-00630","text":"Уважаемый Егоров Игнатий Олегович, ваше водительское 03АА 496165 готово","spans":[{"start":19,"end":63,"category":"full_name"},{"start":99,"end":112,"category":"driver_license"}]}
-{"id":"blind-neg-00631","text":"снилс 112-233-445 96","spans":null}
+{"id":"blind-neg-00631","text":"снилс 112-233-445 96","spans":[{"value":"112-233-445 96","category":"snils"}]}
 {"id":"blind-00632","text":"Уважаемый Исаев Вениамин Петрович, ваш email chernov@bank.ru изменён","spans":[{"start":19,"end":63,"category":"full_name"},{"start":78,"end":93,"category":"email"}]}
 {"id":"blind-00633","text":"Клиент Ильин Ярослав Константинович, телефон 8(946)918-01-88, обратился по вопросу кредита","spans":[{"start":13,"end":67,"category":"full_name"},{"start":84,"end":99,"category":"phone"}]}
 {"id":"blind-00634","text":"Уважаемый Поляков Иннокентий Олегович, ваша заявка принята, дата рождения 13 июля 1986 года","spans":[{"start":19,"end":71,"category":"full_name"},{"start":137,"end":162,"category":"birth_date"}]}
@@ -715,7 +715,7 @@
 {"id":"blind-00714","text":"Уважаемый Емельянова Эмма Борисовна, ваша заявка принята, дата рождения 05 сентября 1996 года","spans":[{"start":19,"end":67,"category":"full_name"},{"start":133,"end":166,"category":"birth_date"}]}
 {"id":"blind-00715","text":"Уважаемый Александров Артур Дмитриевич, ваше водительское 47 11 057505 готово","spans":[{"start":19,"end":73,"category":"full_name"},{"start":109,"end":121,"category":"driver_license"}]}
 {"id":"blind-00716","text":"Заявление от Королёвой Алины Владимировнаы, дата рождения 28.11.1971, место рождения: г. тюмень","spans":[{"start":24,"end":80,"category":""},{"start":108,"end":118,"category":"birth_date"},{"start":149,"end":165,"category":"birth_place"}]}
-{"id":"blind-neg-00717","text":"ИНН 500100732258","spans":null}
+{"id":"blind-neg-00717","text":"ИНН 500100732258","spans":[{"value":"500100732258","category":"inn"}]}
 {"id":"blind-00718","text":"Прошу выдать справку, Емельянов Наум Иванович, дата рождения 1985-03-06","spans":[{"start":40,"end":84,"category":"full_name"},{"start":112,"end":122,"category":"birth_date"}]}
 {"id":"blind-00719","text":"Заполните анкету: ФИО Кириллова Жанна Петровна, дата рождения 12 февраля 1969 года, адрес саратове, Ленинградская 91","spans":[{"start":40,"end":86,"category":"full_name"},{"start":114,"end":145,"category":"birth_date"},{"start":158,"end":205,"category":"address"}]}
 {"id":"blind-00720","text":"Здравствуйте, я Герасимова Нина Михайловна, дата рождения 30.09.1966, подтвердите личность","spans":[{"start":29,"end":79,"category":"full_name"},{"start":107,"end":117,"category":"birth_date"}]}
@@ -827,7 +827,7 @@
 {"id":"blind-00826","text":"Держатель TERENTII BIRYUKOV, карта 4948-7361-4149-0009","spans":[{"start":19,"end":36,"category":"card_holder"},{"start":49,"end":68,"category":"card_number"}]}
 {"id":"blind-00827","text":"Прошу выдать справку, Анисимов Мечислав Николаевич, дата рождения 24 апреля 1997 года","spans":[{"start":40,"end":94,"category":"full_name"},{"start":122,"end":151,"category":"birth_date"}]}
 {"id":"blind-neg-00828","text":"ИНН 3664069398","spans":null}
-{"id":"blind-neg-00829","text":"снилс 112-233-445 96","spans":null}
+{"id":"blind-neg-00829","text":"снилс 112-233-445 96","spans":[{"value":"112-233-445 96","category":"snils"}]}
 {"id":"blind-00830","text":"Я Анисимов Никита Васильевич, хочу узнать баланс карты 5387 5329 3537 2478","spans":[{"start":3,"end":53,"category":"full_name"},{"start":101,"end":120,"category":"card_number"}]}
 {"id":"blind-00831","text":"Держатель карты SILVESTR SKVORTSOV, карта 4789 4587 2560 6858, CVV 002","spans":[{"start":30,"end":48,"category":"card_holder"},{"start":61,"end":80,"category":"card_number"},{"start":86,"end":89,"category":"cvv"}]}
 {"id":"blind-00832","text":"Заявитель: Лебедев Ермолай Дмитриевич, гражданство России, адрес регистрации: симферополи, Комсомольская 16","spans":[{"start":20,"end":70,"category":"full_name"},{"start":95,"end":107,"category":"citizenship"},{"start":144,"end":197,"category":"address"}]}
@@ -895,7 +895,7 @@
 {"id":"blind-00894","text":"Меня зовут Гаврилов Мартын Сергеевич, мой номер 7 904 192 97 38","spans":[{"start":20,"end":68,"category":"full_name"},{"start":88,"end":103,"category":"phone"}]}
 {"id":"blind-00895","text":"Здравствуйте, Киселёв Авраам Сергеевич, ваша карта 5932-9379-3687-2139 заблокирована","spans":[{"start":26,"end":72,"category":"full_name"},{"start":94,"end":113,"category":"card_number"}]}
 {"id":"blind-00896","text":"Менеджер: Баранов Кондрат Викторович, email bogdanov@example.com, карта 5724-4809-6845-4585","spans":[{"start":18,"end":68,"category":"full_name"},{"start":76,"end":96,"category":"email"},{"start":109,"end":128,"category":"card_number"}]}
-{"id":"blind-neg-00897","text":"снилс 112-233-445 96","spans":null}
+{"id":"blind-neg-00897","text":"снилс 112-233-445 96","spans":[{"value":"112-233-445 96","category":"snils"}]}
 {"id":"blind-00898","text":"Я Филиппов Платон Константинович, хочу узнать баланс карты 4822-0231-9295-4584","spans":[{"start":3,"end":61,"category":"full_name"},{"start":109,"end":128,"category":"card_number"}]}
 {"id":"blind-neg-00899","text":"улица Иванова","spans":null}
 {"id":"blind-00900","text":"Личные данные: Ковалёва Руслана Юрьевна, ИНН 608485079997, СНИЛС 40318885472","spans":[{"start":27,"end":73,"category":"full_name"},{"start":82,"end":94,"category":"inn"},{"start":107,"end":118,"category":"snils"}]}
@@ -988,7 +988,7 @@
 {"id":"blind-neg-00987","text":"счёт 40817810099910004312","spans":null}
 {"id":"blind-00988","text":"Меня зовут Кузьмин Терентий Михайлович, мой номер 8(931)648-96-73","spans":[{"start":20,"end":72,"category":"full_name"},{"start":92,"end":107,"category":"phone"}]}
 {"id":"blind-00989","text":"Я Давыдов Лаврентий Николаевич, карта 5584259486536241, CVV 690","spans":[{"start":3,"end":57,"category":"full_name"},{"start":70,"end":86,"category":"card_number"},{"start":92,"end":95,"category":"cvv"}]}
-{"id":"blind-neg-00990","text":"карта 4111 1111 1111 1112","spans":null}
+{"id":"blind-neg-00990","text":"карта 4111 1111 1111 1112","spans":[{"value":"4111 1111 1111 1112","category":"card_number"}]}
 {"id":"blind-00991","text":"Анкета: Маркова Снежана Борисовна, паспорт 45 38 779918, выдан ГУ МВД России по г. краснодар, код подразделения 986-183","spans":[{"start":14,"end":62,"category":"full_name"},{"start":79,"end":91,"category":"passport"},{"start":104,"end":156,"category":"passport_issuer"},{"start":192,"end":199,"category":"division_code"}]}
 {"id":"blind-neg-00992","text":"паспорт 0000 123456","spans":null}
 {"id":"blind-00993","text":"Анкета клиента: Яковлев Аким Петрович, дата рождения 06 апреля 1987 года, место рождения: г. томск, гражданство РФ","spans":[{"start":29,"end":69,"category":"full_name"},{"start":97,"end":126,"category":"birth_date"},{"start":157,"end":171,"category":"birth_place"},{"start":196,"end":200,"category":"citizenship"}]}
@@ -1087,9 +1087,9 @@
 {"id":"blind-01086","text":"Добрый день, я Соловьёв Олег Константинович, паспорт 4141 296911, хочу восстановить доступ","spans":[{"start":26,"end":80,"category":"full_name"},{"start":97,"end":108,"category":"passport"}]}
 {"id":"blind-01087","text":"Уважаемый Громов Зосима Николаевич, ваш email martynov@mail.ru изменён","spans":[{"start":19,"end":65,"category":"full_name"},{"start":80,"end":96,"category":"email"}]}
 {"id":"blind-neg-01088","text":"загранпаспорт 71 123456","spans":null}
-{"id":"blind-neg-01089","text":"снилс 112-233-445 96","spans":null}
+{"id":"blind-neg-01089","text":"снилс 112-233-445 96","spans":[{"value":"112-233-445 96","category":"snils"}]}
 {"id":"blind-01090","text":"Я Галкин Азат Юрьевич, карта 4733 2274 7953 4484, CVV 507","spans":[{"start":3,"end":39,"category":"full_name"},{"start":52,"end":71,"category":"card_number"},{"start":77,"end":80,"category":"cvv"}]}
-{"id":"blind-neg-01091","text":"карта 4111 1111 1111 1112","spans":null}
+{"id":"blind-neg-01091","text":"карта 4111 1111 1111 1112","spans":[{"value":"4111 1111 1111 1112","category":"card_number"}]}
 {"id":"blind-neg-01092","text":"паспорт 0000 123456","spans":null}
 {"id":"blind-01093","text":"Здравствуйте, я Тихомиров Леонтий Юрьевич, дата рождения 14 февраля 1958 года, подтвердите личность","spans":[{"start":29,"end":77,"category":"full_name"},{"start":105,"end":136,"category":"birth_date"}]}
 {"id":"blind-01094","text":"Уважаемый Королёва Альбина Ивановна, ваша заявка принята, дата рождения 1973-09-17","spans":[{"start":19,"end":67,"category":"full_name"},{"start":133,"end":143,"category":"birth_date"}]}
@@ -1225,7 +1225,7 @@
 {"id":"blind-01224","text":"Я Семёнов Филарет Евгеньевич, хочу узнать баланс карты 5413573544515964","spans":[{"start":3,"end":53,"category":"full_name"},{"start":101,"end":117,"category":"card_number"}]}
 {"id":"blind-01225","text":"От Голубева Захара Фёдоровича: прошу изменить адрес на г. волгоград, ул. Парковая, д. 30","spans":[{"start":5,"end":55,"category":""},{"start":101,"end":155,"category":"address"}]}
 {"id":"blind-01226","text":"Уважаемый Комаров Петр Викторович, ваш заказ готов, телефон 7 969 259 58 48","spans":[{"start":19,"end":63,"category":"full_name"},{"start":110,"end":125,"category":"phone"}]}
-{"id":"blind-neg-01227","text":"снилс 112-233-445 96","spans":null}
+{"id":"blind-neg-01227","text":"снилс 112-233-445 96","spans":[{"value":"112-233-445 96","category":"snils"}]}
 {"id":"blind-01228","text":"От Скворцовой Эммы Ивановнаы: прошу изменить адрес на брянске, Центральная 119","spans":[{"start":5,"end":53,"category":""},{"start":99,"end":141,"category":"address"}]}
 {"id":"blind-neg-01229","text":"код 1234","spans":null}
 {"id":"blind-01230","text":"Уважаемый Кириллов Влас Павлович, ваша заявка принята, дата рождения 29 июля 1962 года","spans":[{"start":19,"end":61,"category":"full_name"},{"start":127,"end":152,"category":"birth_date"}]}
@@ -1236,7 +1236,7 @@
 {"id":"blind-01235","text":"Здравствуйте, Родионов Абай Игоревич, ваш ИНН 491142514587 подтверждён","spans":[{"start":26,"end":68,"category":"full_name"},{"start":84,"end":96,"category":"inn"}]}
 {"id":"blind-01236","text":"Клиент Давыдов Денис Андреевич, телефон +7-971-384-69-24, обратился по вопросу кредита","spans":[{"start":13,"end":57,"category":"full_name"},{"start":74,"end":90,"category":"phone"}]}
 {"id":"blind-01237","text":"Здравствуйте, Симонова Эмма Викторовна, ваш email belyaev@gmail.com подтверждён","spans":[{"start":26,"end":72,"category":"full_name"},{"start":87,"end":104,"category":"email"}]}
-{"id":"blind-neg-01238","text":"снилс 112-233-445 96","spans":null}
+{"id":"blind-neg-01238","text":"снилс 112-233-445 96","spans":[{"value":"112-233-445 96","category":"snils"}]}
 {"id":"blind-01239","text":"Я Ефремова Марианна Олеговна, мой номер 8(909)292-48-32, карта 4184 2535 9110 7086, CVV 008","spans":[{"start":3,"end":53,"category":"full_name"},{"start":73,"end":88,"category":"phone"},{"start":101,"end":120,"category":"card_number"},{"start":126,"end":129,"category":"cvv"}]}
 {"id":"blind-neg-01240","text":"ИНН 3664069398","spans":null}
 {"id":"blind-01241","text":"Здравствуйте, я Лукьянов Капитон Александрович, адрес г. кемерово, ул. Юбилейная, д. 50, жду доставку","spans":[{"start":29,"end":87,"category":"full_name"},{"start":100,"end":154,"category":"address"}]}
@@ -1296,7 +1296,7 @@
 {"id":"blind-01295","text":"Здравствуйте, я Акимов Сергей Владимирович, адрес липецке, Парковая 26, жду доставку","spans":[{"start":29,"end":79,"category":"full_name"},{"start":92,"end":127,"category":"address"}]}
 {"id":"blind-01296","text":"Ваш код безопасности для Мельников Август Васильевич: 918","spans":[{"start":46,"end":98,"category":"full_name"},{"start":100,"end":103,"category":"cvv"}]}
 {"id":"blind-neg-01297","text":"ИНН 3664069398","spans":null}
-{"id":"blind-neg-01298","text":"снилс 112-233-445 96","spans":null}
+{"id":"blind-neg-01298","text":"снилс 112-233-445 96","spans":[{"value":"112-233-445 96","category":"snils"}]}
 {"id":"blind-01299","text":"Уважаемый Михайлова Алла Михайловна, ваше водительское 04АА 502604 готово","spans":[{"start":19,"end":67,"category":"full_name"},{"start":103,"end":116,"category":"driver_license"}]}
 {"id":"blind-01300","text":"EMMA GRACHEV 4492198537124645","spans":[{"start":0,"end":12,"category":"card_holder"},{"start":13,"end":29,"category":"card_number"}]}
 {"id":"blind-01301","text":"Данные заявителя: Громова Аида Павловна, паспорт 4295781426, выдан ОМВД России по району Хамовники, код подразделения 301-680","spans":[{"start":33,"end":73,"category":"full_name"},{"start":90,"end":100,"category":"passport"},{"start":113,"end":171,"category":"passport_issuer"},{"start":207,"end":214,"category":"division_code"}]}
@@ -1348,7 +1348,7 @@
 {"id":"blind-01347","text":"Заявление: Еремеев Милан Фёдорович, адрес курске, Центральная 145, телефон +7-959-920-49-54","spans":[{"start":20,"end":64,"category":"full_name"},{"start":77,"end":117,"category":"address"},{"start":134,"end":150,"category":"phone"}]}
 {"id":"blind-01348","text":"Подскажите, я Марков Мефодий Иванович, мой email efimov@gmail.com, не могу войти в приложение","spans":[{"start":25,"end":69,"category":"full_name"},{"start":84,"end":100,"category":"email"}]}
 {"id":"blind-01349","text":"Ваш код безопасности для Мельников Валентин Петрович: 364","spans":[{"start":46,"end":98,"category":"full_name"},{"start":100,"end":103,"category":"cvv"}]}
-{"id":"blind-neg-01350","text":"снилс 112-233-445 96","spans":null}
+{"id":"blind-neg-01350","text":"снилс 112-233-445 96","spans":[{"value":"112-233-445 96","category":"snils"}]}
 {"id":"blind-01351","text":"Добрый день, я Тихонов Никита Фёдорович, паспорт 44 13 351903, хочу восстановить доступ","spans":[{"start":26,"end":72,"category":"full_name"},{"start":89,"end":101,"category":"passport"}]}
 {"id":"blind-01352","text":"Поддержка, я Семёнова Анжела Ивановна, email kharitonov@example.com, телефон +7-999-317-53-49","spans":[{"start":23,"end":69,"category":"full_name"},{"start":77,"end":99,"category":"email"},{"start":116,"end":132,"category":"phone"}]}
 {"id":"blind-neg-01353","text":"IVAN IVANOV","spans":null}
@@ -1366,7 +1366,7 @@
 {"id":"blind-01365","text":"Менеджер: Коновалов Захар Викторович, email gerasimov@bank.ru, карта 4513 4118 8895 4162","spans":[{"start":18,"end":68,"category":"full_name"},{"start":76,"end":93,"category":"email"},{"start":106,"end":125,"category":"card_number"}]}
 {"id":"blind-01366","text":"Анкета клиента: Кириллов Зосима Андреевич, дата рождения 21 июля 1974 года, место рождения: города ставрополи, гражданство России","spans":[{"start":29,"end":77,"category":"full_name"},{"start":105,"end":130,"category":"birth_date"},{"start":161,"end":194,"category":"birth_place"},{"start":219,"end":231,"category":"citizenship"}]}
 {"id":"blind-01367","text":"Здравствуйте, Михайлов Валериан Иванович, подтвердите адрес г. севастополь, ул. Октябрьская, д. 195","spans":[{"start":26,"end":76,"category":"full_name"},{"start":112,"end":177,"category":"address"}]}
-{"id":"blind-neg-01368","text":"карта 4111 1111 1111 1112","spans":null}
+{"id":"blind-neg-01368","text":"карта 4111 1111 1111 1112","spans":[{"value":"4111 1111 1111 1112","category":"card_number"}]}
 {"id":"blind-neg-01369","text":"код 1234","spans":null}
 {"id":"blind-neg-01370","text":"в 1990 году","spans":null}
 {"id":"blind-01371","text":"Держатель PORFIRII PROKHOROV, карта 4076056272458152","spans":[{"start":19,"end":37,"category":"card_holder"},{"start":50,"end":66,"category":"card_number"}]}
@@ -1410,7 +1410,7 @@
 {"id":"blind-01409","text":"Здравствуйте, Кириллов Ириней Евгеньевич, ваш паспорт 41 59 351050 на проверке","spans":[{"start":26,"end":76,"category":"full_name"},{"start":100,"end":112,"category":"passport"}]}
 {"id":"blind-01410","text":"Я Белов Иван Сергеевич, адрес г. иркутск, ул. Первомайская, д. 156","spans":[{"start":3,"end":41,"category":"full_name"},{"start":54,"end":113,"category":"address"}]}
 {"id":"blind-01411","text":"Здравствуйте, Сорокин Тихон Андреевич, ваш паспорт серия 4204 номер 895463 на проверке","spans":[{"start":26,"end":70,"category":"full_name"},{"start":94,"end":127,"category":"passport"}]}
-{"id":"blind-neg-01412","text":"карта 4111 1111 1111 1112","spans":null}
+{"id":"blind-neg-01412","text":"карта 4111 1111 1111 1112","spans":[{"value":"4111 1111 1111 1112","category":"card_number"}]}
 {"id":"blind-neg-01413","text":"Номер заказа 1234567890","spans":null}
 {"id":"blind-01414","text":"Анкета: Грачёв Альфред Константинович, паспорт 4386273779, выдан ГУ МВД России по г. челябинск, код подразделения 174-111","spans":[{"start":14,"end":70,"category":"full_name"},{"start":87,"end":97,"category":"passport"},{"start":110,"end":162,"category":"passport_issuer"},{"start":198,"end":205,"category":"division_code"}]}
 {"id":"blind-01415","text":"Клиент Сидоров Сергей Павлович, водительское 36 77 626450","spans":[{"start":13,"end":57,"category":"full_name"},{"start":84,"end":96,"category":"driver_license"}]}
@@ -1459,7 +1459,7 @@
 {"id":"blind-01458","text":"Заявление: Карпов Владислав Дмитриевич, водительское удостоверение 07 41 608741","spans":[{"start":20,"end":72,"category":"full_name"},{"start":126,"end":138,"category":"driver_license"}]}
 {"id":"blind-01459","text":"Я Богданов Нестор Олегович, карта 4063 3226 2500 1189, CVV 855","spans":[{"start":3,"end":49,"category":"full_name"},{"start":62,"end":81,"category":"card_number"},{"start":87,"end":90,"category":"cvv"}]}
 {"id":"blind-neg-01460","text":"код 1234","spans":null}
-{"id":"blind-neg-01461","text":"ИНН 500100732258","spans":null}
+{"id":"blind-neg-01461","text":"ИНН 500100732258","spans":[{"value":"500100732258","category":"inn"}]}
 {"id":"blind-01462","text":"От Голубева Пахома Михайловича, паспорт серия 4552 номер 299080, телефон +7 (994) 887-92-86","spans":[{"start":5,"end":57,"category":""},{"start":74,"end":107,"category":"passport"},{"start":124,"end":142,"category":"phone"}]}
 {"id":"blind-01463","text":"Добрый день, я Симонов Фрол Олегович, СНИЛС 818-524-864 30, не могу получить выплату","spans":[{"start":26,"end":66,"category":"full_name"},{"start":79,"end":93,"category":"snils"}]}
 {"id":"blind-01464","text":"Уважаемый Харитонов Валентин Игоревич, ваш заказ готов, телефон +7-905-270-11-94","spans":[{"start":19,"end":71,"category":"full_name"},{"start":118,"end":134,"category":"phone"}]}
@@ -1505,7 +1505,7 @@
 {"id":"blind-01504","text":"Имя на карте KIPRIAN KRYLOV, номер 4103-0501-9545-2274","spans":[{"start":23,"end":37,"category":"card_holder"},{"start":50,"end":69,"category":"card_number"}]}
 {"id":"blind-01505","text":"Уважаемый Скворцова Римма Александровна, ваш email panov@gmail.com изменён","spans":[{"start":19,"end":75,"category":"full_name"},{"start":90,"end":105,"category":"email"}]}
 {"id":"blind-neg-01506","text":"Москва — столица","spans":null}
-{"id":"blind-neg-01507","text":"ИНН 500100732258","spans":null}
+{"id":"blind-neg-01507","text":"ИНН 500100732258","spans":[{"value":"500100732258","category":"inn"}]}
 {"id":"blind-01508","text":"Клиент Антонов Григорий Сергеевич, дата рождения 1974-11-05, место рождения: мурманске","spans":[{"start":13,"end":63,"category":"full_name"},{"start":91,"end":101,"category":"birth_date"},{"start":132,"end":150,"category":"birth_place"}]}
 {"id":"blind-01509","text":"Держатель карты TERENTII NIKIFOROV, карта 5026039486051623, CVV 918","spans":[{"start":30,"end":48,"category":"card_holder"},{"start":61,"end":77,"category":"card_number"},{"start":83,"end":86,"category":"cvv"}]}
 {"id":"blind-01510","text":"Уважаемый Трофимов Вячеслав Николаевич, ваш СНИЛС 95208586332 на проверке","spans":[{"start":19,"end":73,"category":"full_name"},{"start":93,"end":104,"category":"snils"}]}
@@ -1563,7 +1563,7 @@
 {"id":"blind-01562","text":"Заявление: Белоусова Аида Павловна, водительское удостоверение 38 68 122423","spans":[{"start":20,"end":64,"category":"full_name"},{"start":118,"end":130,"category":"driver_license"}]}
 {"id":"blind-01563","text":"Личные данные: Беляев Вилен Игоревич, ИНН 443585967860, СНИЛС 516-087-684 00","spans":[{"start":27,"end":67,"category":"full_name"},{"start":76,"end":88,"category":"inn"},{"start":101,"end":115,"category":"snils"}]}
 {"id":"blind-01564","text":"Имя на карте DENIS ANISIMOV, номер 4850 0625 1475 3584","spans":[{"start":23,"end":37,"category":"card_holder"},{"start":50,"end":69,"category":"card_number"}]}
-{"id":"blind-neg-01565","text":"ИНН 500100732258","spans":null}
+{"id":"blind-neg-01565","text":"ИНН 500100732258","spans":[{"value":"500100732258","category":"inn"}]}
 {"id":"blind-01566","text":"Здравствуйте, Кузнецов Валентин Николаевич, ваша карта 5761-5231-0686-2484 заблокирована","spans":[{"start":26,"end":80,"category":"full_name"},{"start":102,"end":121,"category":"card_number"}]}
 {"id":"blind-01567","text":"Добрый день, я Чернова Диана Фёдоровна, паспорт 4612 691810, хочу восстановить доступ","spans":[{"start":26,"end":70,"category":"full_name"},{"start":87,"end":98,"category":"passport"}]}
 {"id":"blind-01568","text":"Заполните анкету: ФИО Архипов Андриан Юрьевич, дата рождения 24 сентября 2002 года, адрес г. чита, ул. Центральная, д. 90, кв. 21","spans":[{"start":40,"end":84,"category":"full_name"},{"start":112,"end":145,"category":"birth_date"},{"start":158,"end":218,"category":"address"}]}
@@ -1604,7 +1604,7 @@
 {"id":"blind-01603","text":"Держатель EVGRAF KOVALEV, карта 4407 0954 8376 6029","spans":[{"start":19,"end":33,"category":"card_holder"},{"start":46,"end":65,"category":"card_number"}]}
 {"id":"blind-01604","text":"Мой телефон +7-935-874-91-51, я Юдин Яков Владимирович","spans":[{"start":22,"end":38,"category":"phone"},{"start":43,"end":85,"category":"full_name"}]}
 {"id":"blind-01605","text":"Уважаемый Грачёв Данислав Александрович, ваш заказ готов, телефон +7-931-201-30-52","spans":[{"start":19,"end":75,"category":"full_name"},{"start":122,"end":138,"category":"phone"}]}
-{"id":"blind-neg-01606","text":"снилс 112-233-445 96","spans":null}
+{"id":"blind-neg-01606","text":"снилс 112-233-445 96","spans":[{"value":"112-233-445 96","category":"snils"}]}
 {"id":"blind-neg-01607","text":"головной офис: г. Москва, ул. Ленина, д. 5","spans":null}
 {"id":"blind-01608","text":"Здравствуйте, я Комарова Зоя Петровна, дата рождения 1964-02-05, подтвердите личность","spans":[{"start":29,"end":69,"category":"full_name"},{"start":97,"end":107,"category":"birth_date"}]}
 {"id":"blind-neg-01609","text":"число 1234567890","spans":null}
@@ -1663,7 +1663,7 @@
 {"id":"blind-01662","text":"Меня зовут Александров Остап Николаевич, мой номер +7 (943) 721-46-90","spans":[{"start":20,"end":74,"category":"full_name"},{"start":94,"end":112,"category":"phone"}]}
 {"id":"blind-01663","text":"Ваш номер 89487726112 подтверждён, Королёв Владислав Борисович","spans":[{"start":18,"end":29,"category":"phone"},{"start":54,"end":106,"category":"full_name"}]}
 {"id":"blind-01664","text":"Ваш код безопасности: 484, Дмитриев Аладин Иванович","spans":[{"start":40,"end":43,"category":"cvv"},{"start":45,"end":91,"category":"full_name"}]}
-{"id":"blind-neg-01665","text":"ИНН 500100732258","spans":null}
+{"id":"blind-neg-01665","text":"ИНН 500100732258","spans":[{"value":"500100732258","category":"inn"}]}
 {"id":"blind-01666","text":"Уважаемый Воробьёв Савва Андреевич, ваш email aleksandrov@example.com изменён","spans":[{"start":19,"end":65,"category":"full_name"},{"start":80,"end":103,"category":"email"}]}
 {"id":"blind-01667","text":"Уважаемый Прокофьев Зосима Юрьевич, ваша дата рождения 2004-11-17 уточнена","spans":[{"start":19,"end":65,"category":"full_name"},{"start":102,"end":112,"category":"birth_date"}]}
 {"id":"blind-01668","text":"Имя на карте YAKOV ILIN, номер 5045371474393445","spans":[{"start":23,"end":33,"category":"card_holder"},{"start":46,"end":62,"category":"card_number"}]}
@@ -1731,7 +1731,7 @@
 {"id":"blind-01730","text":"Поддержка, я Наумова Нина Васильевна, email egorov@yandex.ru, телефон 89433704888","spans":[{"start":23,"end":67,"category":"full_name"},{"start":75,"end":91,"category":"email"},{"start":108,"end":119,"category":"phone"}]}
 {"id":"blind-01731","text":"Уважаемый Румянцев Евсей Михайлович, подтвердите операцию по карте 5373 3858 2730 8977","spans":[{"start":19,"end":67,"category":"full_name"},{"start":125,"end":144,"category":"card_number"}]}
 {"id":"blind-01732","text":"От Федотова Данила Ивановича: прошу изменить адрес на омске, Садовая 7","spans":[{"start":5,"end":53,"category":""},{"start":99,"end":127,"category":"address"}]}
-{"id":"blind-neg-01733","text":"карта 4111 1111 1111 1112","spans":null}
+{"id":"blind-neg-01733","text":"карта 4111 1111 1111 1112","spans":[{"value":"4111 1111 1111 1112","category":"card_number"}]}
 {"id":"blind-01734","text":"Помогите, пожалуйста, я Степанов Вилен Олегович, мой ИНН 346656206031","spans":[{"start":43,"end":87,"category":"full_name"},{"start":103,"end":115,"category":"inn"}]}
 {"id":"blind-01735","text":"Помогите, пожалуйста, я Давыдова Майя Александровна, мой ИНН 911025483634","spans":[{"start":43,"end":95,"category":"full_name"},{"start":111,"end":123,"category":"inn"}]}
 {"id":"blind-01736","text":"Прошу выдать справку, Калинина Роза Олеговна, дата рождения 03.06.1998","spans":[{"start":40,"end":82,"category":"full_name"},{"start":110,"end":120,"category":"birth_date"}]}
@@ -1775,14 +1775,14 @@
 {"id":"blind-01774","text":"VADIM KARPOV 4425370827747821","spans":[{"start":0,"end":12,"category":"card_holder"},{"start":13,"end":29,"category":"card_number"}]}
 {"id":"blind-neg-01775","text":"в 1990 году","spans":null}
 {"id":"blind-01776","text":"Менеджер: Кондратьев Федор Евгеньевич, email dmitriev@example.com, карта 4688766143375084","spans":[{"start":18,"end":70,"category":"full_name"},{"start":78,"end":98,"category":"email"},{"start":111,"end":127,"category":"card_number"}]}
-{"id":"blind-neg-01777","text":"карта 4111 1111 1111 1112","spans":null}
+{"id":"blind-neg-01777","text":"карта 4111 1111 1111 1112","spans":[{"value":"4111 1111 1111 1112","category":"card_number"}]}
 {"id":"blind-neg-01778","text":"ИНН 3664069398","spans":null}
 {"id":"blind-01779","text":"Клиент Баранов Христиан Дмитриевич, телефон +7 (958) 772-21-46, email bykov@gmail.com","spans":[{"start":13,"end":65,"category":"full_name"},{"start":82,"end":100,"category":"phone"},{"start":108,"end":123,"category":"email"}]}
 {"id":"blind-01780","text":"Здравствуйте, меня зовут Овчинникова Виктория Ивановна, мой номер 89309962932, помогите с заказом","spans":[{"start":46,"end":102,"category":"full_name"},{"start":122,"end":133,"category":"phone"}]}
 {"id":"blind-01781","text":"Мой телефон 89529090507, я Филиппова Анна Борисовна","spans":[{"start":22,"end":33,"category":"phone"},{"start":38,"end":84,"category":"full_name"}]}
 {"id":"blind-01782","text":"Ваш код безопасности для Громов Дмитрий Игоревич: 361","spans":[{"start":46,"end":90,"category":"full_name"},{"start":92,"end":95,"category":"cvv"}]}
 {"id":"blind-01783","text":"Данные заявителя: Еремеев Тит Викторович, паспорт 4258144980, выдан УФМС России по г. тольятти, код подразделения 449-444","spans":[{"start":33,"end":75,"category":"full_name"},{"start":92,"end":102,"category":"passport"},{"start":115,"end":162,"category":"passport_issuer"},{"start":198,"end":205,"category":"division_code"}]}
-{"id":"blind-neg-01784","text":"снилс 112-233-445 96","spans":null}
+{"id":"blind-neg-01784","text":"снилс 112-233-445 96","spans":[{"value":"112-233-445 96","category":"snils"}]}
 {"id":"blind-01785","text":"Уважаемая поддержка, я Кузнецов Абай Викторович, мой телефон 8 908 515 02 95, проблема с картой 4607-9086-7403-3173","spans":[{"start":42,"end":88,"category":"full_name"},{"start":112,"end":127,"category":"phone"},{"start":162,"end":181,"category":"card_number"}]}
 {"id":"blind-neg-01786","text":"филиал банка: г. Москва, ул. Тверская, д. 10","spans":null}
 {"id":"blind-01787","text":"Я Журавлёва Эмма Викторовна, мой номер 8(947)495-14-37, карта 5337-4183-1547-1091, CVV 004","spans":[{"start":3,"end":51,"category":"full_name"},{"start":71,"end":86,"category":"phone"},{"start":99,"end":118,"category":"card_number"},{"start":124,"end":127,"category":"cvv"}]}
@@ -1812,7 +1812,7 @@
 {"id":"blind-01811","text":"От Воронина Яна Юрьевича: прошу изменить адрес на магнитогорске, Кирова 176","spans":[{"start":5,"end":45,"category":""},{"start":91,"end":135,"category":"address"}]}
 {"id":"blind-01812","text":"Подскажите, я Малышева Белла Фёдоровна, мой email kiselev@mail.ru, не могу войти в приложение","spans":[{"start":25,"end":71,"category":"full_name"},{"start":86,"end":101,"category":"email"}]}
 {"id":"blind-neg-01813","text":"в 1990 году","spans":null}
-{"id":"blind-neg-01814","text":"ИНН 500100732258","spans":null}
+{"id":"blind-neg-01814","text":"ИНН 500100732258","spans":[{"value":"500100732258","category":"inn"}]}
 {"id":"blind-01815","text":"Я Орлов Алексей Владимирович, мой номер +7-992-312-23-24, карта 4863-6750-4279-0557, CVV 248","spans":[{"start":3,"end":53,"category":"full_name"},{"start":73,"end":89,"category":"phone"},{"start":102,"end":121,"category":"card_number"},{"start":127,"end":130,"category":"cvv"}]}
 {"id":"blind-01816","text":"Cardholder YAN KISELEV, card 4362365733662721","spans":[{"start":11,"end":22,"category":"card_holder"},{"start":29,"end":45,"category":"card_number"}]}
 {"id":"blind-01817","text":"Уважаемый Громова Руслана Петровна, ваш адрес балашихе, Комсомольская 29 подтверждён","spans":[{"start":19,"end":65,"category":"full_name"},{"start":85,"end":132,"category":"address"}]}
@@ -1841,7 +1841,7 @@
 {"id":"blind-01840","text":"Добрый день, я Савельева Оксана Викторовна, СНИЛС 118-002-096 04, не могу получить выплату","spans":[{"start":26,"end":78,"category":"full_name"},{"start":91,"end":105,"category":"snils"}]}
 {"id":"blind-01841","text":"Анкета: Лебедев Трофим Петрович, паспорт 42 77 710036, выдан УФМС России по г. саратов, код подразделения 851-517","spans":[{"start":14,"end":58,"category":"full_name"},{"start":75,"end":87,"category":"passport"},{"start":100,"end":145,"category":"passport_issuer"},{"start":181,"end":188,"category":"division_code"}]}
 {"id":"blind-neg-01842","text":"паспорт 0000 123456","spans":null}
-{"id":"blind-neg-01843","text":"карта 4111 1111 1111 1112","spans":null}
+{"id":"blind-neg-01843","text":"карта 4111 1111 1111 1112","spans":[{"value":"4111 1111 1111 1112","category":"card_number"}]}
 {"id":"blind-01844","text":"Паспортные данные: Чернышёв Сергей Сергеевич, серия и номер 4142712608, дата рождения 1991-11-20","spans":[{"start":35,"end":83,"category":"full_name"},{"start":110,"end":120,"category":"passport"},{"start":148,"end":158,"category":"birth_date"}]}
 {"id":"blind-01845","text":"Добрый день, я Петров Михаил Фёдорович, паспорт серия 4611 номер 000085, хочу восстановить доступ","spans":[{"start":26,"end":70,"category":"full_name"},{"start":87,"end":120,"category":"passport"}]}
 {"id":"blind-neg-01846","text":"держатель карты VISA MASTERCARD","spans":null}
@@ -1991,7 +1991,7 @@
 {"id":"blind-neg-01990","text":"банкомат по адресу: г. Москва, ул. Ленина, д. 5","spans":null}
 {"id":"blind-01991","text":"От Быковой Валерии Константиновнаы: прошу изменить адрес на г. сочи, ул. Садовая, д. 140, кв. 8","spans":[{"start":5,"end":65,"category":""},{"start":111,"end":163,"category":"address"}]}
 {"id":"blind-01992","text":"Заявление: Гончаров Климент Борисович, адрес якутске, Ленинградская 136, телефон 8 963 529 66 37","spans":[{"start":20,"end":70,"category":"full_name"},{"start":83,"end":129,"category":"address"},{"start":146,"end":161,"category":"phone"}]}
-{"id":"blind-neg-01993","text":"ИНН 500100732258","spans":null}
+{"id":"blind-neg-01993","text":"ИНН 500100732258","spans":[{"value":"500100732258","category":"inn"}]}
 {"id":"blind-01994","text":"Добрый день, я Ковалёв Юлиан Михайлович, СНИЛС 886-357-058 65, не могу получить выплату","spans":[{"start":26,"end":72,"category":"full_name"},{"start":85,"end":99,"category":"snils"}]}
 {"id":"blind-neg-01995","text":"IVAN IVANOV","spans":null}
 {"id":"blind-01996","text":"Здравствуйте, Гришин Святослав Иванович, ваш email kiselev@bank.ru подтверждён","spans":[{"start":26,"end":74,"category":"full_name"},{"start":89,"end":104,"category":"email"}]}

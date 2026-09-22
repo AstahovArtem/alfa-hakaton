@@ -138,8 +138,10 @@ func TestINNDetect(t *testing.T) {
 		want bool
 	}{
 		{"positive", "Мой ИНН 500100732259", true},
-		{"positiveLegal", "ИНН организации 3664069397", true},
+		{"positiveLegal", "мой ИНН 7707083893", true},
 		{"negative", "Номер 500100732258", false},
+		{"negativeOrg", "ИНН организации 7707083893", false},
+		{"negativeOrgColon", "Организация: ИНН 7707083893, КПП 770701001", false},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -697,6 +699,19 @@ func TestSoftContextTraps(t *testing.T) {
 				t.Errorf("expected no spans for %q, got %+v", c.in, res.Spans)
 			}
 		})
+	}
+}
+
+func TestSoftContextInvalidChecksumINN(t *testing.T) {
+	// A number with a bad checksum is still masked when the "ИНН" label is
+	// present, but not when it appears without a label.
+	res := runPipeline(t, "ИНН 500100732258")
+	if !hasCategory(t, res, pii.CatINN) {
+		t.Errorf("expected inn for %q, got %+v", "ИНН 500100732258", res.Spans)
+	}
+	res = runPipeline(t, "500100732258")
+	if len(res.Spans) != 0 {
+		t.Errorf("expected no spans for %q, got %+v", "500100732258", res.Spans)
 	}
 }
 

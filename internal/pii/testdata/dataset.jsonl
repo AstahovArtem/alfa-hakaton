@@ -16,7 +16,8 @@
 {"id":"email-008","text":"почта для связи info@mail.com","spans":[{"value":"info@mail.com","category":"email"}]}
 {"id":"inn-001","text":"Мой ИНН 500100732259","spans":[{"value":"500100732259","category":"inn"}]}
 {"id":"inn-002","text":"ИНН физического лица 3664069397","spans":[{"value":"3664069397","category":"inn"}]}
-{"id":"inn-003","text":"ИНН организации 7707083893","spans":[{"value":"7707083893","category":"inn"}]}
+{"id":"inn-003","text":"ИНН организации 7707083893","spans":[]}
+{"id":"inn-org-002","text":"ИНН организации 7707083893","spans":[]}
 {"id":"inn-004","text":"инн 500100732259","spans":[{"value":"500100732259","category":"inn"}]}
 {"id":"inn-005","text":"ИНН 3664069397","spans":[{"value":"3664069397","category":"inn"}]}
 {"id":"inn-006","text":"ИНН юрлица 7707083893","spans":[{"value":"7707083893","category":"inn"}]}
@@ -126,19 +127,19 @@
 {"id":"neg-006","text":"сумма 15000 рублей","spans":[]}
 {"id":"neg-007","text":"версия 1.2.3","spans":[]}
 {"id":"neg-008","text":"дата 31.02.2020","spans":[]}
-{"id":"neg-009","text":"ИНН 500100732258","spans":[]}
-{"id":"neg-010","text":"карта 4111 1111 1111 1112","spans":[]}
+{"id":"neg-009","text":"ИНН 500100732258","spans":[{"value":"500100732258","category":"inn"}]}
+{"id":"neg-010","text":"карта 4111 1111 1111 1112","spans":[{"value":"4111 1111 1111 1112","category":"card_number"}]}
 {"id":"neg-011","text":"номер 1234567890","spans":[]}
 {"id":"neg-012","text":"телефон 1234567890","spans":[]}
 {"id":"neg-013","text":"паспорт 0000 123456","spans":[]}
-{"id":"neg-014","text":"снилс 112-233-445 96","spans":[]}
+{"id":"neg-014","text":"снилс 112-233-445 96","spans":[{"value":"112-233-445 96","category":"snils"}]}
 {"id":"neg-015","text":"загранпаспорт 71 123456","spans":[]}
 {"id":"neg-016","text":"код 1234","spans":[]}
 {"id":"neg-017","text":"дата 32.01.2020","spans":[]}
 {"id":"neg-018","text":"ИНН 3664069398","spans":[]}
 {"id":"neg-019","text":"счёт 40817810099910004312","spans":[]}
 {"id":"cvv-009","text":"Код безопасности карты 123, 4321 это пин-код","spans":[{"value":"123","category":"cvv"},{"value":"4321","category":"pin"}]}
-{"id":"cvv-010","text":"карта 5536 9138 1234 5678 cvv 123","spans":[{"start":35,"end":38,"category":"cvv"}]}
+{"id":"cvv-010","text":"карта 5536 9138 1234 5678 cvv 123","spans":[{"value":"5536 9138 1234 5678","category":"card_number"},{"start":35,"end":38,"category":"cvv"}]}
 {"id":"date-009","text":"событие 2020.15.03","spans":[{"value":"2020.15.03","category":"date"}]}
 {"id":"name-001","text":"ИВАНОВ ИВАН ИВАНОВИЧ","spans":[{"value":"ИВАНОВ ИВАН ИВАНОВИЧ","category":"full_name"}]}
 {"id":"name-002","text":"иванов иван иванович","spans":[{"value":"иванов иван иванович","category":"full_name"}]}
@@ -250,7 +251,7 @@
 {"id":"hard13b-cit-002","text":"Гражданство — Республика Беларусь","spans":[{"value":"Республика Беларусь","category":"citizenship"}]}
 {"id":"hard13b-cit-003","text":"Гражданство заявителя: Таджикистан","spans":[{"value":"Таджикистан","category":"citizenship"}]}
 {"id":"hard13b-cit-004","text":"гражданка Республики Армения","spans":[{"value":"Республики Армения","category":"citizenship"}]}
-{"id":"hard13b-cit-005","text":"гражданин Узбекистана Юсупов Бахтиёр","spans":[{"value":"Узбекистана","category":"citizenship"}]}
+{"id":"hard13b-cit-005","text":"гражданин Узбекистана Юсупов Бахтиёр","spans":[{"value":"Узбекистана","category":"citizenship"},{"value":"Юсупов Бахтиёр","category":"full_name"}]}
 {"id":"hard13b-cit-006","text":"Оператор: Гражданство?\nКлиент: Вьетнам","spans":[{"value":"Вьетнам","category":"citizenship"}]}
 {"id":"hard13b-bp-001","text":"уроженка г. Еревана, гражданка Республики Армения","spans":[{"value":"г. Еревана","category":"birth_place"},{"value":"Республики Армения","category":"citizenship"}]}
 {"id":"hard13b-bp-002","text":"родилась 05 мар 1985 в г. Набережные Челны, паспорт получала уже в Казани","spans":[{"value":"05 мар 1985","category":"birth_date"},{"value":"г. Набережные Челны","category":"birth_place"}]}

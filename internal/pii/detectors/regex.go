@@ -463,13 +463,15 @@ func inDigitSequence(raw string, start, end int) bool {
 // rejectedByContext reports whether a reject or deny keyword appears within the
 // configured windows to the left or right of the match.
 func (r Rule) rejectedByContext(t pii.Text, start, end int) bool {
-	// Reject context: if any reject keyword appears within the window to the
-	// left or right, the match is not personal data.
+	// Reject context: if any reject keyword appears as a substring within the
+	// window to the left or right, the match is not personal data. Substring
+	// matching catches inflected forms and stems (e.g. "организации" for
+	// "организац").
 	if len(r.rejectContextLower) > 0 {
-		if ok, _ := leftContext(t, start, r.rejectContextWindow, r.rejectContextLower); ok {
+		if denyContextLeft(t, start, r.rejectContextWindow, r.rejectContextLower) {
 			return true
 		}
-		if ok, _ := rightContext(t, end, r.rejectContextWindow, r.rejectContextLower); ok {
+		if denyContextRight(t, end, r.rejectContextWindow, r.rejectContextLower) {
 			return true
 		}
 	}

@@ -84,7 +84,6 @@ rules:
     context:
       - инн
       - юрлицо
-      - организация
       - ип
     reject_context:
       - ооо
@@ -92,6 +91,7 @@ rules:
       - пао
       - кпп
       - огрн
+      - организац
 
   - name: inn_spaced
     category: inn
