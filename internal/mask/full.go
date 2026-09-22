@@ -33,7 +33,7 @@ func NewFull() Strategy {
 
 func (s *fullStrategy) Name() string { return "full" }
 
-func (s *fullStrategy) Mask(value string, cat pii.Category, doc *DocState) string {
+func (s *fullStrategy) Mask(value string, _ pii.Category, doc *DocState) string {
 	if doc != nil {
 		if m := doc.Memo(value); m != "" {
 			return m
@@ -67,39 +67,57 @@ func maskFull(value string) string {
 			continue
 		}
 		start := i
-		for i < n {
-			r, size = utf8.DecodeRuneInString(value[i:])
-			if isWordRune(r) {
-				i += size
-				continue
-			}
-			if r == '-' && i+size < n {
-				nr, _ := utf8.DecodeRuneInString(value[i+size:])
-				if isWordRune(nr) {
-					i += size
-					continue
-				}
-			}
-			break
-		}
+		i = scanWord(value, i)
 		word := value[start:i]
-		lookup := word
-		if strings.HasSuffix(word, ".") {
-			lookup = word[:len(word)-1]
-		}
-		if fullServiceWords[strings.ToLower(lookup)] {
+		if isServiceWord(word) {
 			b.WriteString(word)
 			continue
 		}
-		for _, wr := range word {
-			if isWordRune(wr) {
-				b.WriteByte('*')
-			} else {
-				b.WriteRune(wr)
-			}
-		}
+		writeMaskedWord(&b, word)
 	}
 	return b.String()
+}
+
+// scanWord advances i past a run of word runes, allowing a single inner hyphen.
+func scanWord(value string, i int) int {
+	n := len(value)
+	for i < n {
+		r, size := utf8.DecodeRuneInString(value[i:])
+		if isWordRune(r) {
+			i += size
+			continue
+		}
+		if r == '-' && i+size < n {
+			nr, _ := utf8.DecodeRuneInString(value[i+size:])
+			if isWordRune(nr) {
+				i += size
+				continue
+			}
+		}
+		break
+	}
+	return i
+}
+
+// isServiceWord reports whether word (optionally with a trailing dot) is a
+// service word that should be kept intact.
+func isServiceWord(word string) bool {
+	lookup := word
+	if strings.HasSuffix(word, ".") {
+		lookup = word[:len(word)-1]
+	}
+	return fullServiceWords[strings.ToLower(lookup)]
+}
+
+// writeMaskedWord writes word to b with every letter and digit replaced by "*".
+func writeMaskedWord(b *strings.Builder, word string) {
+	for _, wr := range word {
+		if isWordRune(wr) {
+			b.WriteByte('*')
+		} else {
+			b.WriteRune(wr)
+		}
+	}
 }
 
 // isWordRune reports whether r is a letter or digit that can be part of a word.

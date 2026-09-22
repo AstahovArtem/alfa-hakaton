@@ -19,6 +19,127 @@ import (
 	"strings"
 )
 
+// PII category names used as placeholders and JSON category values.
+const (
+	catFullName        = "full_name"
+	catPhone           = "phone"
+	catPassport        = "passport"
+	catBirthDate       = "birth_date"
+	catAddress         = "address"
+	catCardNumber      = "card_number"
+	catCVV             = "cvv"
+	catEmail           = "email"
+	catINN             = "inn"
+	catSNILS           = "snils"
+	catPassportIssuer  = "passport_issuer"
+	catDivisionCode    = "division_code"
+	catBirthPlace      = "birth_place"
+	catCitizenship     = "citizenship"
+	catDriverLicense   = "driver_license"
+	catForeignPassport = "foreign_passport"
+	catCardHolder      = "card_holder"
+	catIssuer          = "issuer"
+	catDivision        = "division"
+)
+
+// Phone format strings.
+const (
+	phoneFmt8Spaces = "8 %s %s %s %s"
+	phoneFmt7Dash   = "+7-%s-%s-%s-%s"
+	phoneFmt8Paren  = "8(%s)%s-%s-%s"
+)
+
+// Date format strings.
+const (
+	dateFmtDots  = "%s.%s.%s"
+	dateFmtWords = "%s %s %s года"
+)
+
+// Card format strings.
+const (
+	cardFmtSpaces = "%s %s %s %s"
+)
+
+// Patronymic names (masculine).
+const (
+	patrAlexandrovich   = "Александрович"
+	patrAndreevich      = "Андреевич"
+	patrBorisovich      = "Борисович"
+	patrVasilievich     = "Васильевич"
+	patrViktorovich     = "Викторович"
+	patrVladimirovich   = "Владимирович"
+	patrDmitrievich     = "Дмитриевич"
+	patrEvgenievich     = "Евгеньевич"
+	patrIvanovich       = "Иванович"
+	patrIgorevich       = "Игоревич"
+	patrKonstantinovich = "Константинович"
+	patrMikhailovich    = "Михайлович"
+	patrNikolaevich     = "Николаевич"
+	patrOlegovich       = "Олегович"
+	patrPavlovich       = "Павлович"
+	patrPetrovich       = "Петрович"
+	patrSergeevich      = "Сергеевич"
+	patrFedorovich      = "Фёдорович"
+	patrYurievich       = "Юрьевич"
+)
+
+// Patronymic names (feminine).
+const (
+	patrAlexandrovna   = "Александровна"
+	patrAndreevna      = "Андреевна"
+	patrBorisovna      = "Борисовна"
+	patrVasilievna     = "Васильевна"
+	patrViktorovna     = "Викторовна"
+	patrVladimirovna   = "Владимировна"
+	patrDmitrievna     = "Дмитриевна"
+	patrEvgenievna     = "Евгеньевна"
+	patrIvanovna       = "Ивановна"
+	patrIgorevna       = "Игоревна"
+	patrKonstantinovna = "Константиновна"
+	patrMikhailovna    = "Михайловна"
+	patrNikolaevna     = "Николаевна"
+	patrOlegovna       = "Олеговна"
+	patrPavlovna       = "Павловна"
+	patrPetrovna       = "Петровна"
+	patrSergeevna      = "Сергеевна"
+	patrFedorovna      = "Фёдоровна"
+	patrYurievna       = "Юрьевна"
+)
+
+// Patronymic suffixes.
+const (
+	sufOva     = "ова"
+	sufEva     = "ева"
+	sufYova    = "ёва"
+	sufIna     = "ина"
+	sufYna     = "ына"
+	sufOvna    = "овна"
+	sufEvna    = "евна"
+	sufIchna   = "ична"
+	sufInichna = "инична"
+	sufOvich   = "ович"
+	sufEvich   = "евич"
+)
+
+// Month names in the genitive case.
+const (
+	monthJanuary   = "января"
+	monthFebruary  = "февраля"
+	monthMarch     = "марта"
+	monthApril     = "апреля"
+	monthMay       = "мая"
+	monthJune      = "июня"
+	monthJuly      = "июля"
+	monthAugust    = "августа"
+	monthSeptember = "сентября"
+	monthOctober   = "октября"
+	monthNovember  = "ноября"
+	monthDecember  = "декабря"
+)
+
+// dictDir is the path to the detector dictionaries.
+const dictDir = "internal/pii/detectors/dict"
+
 // record is one line of the output JSONL.
 type record struct {
 	ID    string `json:"id"`
@@ -79,9 +200,9 @@ func main() {
 func newGen(seed int64) *gen {
 	g := &gen{
 		rng:      rand.New(rand.NewSource(seed)),
-		names:    readLines(filepath.Join("internal", "pii", "detectors", "dict", "first_names.txt")),
-		surnames: readLines(filepath.Join("internal", "pii", "detectors", "dict", "surnames.txt")),
-		cities:   readLines(filepath.Join("internal", "pii", "detectors", "dict", "cities.txt")),
+		names:    readLines(filepath.Join(dictDir, "first_names.txt")),
+		surnames: readLines(filepath.Join(dictDir, "surnames.txt")),
+		cities:   readLines(filepath.Join(dictDir, "cities.txt")),
 		streets: []string{
 			"Ленина", "Пушкина", "Советская", "Красная", "Малышева", "Кирова",
 			"Гагарина", "Мира", "Победы", "Ленинградская", "Тверская", "Октябрьская",
@@ -89,7 +210,7 @@ func newGen(seed int64) *gen {
 			"Заречная", "Набережная", "Комсомольская", "Первомайская", "Юбилейная",
 		},
 	}
-	for _, line := range readLines(filepath.Join("internal", "pii", "detectors", "dict", "famous.txt")) {
+	for _, line := range readLines(filepath.Join(dictDir, "famous.txt")) {
 		g.famous = append(g.famous, strings.Fields(line))
 	}
 	return g
@@ -148,40 +269,40 @@ func fill(tmpl string, vals map[string]string) (string, []span) {
 // categoryFor maps a placeholder name to its PII category.
 func categoryFor(name string) string {
 	switch name {
-	case "full_name":
-		return "full_name"
-	case "phone":
-		return "phone"
-	case "passport":
-		return "passport"
-	case "birth_date":
-		return "birth_date"
-	case "address":
-		return "address"
+	case catFullName:
+		return catFullName
+	case catPhone:
+		return catPhone
+	case catPassport:
+		return catPassport
+	case catBirthDate:
+		return catBirthDate
+	case catAddress:
+		return catAddress
 	case "card":
-		return "card_number"
-	case "cvv":
-		return "cvv"
-	case "email":
-		return "email"
-	case "inn":
-		return "inn"
-	case "snils":
-		return "snils"
-	case "issuer":
-		return "passport_issuer"
-	case "division":
-		return "division_code"
-	case "birth_place":
-		return "birth_place"
-	case "citizenship":
-		return "citizenship"
-	case "driver_license":
-		return "driver_license"
-	case "foreign_passport":
-		return "foreign_passport"
-	case "card_holder":
-		return "card_holder"
+		return catCardNumber
+	case catCVV:
+		return catCVV
+	case catEmail:
+		return catEmail
+	case catINN:
+		return catINN
+	case catSNILS:
+		return catSNILS
+	case catIssuer:
+		return catPassportIssuer
+	case catDivision:
+		return catDivisionCode
+	case catBirthPlace:
+		return catBirthPlace
+	case catCitizenship:
+		return catCitizenship
+	case catDriverLicense:
+		return catDriverLicense
+	case catForeignPassport:
+		return catForeignPassport
+	case catCardHolder:
+		return catCardHolder
 	default:
 		return ""
 	}
@@ -218,41 +339,41 @@ func (g *gen) valuesFor(tmpl string) map[string]string {
 // value generates a value for a placeholder name.
 func (g *gen) value(name string) string {
 	switch name {
-	case "full_name":
+	case catFullName:
 		return g.fullName()
 	case "full_name_gen":
 		return g.fullNameGenitive()
-	case "phone":
+	case catPhone:
 		return g.phone()
-	case "passport":
+	case catPassport:
 		return g.passport()
-	case "birth_date":
+	case catBirthDate:
 		return g.birthDate()
-	case "address":
+	case catAddress:
 		return g.address()
 	case "card":
 		return g.card()
-	case "cvv":
+	case catCVV:
 		return g.cvv()
-	case "email":
+	case catEmail:
 		return g.email()
-	case "inn":
+	case catINN:
 		return g.inn()
-	case "snils":
+	case catSNILS:
 		return g.snils()
-	case "issuer":
+	case catIssuer:
 		return g.issuer()
-	case "division":
+	case catDivision:
 		return g.division()
-	case "birth_place":
+	case catBirthPlace:
 		return g.birthPlace()
-	case "citizenship":
+	case catCitizenship:
 		return g.citizenship()
-	case "driver_license":
+	case catDriverLicense:
 		return g.driverLicense()
-	case "foreign_passport":
+	case catForeignPassport:
 		return g.foreignPassport()
-	case "card_holder":
+	case catCardHolder:
 		return g.cardHolder()
 	default:
 		return ""
@@ -277,9 +398,9 @@ func (g *gen) phone() string {
 	formats := []string{
 		"+7 (%s) %s-%s-%s",
 		"8%s%s%s",
-		"8 %s %s %s %s",
-		"+7-%s-%s-%s-%s",
-		"8(%s)%s-%s-%s",
+		phoneFmt8Spaces,
+		phoneFmt7Dash,
+		phoneFmt8Paren,
 		"7 %s %s %s %s",
 	}
 	f := formats[g.rng.Intn(len(formats))]
@@ -288,12 +409,12 @@ func (g *gen) phone() string {
 		return fmt.Sprintf(f, area, mid, t1, t2)
 	case "8%s%s%s":
 		return "8" + area + mid + t1 + t2
-	case "8 %s %s %s %s":
-		return fmt.Sprintf("8 %s %s %s %s", area, mid, t1, t2)
-	case "+7-%s-%s-%s-%s":
-		return fmt.Sprintf("+7-%s-%s-%s-%s", area, mid, t1, t2)
-	case "8(%s)%s-%s-%s":
-		return fmt.Sprintf("8(%s)%s-%s-%s", area, mid, t1, t2)
+	case phoneFmt8Spaces:
+		return fmt.Sprintf(phoneFmt8Spaces, area, mid, t1, t2)
+	case phoneFmt7Dash:
+		return fmt.Sprintf(phoneFmt7Dash, area, mid, t1, t2)
+	case phoneFmt8Paren:
+		return fmt.Sprintf(phoneFmt8Paren, area, mid, t1, t2)
 	default:
 		return fmt.Sprintf("7 %s %s %s %s", area, mid, t1, t2)
 	}
@@ -324,17 +445,17 @@ func (g *gen) passport() string {
 // birthDate returns a birth date in a random format.
 func (g *gen) birthDate() string {
 	formats := []string{
-		"%s.%s.%s",
-		"%s %s %s года",
+		dateFmtDots,
+		dateFmtWords,
 		"%s-%s-%s",
 	}
 	f := formats[g.rng.Intn(len(formats))]
 	day, month, year := synthDateParts(g.rng)
 	switch f {
-	case "%s.%s.%s":
-		return fmt.Sprintf("%s.%s.%s", day, month, year)
-	case "%s %s %s года":
-		return fmt.Sprintf("%s %s %s года", day, monthGenitive(atoi(month)), year)
+	case dateFmtDots:
+		return fmt.Sprintf(dateFmtDots, day, month, year)
+	case dateFmtWords:
+		return fmt.Sprintf(dateFmtWords, day, monthGenitive(atoi(month)), year)
 	default:
 		return fmt.Sprintf("%s-%s-%s", year, month, day)
 	}
@@ -385,14 +506,14 @@ func (g *gen) birthPlace() string {
 func (g *gen) card() string {
 	d := synthCardDigits(g.rng)
 	formats := []string{
-		"%s %s %s %s",
+		cardFmtSpaces,
 		"%s",
 		"%s-%s-%s-%s",
 	}
 	f := formats[g.rng.Intn(len(formats))]
 	switch f {
-	case "%s %s %s %s":
-		return fmt.Sprintf("%s %s %s %s", d[0:4], d[4:8], d[8:12], d[12:16])
+	case cardFmtSpaces:
+		return fmt.Sprintf(cardFmtSpaces, d[0:4], d[4:8], d[8:12], d[12:16])
 	case "%s":
 		return d
 	default:
@@ -632,13 +753,13 @@ func synthFullNameGenitive(rng *rand.Rand, names, surnames []string) string {
 	return genitiveSurname(capitalize(surname), female) + " " + genitiveName(capitalize(first), female) + " " + genitivePatr(patr)
 }
 
-var patrM = []string{"Александрович", "Андреевич", "Борисович", "Васильевич", "Викторович",
-	"Владимирович", "Дмитриевич", "Евгеньевич", "Иванович", "Игоревич", "Константинович",
-	"Михайлович", "Николаевич", "Олегович", "Павлович", "Петрович", "Сергеевич", "Фёдорович", "Юрьевич"}
+var patrM = []string{patrAlexandrovich, patrAndreevich, patrBorisovich, patrVasilievich, patrViktorovich,
+	patrVladimirovich, patrDmitrievich, patrEvgenievich, patrIvanovich, patrIgorevich, patrKonstantinovich,
+	patrMikhailovich, patrNikolaevich, patrOlegovich, patrPavlovich, patrPetrovich, patrSergeevich, patrFedorovich, patrYurievich}
 
-var patrF = []string{"Александровна", "Андреевна", "Борисовна", "Васильевна", "Викторовна",
-	"Владимировна", "Дмитриевна", "Евгеньевна", "Ивановна", "Игоревна", "Константиновна",
-	"Михайловна", "Николаевна", "Олеговна", "Павловна", "Петровна", "Сергеевна", "Фёдоровна", "Юрьевна"}
+var patrF = []string{patrAlexandrovna, patrAndreevna, patrBorisovna, patrVasilievna, patrViktorovna,
+	patrVladimirovna, patrDmitrievna, patrEvgenievna, patrIvanovna, patrIgorevna, patrKonstantinovna,
+	patrMikhailovna, patrNikolaevna, patrOlegovna, patrPavlovna, patrPetrovna, patrSergeevna, patrFedorovna, patrYurievna}
 
 // maleNamesEndingInVowel are male first names that end in -а or -я and would
 // otherwise be mistaken for female names.
@@ -674,7 +795,7 @@ func feminize(s string) string {
 func genitiveSurname(s string, female bool) string {
 	lower := strings.ToLower(s)
 	if female {
-		for _, suf := range []string{"ова", "ева", "ёва", "ина", "ына"} {
+		for _, suf := range []string{sufOva, sufEva, sufYova, sufIna, sufYna} {
 			if strings.HasSuffix(lower, suf) {
 				return dropLastRune(s) + "ой"
 			}
@@ -692,27 +813,19 @@ func genitiveSurname(s string, female bool) string {
 func genitiveName(s string, female bool) string {
 	lower := strings.ToLower(s)
 	if female {
-		for _, suf := range []string{"ия", "ья"} {
-			if strings.HasSuffix(lower, suf) {
-				return dropLastRune(s) + "и"
-			}
+		if out, ok := replaceSuffixRunes(s, lower, []string{"ия", "ья"}, "и", 1); ok {
+			return out
 		}
-		for _, suf := range []string{"а", "я"} {
-			if strings.HasSuffix(lower, suf) {
-				return dropLastRune(s) + "ы"
-			}
+		if out, ok := replaceSuffixRunes(s, lower, []string{"а", "я"}, "ы", 1); ok {
+			return out
 		}
 		return s
 	}
-	for _, suf := range []string{"ий", "ей"} {
-		if strings.HasSuffix(lower, suf) {
-			return dropLastRunes(s, 2) + "я"
-		}
+	if out, ok := replaceSuffixRunes(s, lower, []string{"ий", "ей"}, "я", 2); ok {
+		return out
 	}
-	for _, suf := range []string{"й"} {
-		if strings.HasSuffix(lower, suf) {
-			return dropLastRune(s) + "я"
-		}
+	if out, ok := replaceSuffixRunes(s, lower, []string{"й"}, "я", 1); ok {
+		return out
 	}
 	if strings.HasSuffix(lower, "ь") {
 		return dropLastRune(s) + "я"
@@ -720,14 +833,25 @@ func genitiveName(s string, female bool) string {
 	return s + "а"
 }
 
+// replaceSuffixRunes returns s with the first matching suffix replaced by repl,
+// dropping drop runes before the replacement.
+func replaceSuffixRunes(s, lower string, suffixes []string, repl string, drop int) (string, bool) {
+	for _, suf := range suffixes {
+		if strings.HasSuffix(lower, suf) {
+			return dropLastRunes(s, drop) + repl, true
+		}
+	}
+	return "", false
+}
+
 func genitivePatr(p string) string {
 	lower := strings.ToLower(p)
-	for _, suf := range []string{"овна", "евна", "ична", "инична"} {
+	for _, suf := range []string{sufOvna, sufEvna, sufIchna, sufInichna} {
 		if strings.HasSuffix(lower, suf) {
 			return p + "ы"
 		}
 	}
-	for _, suf := range []string{"ович", "евич", "ич"} {
+	for _, suf := range []string{sufOvich, sufEvich, "ич"} {
 		if strings.HasSuffix(lower, suf) {
 			return p + "а"
 		}
@@ -891,8 +1015,8 @@ func isLeapYear(y int) bool {
 	return y%4 == 0 && (y%100 != 0 || y%400 == 0)
 }
 
-var monthGenitiveList = []string{"января", "февраля", "марта", "апреля", "мая", "июня",
-	"июля", "августа", "сентября", "октября", "ноября", "декабря"}
+var monthGenitiveList = []string{monthJanuary, monthFebruary, monthMarch, monthApril, monthMay, monthJune,
+	monthJuly, monthAugust, monthSeptember, monthOctober, monthNovember, monthDecember}
 
 func monthGenitive(m int) string {
 	if m < 1 || m > 12 {

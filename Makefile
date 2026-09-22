@@ -1,5 +1,8 @@
 .PHONY: build test vet lint lint-full run accuracy docker-build deploy k8s-apply load-test compose-up compose-down platform-bootstrap platform-render zip
 
+# Locally-installed Go tools live in $(go env GOPATH)/bin.
+GOBIN := $(shell go env GOPATH)/bin
+
 build:
 	go build -o bin/pdn-shield ./cmd/pdn-shield
 
@@ -12,12 +15,15 @@ vet:
 lint:
 	gofmt -l .
 
-# Full static analysis: gofmt, vet, staticcheck and cyclomatic complexity.
+# Full static analysis: gofmt, vet, staticcheck, cyclomatic complexity,
+# cognitive complexity and duplicated string literals.
 lint-full:
 	gofmt -l .
 	go vet ./...
-	staticcheck ./...
-	gocyclo -over 15 .
+	$(GOBIN)/staticcheck ./...
+	$(GOBIN)/gocyclo -over 15 .
+	go run github.com/uudashr/gocognit/cmd/gocognit@latest -over 15 .
+	go run github.com/jgautheron/goconst/cmd/goconst@latest -min-occurrences 3 ./...
 
 run:
 	go run ./cmd/pdn-shield

@@ -14,6 +14,27 @@ import (
 //go:embed dict/cities.txt
 var citiesFS embed.FS
 
+// Address component kinds.
+const (
+	kindStreet      = "street"
+	kindHouse       = "house"
+	kindStreetHouse = "street_house"
+	kindLocality    = "locality"
+)
+
+// Street markers that introduce a house number.
+const (
+	markerKorp = "корп"
+	markerStr  = "стр"
+)
+
+// Region words.
+const (
+	wordGorod = "гор"
+	wordKrai  = "край"
+	wordRaion = "район"
+)
+
 // addrComponent is a single address fragment with its byte span and kind.
 type addrComponent struct {
 	start, end int
@@ -255,25 +276,25 @@ func (d *addressDetector) findComponents(t pii.Text) []addrComponent {
 		if loc[0] > 0 && isLetterRune(runeBefore(text, loc[0])) {
 			continue
 		}
-		comps = append(comps, addrComponent{start: loc[0], end: loc[1], kind: "locality"})
+		comps = append(comps, addrComponent{start: loc[0], end: loc[1], kind: kindLocality})
 	}
 	// The street regexes are always matched against the raw text so the
 	// word-before-marker form can require an uppercase street name.
 	for _, loc := range addrStreetMarkerRe.FindAllStringIndex(text, -1) {
-		comps = append(comps, addrComponent{start: loc[0], end: loc[1], kind: "street"})
+		comps = append(comps, addrComponent{start: loc[0], end: loc[1], kind: kindStreet})
 	}
 	for _, loc := range addrStreetNameRe.FindAllStringIndex(text, -1) {
-		comps = append(comps, addrComponent{start: loc[0], end: loc[1], kind: "street"})
+		comps = append(comps, addrComponent{start: loc[0], end: loc[1], kind: kindStreet})
 	}
 	// Trim trailing house/apartment markers from street components so a house
 	// number is not swallowed (e.g. "ул можайское шоссе д 112").
 	for i := range comps {
-		if comps[i].kind != "street" {
+		if comps[i].kind != kindStreet {
 			continue
 		}
 		comps[i].end = trimStreetMarker(text, comps[i].start, comps[i].end)
 	}
-	add(houseRe, "house")
+	add(houseRe, kindHouse)
 	add(aptRe, "apartment")
 	add(aptWordRe, "apartment")
 	add(poBoxRe, "po_box")
@@ -287,7 +308,7 @@ func (d *addressDetector) findComponents(t pii.Text) []addrComponent {
 	for _, loc := range addrBareStreetCtxRe.FindAllStringIndex(text, -1) {
 		start, end := loc[0], loc[1]
 		if hasLeftContext(t, start, addrContext, 30) {
-			comps = append(comps, addrComponent{start: start, end: end, kind: "street_house"})
+			comps = append(comps, addrComponent{start: start, end: end, kind: kindStreetHouse})
 		}
 	}
 	return comps
@@ -299,7 +320,7 @@ func (d *addressDetector) findComponents(t pii.Text) []addrComponent {
 func bareHousesAfterStreet(text string, comps []addrComponent) []addrComponent {
 	var out []addrComponent
 	for _, s := range comps {
-		if s.kind != "street" {
+		if s.kind != kindStreet {
 			continue
 		}
 		windowEnd := runeOffsetAfter(text, s.end, 200)
@@ -307,7 +328,7 @@ func bareHousesAfterStreet(text string, comps []addrComponent) []addrComponent {
 			start := s.end + loc[0]
 			end := s.end + loc[1]
 			if gapRunes(text, s.end, start) <= 3 {
-				out = append(out, addrComponent{start: start, end: end, kind: "house"})
+				out = append(out, addrComponent{start: start, end: end, kind: kindHouse})
 			}
 		}
 	}
@@ -333,7 +354,7 @@ func findDictLocalities(t pii.Text, text string) []addrComponent {
 
 	// Parenthesised locality, e.g. "(Уфа)".
 	for _, loc := range addrParenLocalityRe.FindAllStringIndex(text, -1) {
-		comps = append(comps, addrComponent{start: loc[0], end: loc[1], kind: "locality"})
+		comps = append(comps, addrComponent{start: loc[0], end: loc[1], kind: kindLocality})
 	}
 	return comps
 }
@@ -363,26 +384,31 @@ func scanLocalities(lower, text string, cd *citiesDict, includeCity, needCtx boo
 func matchCity(lower, text string, cd *citiesDict, i int, city string, includeCity, needCtx bool, t pii.Text) []addrComponent {
 	var comps []addrComponent
 	if includeCity && strings.HasPrefix(lower[i:], city) {
-		start := i
-		end := i + len(city)
-		if (start == 0 || !isLetterRune(rune(text[start-1]))) &&
-			(end == len(text) || !isLetterRune(rune(text[end]))) {
-			comps = append(comps, addrComponent{start: start, end: end, kind: "locality"})
-		}
+		comps = append(comps, localityComponent(text, i, i+len(city), false, t)...)
 	}
 	for _, form := range cd.oblique[city] {
 		if !strings.HasPrefix(lower[i:], form) {
 			continue
 		}
-		start := i
-		end := i + len(form)
-		if (start == 0 || !isLetterRune(rune(text[start-1]))) &&
-			(end == len(text) || !isLetterRune(rune(text[end]))) &&
-			(!needCtx || hasLeftContext(t, start, addrContext, 30)) {
-			comps = append(comps, addrComponent{start: start, end: end, kind: "locality"})
-		}
+		comps = append(comps, localityComponent(text, i, i+len(form), needCtx, t)...)
 	}
 	return comps
+}
+
+// localityComponent builds a locality component for the byte range [start,end)
+// when it is not part of a longer word and, when needCtx is set, an address
+// context keyword appears to the left.
+func localityComponent(text string, start, end int, needCtx bool, t pii.Text) []addrComponent {
+	if start > 0 && isLetterRune(rune(text[start-1])) {
+		return nil
+	}
+	if end < len(text) && isLetterRune(rune(text[end])) {
+		return nil
+	}
+	if needCtx && !hasLeftContext(t, start, addrContext, 30) {
+		return nil
+	}
+	return []addrComponent{{start: start, end: end, kind: kindLocality}}
 }
 
 // bareStreetsAfterLocality finds a bare street + house number following a
@@ -394,7 +420,7 @@ func matchCity(lower, text string, cd *citiesDict, i int, city string, includeCi
 func bareStreetsAfterLocality(text string, comps []addrComponent) []addrComponent {
 	var out []addrComponent
 	for _, s := range comps {
-		if s.kind != "locality" {
+		if s.kind != kindLocality {
 			continue
 		}
 		windowEnd := runeOffsetAfter(text, s.end, 200)
@@ -402,7 +428,7 @@ func bareStreetsAfterLocality(text string, comps []addrComponent) []addrComponen
 			start := s.end + loc[0]
 			end := s.end + loc[1]
 			if gapRunes(text, s.end, start) <= 3 {
-				out = append(out, addrComponent{start: start, end: end, kind: "street_house"})
+				out = append(out, addrComponent{start: start, end: end, kind: kindStreetHouse})
 			}
 		}
 	}
@@ -416,14 +442,14 @@ func (d *addressDetector) validGroup(t pii.Text, group []addrComponent) bool {
 	hasOther := false
 	for _, c := range group {
 		switch c.kind {
-		case "street":
+		case kindStreet:
 			hasStreet = true
-		case "house":
+		case kindHouse:
 			hasHouse = true
-		case "street_house":
+		case kindStreetHouse:
 			hasStreet = true
 			hasHouse = true
-		case "locality":
+		case kindLocality:
 			hasLocality = true
 		default:
 			hasOther = true
@@ -481,7 +507,7 @@ func trimStreetMarker(text string, start, end int) int {
 	}
 	last := strings.ToLower(strings.TrimRight(words[len(words)-1], "."))
 	switch last {
-	case "д", "дом", "к", "корп", "корпус", "стр", "строение":
+	case "д", "дом", "к", markerKorp, "корпус", markerStr, "строение":
 		// Trim the last word.
 		cut := end
 		for cut > start && text[cut-1] != ' ' {

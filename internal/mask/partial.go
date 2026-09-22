@@ -168,23 +168,8 @@ func maskInitials(value string) string {
 			i += size
 			continue
 		}
-		// Collect a word (letters, optional inner hyphen).
 		start := i
-		for i < n {
-			r, size = utf8.DecodeRuneInString(value[i:])
-			if isLetter(r) {
-				i += size
-				continue
-			}
-			if r == '-' && i+size < n {
-				nr, _ := utf8.DecodeRuneInString(value[i+size:])
-				if isLetter(nr) {
-					i += size
-					continue
-				}
-			}
-			break
-		}
+		i = scanLetterWord(value, i)
 		// A single-letter word followed by a dot is an initial; consume the dot.
 		if utf8.RuneCountInString(value[start:i]) == 1 && i < n && value[i] == '.' {
 			i++
@@ -195,18 +180,45 @@ func maskInitials(value string) string {
 			b.WriteString(word)
 			continue
 		}
-		// Split hyphenated words into parts.
-		parts := strings.Split(word, "-")
-		for pi, p := range parts {
-			if pi > 0 {
-				b.WriteByte('-')
-			}
-			first, _ := utf8.DecodeRuneInString(p)
-			b.WriteString(strings.ToUpper(string(first)))
-			b.WriteByte('.')
-		}
+		writeInitialWord(&b, word)
 	}
 	return b.String()
+}
+
+// scanLetterWord advances i past a run of letters, allowing a single inner
+// hyphen.
+func scanLetterWord(value string, i int) int {
+	n := len(value)
+	for i < n {
+		r, size := utf8.DecodeRuneInString(value[i:])
+		if isLetter(r) {
+			i += size
+			continue
+		}
+		if r == '-' && i+size < n {
+			nr, _ := utf8.DecodeRuneInString(value[i+size:])
+			if isLetter(nr) {
+				i += size
+				continue
+			}
+		}
+		break
+	}
+	return i
+}
+
+// writeInitialWord writes word to b as its first uppercase letter plus a dot,
+// splitting hyphenated parts (e.g. "С.-Щ.").
+func writeInitialWord(b *strings.Builder, word string) {
+	parts := strings.Split(word, "-")
+	for pi, p := range parts {
+		if pi > 0 {
+			b.WriteByte('-')
+		}
+		first, _ := utf8.DecodeRuneInString(p)
+		b.WriteString(strings.ToUpper(string(first)))
+		b.WriteByte('.')
+	}
 }
 
 // isInitial reports whether s is a single letter followed by a dot.

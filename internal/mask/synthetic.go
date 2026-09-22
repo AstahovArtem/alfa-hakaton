@@ -15,6 +15,71 @@ import (
 //go:embed dict/*.txt
 var synthFS embed.FS
 
+// Strategy name.
+const strategySynthetic = "synthetic"
+
+// Patronymic names (masculine).
+const (
+	patrAlexandrovich   = "Александрович"
+	patrAndreevich      = "Андреевич"
+	patrBorisovich      = "Борисович"
+	patrVasilievich     = "Васильевич"
+	patrViktorovich     = "Викторович"
+	patrVladimirovich   = "Владимирович"
+	patrDmitrievich     = "Дмитриевич"
+	patrEvgenievich     = "Евгеньевич"
+	patrIvanovich       = "Иванович"
+	patrIgorevich       = "Игоревич"
+	patrKonstantinovich = "Константинович"
+	patrMikhailovich    = "Михайлович"
+	patrNikolaevich     = "Николаевич"
+	patrOlegovich       = "Олегович"
+	patrPavlovich       = "Павлович"
+	patrPetrovich       = "Петрович"
+	patrSergeevich      = "Сергеевич"
+	patrFedorovich      = "Фёдорович"
+	patrYurievich       = "Юрьевич"
+)
+
+// Patronymic names (feminine).
+const (
+	patrAlexandrovna   = "Александровна"
+	patrAndreevna      = "Андреевна"
+	patrBorisovna      = "Борисовна"
+	patrVasilievna     = "Васильевна"
+	patrViktorovna     = "Викторовна"
+	patrVladimirovna   = "Владимировна"
+	patrDmitrievna     = "Дмитриевна"
+	patrEvgenievna     = "Евгеньевна"
+	patrIvanovna       = "Ивановна"
+	patrIgorevna       = "Игоревна"
+	patrKonstantinovna = "Константиновна"
+	patrMikhailovna    = "Михайловна"
+	patrNikolaevna     = "Николаевна"
+	patrOlegovna       = "Олеговна"
+	patrPavlovna       = "Павловна"
+	patrPetrovna       = "Петровна"
+	patrSergeevna      = "Сергеевна"
+	patrFedorovna      = "Фёдоровна"
+	patrYurievna       = "Юрьевна"
+)
+
+// Month names in the genitive case.
+const (
+	monthJanuary   = "января"
+	monthFebruary  = "февраля"
+	monthMarch     = "марта"
+	monthApril     = "апреля"
+	monthMay       = "мая"
+	monthJune      = "июня"
+	monthJuly      = "июля"
+	monthAugust    = "августа"
+	monthSeptember = "сентября"
+	monthOctober   = "октября"
+	monthNovember  = "ноября"
+	monthDecember  = "декабря"
+)
+
 // syntheticStrategy produces plausible fake values of the same format,
 // deterministically derived from the value (seed = FNV-64 of category+value).
 type syntheticStrategy struct {
@@ -30,18 +95,18 @@ func NewSynthetic() Strategy {
 	return &syntheticStrategy{}
 }
 
-func (s *syntheticStrategy) Name() string { return "synthetic" }
+func (s *syntheticStrategy) Name() string { return strategySynthetic }
 
 func (s *syntheticStrategy) load() {
 	s.loadOnce.Do(func() {
 		s.names = readSynthDict("dict/first_names.txt")
 		s.surnames = readSynthDict("dict/surnames.txt")
-		s.patrM = []string{"Александрович", "Андреевич", "Борисович", "Васильевич", "Викторович",
-			"Владимирович", "Дмитриевич", "Евгеньевич", "Иванович", "Игоревич", "Константинович",
-			"Михайлович", "Николаевич", "Олегович", "Павлович", "Петрович", "Сергеевич", "Фёдорович", "Юрьевич"}
-		s.patrF = []string{"Александровна", "Андреевна", "Борисовна", "Васильевна", "Викторовна",
-			"Владимировна", "Дмитриевна", "Евгеньевна", "Ивановна", "Игоревна", "Константиновна",
-			"Михайловна", "Николаевна", "Олеговна", "Павловна", "Петровна", "Сергеевна", "Фёдоровна", "Юрьевна"}
+		s.patrM = []string{patrAlexandrovich, patrAndreevich, patrBorisovich, patrVasilievich, patrViktorovich,
+			patrVladimirovich, patrDmitrievich, patrEvgenievich, patrIvanovich, patrIgorevich, patrKonstantinovich,
+			patrMikhailovich, patrNikolaevich, patrOlegovich, patrPavlovich, patrPetrovich, patrSergeevich, patrFedorovich, patrYurievich}
+		s.patrF = []string{patrAlexandrovna, patrAndreevna, patrBorisovna, patrVasilievna, patrViktorovna,
+			patrVladimirovna, patrDmitrievna, patrEvgenievna, patrIvanovna, patrIgorevna, patrKonstantinovna,
+			patrMikhailovna, patrNikolaevna, patrOlegovna, patrPavlovna, patrPetrovna, patrSergeevna, patrFedorovna, patrYurievna}
 	})
 }
 
@@ -252,8 +317,8 @@ func synthPassport(value string, rng *rand.Rand) string {
 
 // monthWords are the genitive month names used to detect word-form dates.
 var monthWords = []string{
-	"января", "февраля", "марта", "апреля", "мая", "июня",
-	"июля", "августа", "сентября", "октября", "ноября", "декабря",
+	monthJanuary, monthFebruary, monthMarch, monthApril, monthMay, monthJune,
+	monthJuly, monthAugust, monthSeptember, monthOctober, monthNovember, monthDecember,
 }
 
 // isWordDate reports whether value is a date written in words (contains a

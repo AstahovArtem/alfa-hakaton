@@ -65,7 +65,7 @@ func (s *Server) handleChat(w http.ResponseWriter, r *http.Request) {
 	for _, m := range maskedMessages {
 		reqTokens += metrics.EstimateTokens(m.Content)
 	}
-	s.metrics.Tokens.WithLabelValues("mask").Add(float64(reqTokens))
+	s.metrics.Tokens.WithLabelValues(dirMask).Add(float64(reqTokens))
 
 	start := time.Now()
 	content, resp, err := s.llm.chatCompletion(r.Context(), chatRequest{

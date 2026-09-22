@@ -27,7 +27,7 @@ func fakeLLM(t *testing.T, captured *[]byte) *httptest.Server {
 			content = req.Messages[0].Content
 		}
 
-		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set(headerContentType, "text/event-stream")
 		// Echo the masked content back in one chunk.
 		fmt.Fprintf(w, "data: {\"choices\":[{\"delta\":{\"content\":%q}}]}\n\n", content)
 		fmt.Fprintf(w, "data: [DONE]\n\n")

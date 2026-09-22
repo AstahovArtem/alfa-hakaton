@@ -107,7 +107,7 @@ func doJSON(t *testing.T, ts *httptest.Server, method, path string, headers map[
 	if err != nil {
 		t.Fatalf("new request: %v", err)
 	}
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(headerContentType, "application/json")
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
@@ -126,7 +126,14 @@ func doJSON(t *testing.T, ts *httptest.Server, method, path string, headers map[
 func TestProcessMaskThenUnmask(t *testing.T) {
 	_, ts := testServer(t, testConfig())
 
-	// Mask.
+	mres := maskAndVerify(t, ts)
+	verifyIdempotency(t, ts, mres.Result)
+	unmaskAndVerify(t, ts, mres.Result)
+}
+
+// maskAndVerify masks testText and verifies the result hides PII.
+func maskAndVerify(t *testing.T, ts *httptest.Server) processResponse {
+	t.Helper()
 	resp, data := doJSON(t, ts, "POST", "/process", nil, map[string]string{
 		"payload":    testText,
 		"payload_id": "doc1",
@@ -144,8 +151,12 @@ func TestProcessMaskThenUnmask(t *testing.T) {
 	if strings.Contains(mres.Result, "Иванов") || strings.Contains(mres.Result, "4509") {
 		t.Errorf("masked result leaks PII: %q", mres.Result)
 	}
+	return mres
+}
 
-	// Idempotency: three identical mask requests return the same result.
+// verifyIdempotency checks that repeated mask requests return the same result.
+func verifyIdempotency(t *testing.T, ts *httptest.Server, first string) {
+	t.Helper()
 	var lastResult string
 	for i := 0; i < 3; i++ {
 		resp2, data2 := doJSON(t, ts, "POST", "/process", nil, map[string]string{
@@ -164,13 +175,17 @@ func TestProcessMaskThenUnmask(t *testing.T) {
 		}
 		lastResult = mres2.Result
 	}
-	if lastResult != mres.Result {
-		t.Errorf("idempotency failed: %q vs %q", lastResult, mres.Result)
+	if lastResult != first {
+		t.Errorf("idempotency failed: %q vs %q", lastResult, first)
 	}
+}
 
-	// Unmask by sending the masked text as payload.
+// unmaskAndVerify sends the masked text as payload and verifies the original is
+// restored.
+func unmaskAndVerify(t *testing.T, ts *httptest.Server, masked string) {
+	t.Helper()
 	resp3, data3 := doJSON(t, ts, "POST", "/process", nil, map[string]string{
-		"payload":    mres.Result,
+		"payload":    masked,
 		"payload_id": "doc1",
 	})
 	if resp3.StatusCode != 200 {
@@ -188,7 +203,7 @@ func TestProcessMaskThenUnmask(t *testing.T) {
 func TestProcessInvalidJSON(t *testing.T) {
 	_, ts := testServer(t, testConfig())
 	req, _ := http.NewRequest("POST", ts.URL+"/process", strings.NewReader("not json"))
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(headerContentType, "application/json")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("do: %v", err)

@@ -9,8 +9,11 @@ import (
 
 // citizenshipContext are the keywords that introduce a citizenship value.
 var citizenshipContext = []string{
-	"гражданство", "гражданин", "гражданка", "citizenship",
+	"гражданство", "гражданин", "гражданка", citizenshipKeyword,
 }
+
+// citizenshipKeyword is the English citizenship keyword.
+const citizenshipKeyword = "citizenship"
 
 // countryForms maps a canonical country name to its inflected forms (lowercase).
 // The forms are matched against the lowercased text.
@@ -98,7 +101,7 @@ func NewCitizenshipDetector() pii.Detector {
 	return &citizenshipDetector{}
 }
 
-func (d *citizenshipDetector) Name() string { return "citizenship" }
+func (d *citizenshipDetector) Name() string { return citizenshipKeyword }
 
 func (d *citizenshipDetector) Categories() []pii.Category {
 	return []pii.Category{pii.CatCitizenship}
@@ -115,38 +118,53 @@ func (d *citizenshipDetector) DetectLower(t pii.Text) []pii.Span {
 	}
 	var spans []pii.Span
 	for _, kw := range citizenshipContext {
-		idx := 0
-		for {
-			pos := strings.Index(lower[idx:], kw)
-			if pos < 0 {
-				break
-			}
-			start := idx + pos
-			// The keyword must be a whole word.
-			if start > 0 && isLetterRune(rune(t.Raw[start-1])) {
-				idx = start + len(kw)
-				continue
-			}
-			if end := start + len(kw); end < len(lower) && isLetterRune(rune(t.Raw[end])) {
-				idx = start + len(kw)
-				continue
-			}
-			if span, ok := d.matchValue(t, lower, start+len(kw)); ok {
-				spans = append(spans, span)
-			}
-			// English "X citizenship": the country precedes the keyword.
-			if kw == "citizenship" {
-				if span, ok := d.matchBefore(t, lower, start); ok {
-					spans = append(spans, span)
-				}
-			}
-			idx = start + len(kw)
-		}
+		spans = append(spans, d.scanKeyword(t, lower, kw)...)
 	}
 	// Dialog form: a country on its own line that answers a question containing
 	// "гражданств".
 	spans = append(spans, d.matchDialog(t, lower)...)
 	return spans
+}
+
+// scanKeyword finds every occurrence of kw in lower and emits a span for each
+// value that follows (or precedes, for the English "X citizenship" form).
+func (d *citizenshipDetector) scanKeyword(t pii.Text, lower, kw string) []pii.Span {
+	var spans []pii.Span
+	idx := 0
+	for {
+		pos := strings.Index(lower[idx:], kw)
+		if pos < 0 {
+			break
+		}
+		start := idx + pos
+		if !isWholeWord(t.Raw, start, len(kw)) {
+			idx = start + len(kw)
+			continue
+		}
+		if span, ok := d.matchValue(t, lower, start+len(kw)); ok {
+			spans = append(spans, span)
+		}
+		// English "X citizenship": the country precedes the keyword.
+		if kw == citizenshipKeyword {
+			if span, ok := d.matchBefore(t, lower, start); ok {
+				spans = append(spans, span)
+			}
+		}
+		idx = start + len(kw)
+	}
+	return spans
+}
+
+// isWholeWord reports whether the keyword at [start, start+kwLen) is bounded by
+// non-letter characters on both sides.
+func isWholeWord(raw string, start, kwLen int) bool {
+	if start > 0 && isLetterRune(rune(raw[start-1])) {
+		return false
+	}
+	if end := start + kwLen; end < len(raw) && isLetterRune(rune(raw[end])) {
+		return false
+	}
+	return true
 }
 
 // matchValue extracts the country value immediately after a context keyword.
@@ -232,31 +250,36 @@ func (d *citizenshipDetector) matchDialog(t pii.Text, lower string) []pii.Span {
 		if strings.Contains(line, "гражданств") && strings.Contains(line, "?") {
 			// Look at the next line for a country.
 			if i+1 < len(lines) {
-				next := lines[i+1]
-				// Strip a speaker prefix like "клиент:".
-				val := next
-				if c := strings.Index(val, ":"); c >= 0 {
-					val = val[c+1:]
-				}
-				val = strings.TrimSpace(val)
-				for _, form := range countryFormList {
-					if strings.HasPrefix(val, form) {
-						// The next line starts at offset + len(line) + 1 (for the
-						// newline); the value sits len(next)-len(val) bytes into it.
-						lineStart := offset + len(line) + 1 + (len(next) - len(val))
-						spans = append(spans, pii.Span{
-							Start:      lineStart,
-							End:        lineStart + len(form),
-							Category:   pii.CatCitizenship,
-							Detector:   d.Name(),
-							Confidence: 0.9,
-						})
-						break
-					}
-				}
+				spans = append(spans, d.matchDialogNext(lines[i+1], offset+len(line)+1)...)
 			}
 		}
 		offset += len(line) + 1
 	}
 	return spans
+}
+
+// matchDialogNext looks for a country value on the line that follows a
+// citizenship question. lineStart is the byte offset of the line in the raw
+// text.
+func (d *citizenshipDetector) matchDialogNext(next string, lineStart int) []pii.Span {
+	// Strip a speaker prefix like "клиент:".
+	val := next
+	if c := strings.Index(val, ":"); c >= 0 {
+		val = val[c+1:]
+	}
+	val = strings.TrimSpace(val)
+	for _, form := range countryFormList {
+		if strings.HasPrefix(val, form) {
+			// The value sits len(next)-len(val) bytes into the line.
+			start := lineStart + (len(next) - len(val))
+			return []pii.Span{{
+				Start:      start,
+				End:        start + len(form),
+				Category:   pii.CatCitizenship,
+				Detector:   d.Name(),
+				Confidence: 0.9,
+			}}
+		}
+	}
+	return nil
 }

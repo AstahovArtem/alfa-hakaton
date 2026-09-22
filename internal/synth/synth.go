@@ -245,29 +245,32 @@ func genitiveSurname(s string, female bool) string {
 func genitiveName(s string, female bool) string {
 	lower := strings.ToLower(s)
 	if female {
-		for _, suf := range []string{"ия", "ья"} {
-			if strings.HasSuffix(lower, suf) {
-				return s[:len(s)-1] + "и"
-			}
+		if out, ok := replaceSuffix(s, lower, []string{"ия", "ья"}, "и", 1); ok {
+			return out
 		}
-		for _, suf := range []string{"а", "я"} {
-			if strings.HasSuffix(lower, suf) {
-				return s[:len(s)-1] + "ы"
-			}
+		if out, ok := replaceSuffix(s, lower, []string{"а", "я"}, "ы", 1); ok {
+			return out
 		}
 		return s
 	}
-	for _, suf := range []string{"ий", "ей"} {
-		if strings.HasSuffix(lower, suf) {
-			return s[:len(s)-2] + "я"
-		}
+	if out, ok := replaceSuffix(s, lower, []string{"ий", "ей"}, "я", 2); ok {
+		return out
 	}
-	for _, suf := range []string{"й"} {
-		if strings.HasSuffix(lower, suf) {
-			return s[:len(s)-1] + "я"
-		}
+	if out, ok := replaceSuffix(s, lower, []string{"й"}, "я", 1); ok {
+		return out
 	}
 	return s
+}
+
+// replaceSuffix returns s with the first matching suffix replaced by repl,
+// dropping drop bytes before the replacement.
+func replaceSuffix(s, lower string, suffixes []string, repl string, drop int) (string, bool) {
+	for _, suf := range suffixes {
+		if strings.HasSuffix(lower, suf) {
+			return s[:len(s)-drop] + repl, true
+		}
+	}
+	return "", false
 }
 
 // genitivePatr returns the genitive form of a patronymic.

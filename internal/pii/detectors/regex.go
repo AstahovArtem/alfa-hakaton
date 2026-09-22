@@ -245,16 +245,7 @@ func (d *regexDetector) detectRule(t pii.Text, r Rule) []pii.Span {
 		if start < 0 {
 			continue
 		}
-		// Trim trailing separators so a span never ends with a space, dash,
-		// period or comma (e.g. a card number followed by a space).
-		for end > start {
-			c := t.Raw[end-1]
-			if c == ' ' || c == '-' || c == '.' || c == ',' {
-				end--
-				continue
-			}
-			break
-		}
+		end = trimTrailingSeparators(t.Raw, start, end)
 		match := t.Raw[start:end]
 
 		if !r.acceptsMatch(t, start, end, match) {
@@ -275,13 +266,7 @@ func (d *regexDetector) detectRule(t pii.Text, r Rule) []pii.Span {
 			continue
 		}
 		if hasCtx {
-			conf += 0.05
-			// The bonus grows as the keyword gets closer to the match, measured
-			// against a fixed reference window so that a closer keyword always
-			// outranks a farther one regardless of a rule's own window size.
-			// This lets a nearer "пин-код" beat a farther "код безопасности"
-			// when both rules match the same number.
-			conf += 0.01 * (1 - float64(dist)/float64(contextBonusWindow))
+			conf = confidenceWithContext(conf, dist)
 		}
 
 		cat := reclassify(t, start, end, r)
@@ -297,42 +282,76 @@ func (d *regexDetector) detectRule(t pii.Text, r Rule) []pii.Span {
 	return spans
 }
 
+// trimTrailingSeparators trims trailing spaces, dashes, periods and commas so a
+// span never ends with a separator (e.g. a card number followed by a space).
+func trimTrailingSeparators(raw string, start, end int) int {
+	for end > start {
+		c := raw[end-1]
+		if c == ' ' || c == '-' || c == '.' || c == ',' {
+			end--
+			continue
+		}
+		break
+	}
+	return end
+}
+
+// confidenceWithContext raises conf for a satisfied context keyword. The bonus
+// grows as the keyword gets closer to the match, measured against a fixed
+// reference window so that a closer keyword always outranks a farther one
+// regardless of a rule's own window size. This lets a nearer "пин-код" beat a
+// farther "код безопасности" when both rules match the same number.
+func confidenceWithContext(conf float64, dist int) float64 {
+	conf += 0.05
+	conf += 0.01 * (1 - float64(dist)/float64(contextBonusWindow))
+	return conf
+}
+
 // spanBounds computes the byte span of a match, honouring the rule's capture
 // group. It returns start < 0 when the match has no usable capture.
 func spanBounds(text string, re *regexp.Regexp, r Rule, loc []int) (int, int) {
 	start, end := loc[0], loc[1]
 	if r.Group > 0 {
-		sub := re.FindStringSubmatchIndex(text[start:end])
-		if sub == nil || len(sub) < 2*(r.Group+1) || sub[2*r.Group] < 0 {
-			return -1, 0
-		}
-		start = start + sub[2*r.Group]
-		end = start + (sub[2*r.Group+1] - sub[2*r.Group])
-		return start, end
+		return groupBounds(text, re, r.Group, start, end)
 	}
 	if re.NumSubexp() > 0 {
-		// No explicit group: span covers from the first non-empty capture
-		// group to the last non-empty capture group, so context words stay
-		// outside the span.
-		sub := re.FindStringSubmatchIndex(text[start:end])
-		if sub == nil {
-			return -1, 0
-		}
-		first, last := -1, -1
-		for g := 1; g <= re.NumSubexp(); g++ {
-			if sub[2*g] >= 0 {
-				if first < 0 {
-					first = sub[2*g]
-				}
-				last = sub[2*g+1]
-			}
-		}
-		if first < 0 {
-			return -1, 0
-		}
-		start = start + first
-		end = start + (last - first)
+		return captureBounds(text, re, start, end)
 	}
+	return start, end
+}
+
+// groupBounds narrows the span to the rule's explicit capture group.
+func groupBounds(text string, re *regexp.Regexp, group, start, end int) (int, int) {
+	sub := re.FindStringSubmatchIndex(text[start:end])
+	if sub == nil || len(sub) < 2*(group+1) || sub[2*group] < 0 {
+		return -1, 0
+	}
+	start = start + sub[2*group]
+	end = start + (sub[2*group+1] - sub[2*group])
+	return start, end
+}
+
+// captureBounds spans from the first non-empty capture group to the last
+// non-empty capture group, so context words stay outside the span.
+func captureBounds(text string, re *regexp.Regexp, start, end int) (int, int) {
+	sub := re.FindStringSubmatchIndex(text[start:end])
+	if sub == nil {
+		return -1, 0
+	}
+	first, last := -1, -1
+	for g := 1; g <= re.NumSubexp(); g++ {
+		if sub[2*g] >= 0 {
+			if first < 0 {
+				first = sub[2*g]
+			}
+			last = sub[2*g+1]
+		}
+	}
+	if first < 0 {
+		return -1, 0
+	}
+	start = start + first
+	end = start + (last - first)
 	return start, end
 }
 
@@ -344,26 +363,33 @@ func (r Rule) acceptsMatch(t pii.Text, start, end int, match string) bool {
 			return false
 		}
 	}
-	// Standalone: the match must not be adjacent to another digit.
-	if r.standalone() {
-		if start > 0 && isDigitByte(t.Raw[start-1]) {
-			return false
-		}
-		if end < len(t.Raw) && isDigitByte(t.Raw[end]) {
-			return false
-		}
+	if r.standalone() && !standaloneBoundary(t.Raw, start, end) {
+		return false
 	}
-	// NotInDigitSequence: reject a match that is part of a sequence of digit
-	// groups separated by a single space or dash.
-	if r.NotInDigitSequence {
-		if isDigitGroupAdjacent(t.Raw, start, end, true) || isDigitGroupAdjacent(t.Raw, start, end, false) {
-			return false
-		}
+	if r.NotInDigitSequence && inDigitSequence(t.Raw, start, end) {
+		return false
 	}
 	if r.rejectedByContext(t, start, end) {
 		return false
 	}
 	return true
+}
+
+// standaloneBoundary reports whether the match is not adjacent to another digit.
+func standaloneBoundary(raw string, start, end int) bool {
+	if start > 0 && isDigitByte(raw[start-1]) {
+		return false
+	}
+	if end < len(raw) && isDigitByte(raw[end]) {
+		return false
+	}
+	return true
+}
+
+// inDigitSequence reports whether the match is part of a sequence of digit
+// groups separated by a single space or dash.
+func inDigitSequence(raw string, start, end int) bool {
+	return isDigitGroupAdjacent(raw, start, end, true) || isDigitGroupAdjacent(raw, start, end, false)
 }
 
 // rejectedByContext reports whether a reject or deny keyword appears within the

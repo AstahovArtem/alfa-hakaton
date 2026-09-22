@@ -28,17 +28,13 @@ func TestCitizenshipForms(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			res := runPipeline(t, c.in)
-			found := false
-			for _, s := range res.Spans {
-				if s.Category == pii.CatCitizenship {
-					found = true
-					if got := c.in[s.Start:s.End]; got != c.want {
-						t.Errorf("citizenship value for %q = %q, want %q", c.in, got, c.want)
-					}
-				}
-			}
+			got, found := categoryValue(res, pii.CatCitizenship, c.in)
 			if !found {
 				t.Errorf("no citizenship span for %q", c.in)
+				return
+			}
+			if got != c.want {
+				t.Errorf("citizenship value for %q = %q, want %q", c.in, got, c.want)
 			}
 		})
 	}

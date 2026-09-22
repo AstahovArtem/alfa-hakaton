@@ -25,7 +25,7 @@ func (s *Server) resolveSystem(r *http.Request) *configSystem {
 				return &s.cfg.Systems[i]
 			}
 		}
-		return &config.System{Strategy: "partial", Unmask: true}
+		return &config.System{Strategy: strategyPartial, Unmask: true}
 	}
 	return sys
 }
@@ -38,7 +38,7 @@ func (s *Server) optionsFor(sys *configSystem) engine.Options {
 		TTL:        s.cfg.Store.TTL,
 	}
 	if opt.Strategy == "" {
-		opt.Strategy = "partial"
+		opt.Strategy = strategyPartial
 	}
 	for _, r := range sys.ComboRules {
 		opt.ComboRules = append(opt.ComboRules, engine.ComboRule{

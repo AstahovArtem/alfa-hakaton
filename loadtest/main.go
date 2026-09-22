@@ -30,6 +30,12 @@ type datasetItem struct {
 	Text string `json:"text"`
 }
 
+// Sample kinds.
+const (
+	kindMask   = "mask"
+	kindUnmask = "unmask"
+)
+
 // processRequest is the checker contract body.
 type processRequest struct {
 	Payload   string `json:"payload"`
@@ -115,7 +121,7 @@ func main() {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			worker(ctx, jobs, items, *url, runPrefix, *system, *apiKey, client, &c)
+			worker(ctx, jobs, items, workerConfig{url: *url, runPrefix: runPrefix, system: *system, apiKey: *apiKey, client: client}, &c)
 		}()
 	}
 
@@ -127,30 +133,8 @@ func main() {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
-	seq := int64(0)
-	ticks := int64(0)
 	genDone := make(chan struct{})
-	go func() {
-		defer close(genDone)
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				ticks++
-				// A pair is two HTTP requests = two ticks.
-				if ticks%2 != 0 {
-					continue
-				}
-				seq++
-				select {
-				case jobs <- int(seq):
-				case <-ctx.Done():
-					return
-				}
-			}
-		}
-	}()
+	go generateJobs(ctx, ticker, jobs, genDone)
 
 	<-ctx.Done()
 	close(jobs)
@@ -163,10 +147,45 @@ func main() {
 	report(&c, *rps, *duration, *url, *dataset, *workers, *reportPath)
 }
 
+// generateJobs emits one job every two ticks (a mask+unmask pair) until ctx is
+// done, then closes genDone.
+func generateJobs(ctx context.Context, ticker *time.Ticker, jobs chan<- int, genDone chan<- struct{}) {
+	defer close(genDone)
+	seq := int64(0)
+	ticks := int64(0)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			ticks++
+			// A pair is two HTTP requests = two ticks.
+			if ticks%2 != 0 {
+				continue
+			}
+			seq++
+			select {
+			case jobs <- int(seq):
+			case <-ctx.Done():
+				return
+			}
+		}
+	}
+}
+
+// workerConfig bundles the shared request configuration for workers.
+type workerConfig struct {
+	url       string
+	runPrefix string
+	system    string
+	apiKey    string
+	client    *http.Client
+}
+
 // worker pulls job indices, runs a mask+unmask round-trip per job and records
 // samples. Each job gets a unique payload_id derived from the run prefix and
 // the job sequence.
-func worker(ctx context.Context, jobs <-chan int, items []datasetItem, url, runPrefix, system, apiKey string, client *http.Client, c *counters) {
+func worker(ctx context.Context, jobs <-chan int, items []datasetItem, cfg workerConfig, c *counters) {
 	for seq := range jobs {
 		select {
 		case <-ctx.Done():
@@ -174,22 +193,22 @@ func worker(ctx context.Context, jobs <-chan int, items []datasetItem, url, runP
 		default:
 		}
 		item := items[int(time.Now().UnixNano())%len(items)]
-		id := fmt.Sprintf("%s-%d", runPrefix, seq)
+		id := fmt.Sprintf("%s-%d", cfg.runPrefix, seq)
 		c.pairs.Add(1)
 
 		// Step 1: mask the original text.
 		mStart := time.Now()
-		masked, mCode, err := doProcess(ctx, client, url, system, apiKey, id, item.Text)
-		c.record(sample{kind: "mask", lat: time.Since(mStart), code: mCode})
+		masked, mCode, err := doProcess(ctx, cfg.client, cfg.url, cfg.system, cfg.apiKey, id, item.Text)
+		c.record(sample{kind: kindMask, lat: time.Since(mStart), code: mCode})
 		if err != nil || mCode != http.StatusOK {
 			continue
 		}
 
 		// Step 2: unmask with the returned mask; must restore the original.
 		uStart := time.Now()
-		restored, uCode, err := doProcess(ctx, client, url, system, apiKey, id, masked)
+		restored, uCode, err := doProcess(ctx, cfg.client, cfg.url, cfg.system, cfg.apiKey, id, masked)
 		ok := err == nil && uCode == http.StatusOK && restored == item.Text
-		c.record(sample{kind: "unmask", lat: time.Since(uStart), code: uCode, ok: ok})
+		c.record(sample{kind: kindUnmask, lat: time.Since(uStart), code: uCode, ok: ok})
 		if !ok {
 			c.badRound.Add(1)
 		}
@@ -272,8 +291,8 @@ func report(c *counters, targetRPS int, duration time.Duration, url, dataset str
 	samples := c.latencies
 	c.mu.Unlock()
 
-	maskLat := latenciesFor(samples, "mask")
-	unmaskLat := latenciesFor(samples, "unmask")
+	maskLat := latenciesFor(samples, kindMask)
+	unmaskLat := latenciesFor(samples, kindUnmask)
 
 	elapsed := c.done.Sub(c.start).Seconds()
 	pairsPerSec := float64(c.pairs.Load()) / elapsed

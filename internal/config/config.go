@@ -11,6 +11,14 @@ import (
 	"pdn-shield/internal/pii"
 )
 
+// Masking strategy names.
+const (
+	StrategyPartial   = "partial"
+	StrategyFull      = "full"
+	StrategyToken     = "token"
+	StrategySynthetic = "synthetic"
+)
+
 // Server configures the HTTP server.
 type Server struct {
 	Addr          string        `yaml:"addr"`
@@ -78,7 +86,7 @@ type Config struct {
 }
 
 // validStrategies are the strategies the engine knows.
-var validStrategies = map[string]bool{"partial": true, "full": true, "token": true, "synthetic": true}
+var validStrategies = map[string]bool{StrategyPartial: true, StrategyFull: true, StrategyToken: true, StrategySynthetic: true}
 
 // ValidStrategy reports whether name is a known masking strategy.
 func ValidStrategy(name string) bool {

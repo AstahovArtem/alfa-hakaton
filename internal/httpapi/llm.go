@@ -103,7 +103,7 @@ func (c *LLMClient) chatCompletion(ctx context.Context, req chatRequest) (string
 	if err != nil {
 		return "", chatResponse{}, err
 	}
-	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set(headerContentType, "application/json")
 	if c.apiKey != "" {
 		httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
 	}

@@ -34,19 +34,19 @@ var issuerTermLowerRe = regexp.MustCompile(`(?:\n|;|\d{1,2}[./-]\d{1,2}[./-]\d{4
 // issuerAbbrevs are abbreviations whose trailing period is not a sentence end.
 var issuerAbbrevs = map[string]bool{
 	"г": true, "ул": true, "д": true, "кв": true, "пр": true, "пер": true,
-	"обл": true, "респ": true, "стр": true, "корп": true, "оф": true,
+	"обл": true, "респ": true, markerStr: true, markerKorp: true, "оф": true,
 	"пом": true, "комн": true, "пос": true, "дер": true, "ст": true,
-	"гор": true, "наб": true, "пл": true, "ш": true, "р-н": true, "пгт": true,
+	wordGorod: true, "наб": true, "пл": true, "ш": true, "р-н": true, "пгт": true,
 	"т": true, "др": true, "пр-т": true, "пр-д": true, "б-р": true,
 }
 
 // issuerContinuations are words that may follow a comma and still belong to the
 // issuing authority name (e.g. "по г. Москве, отделом по району Хамовники").
 var issuerContinuations = map[string]bool{
-	"по": true, "в": true, "и": true, "г": true, "гор": true, "район": true,
+	"по": true, "в": true, "и": true, "г": true, wordGorod: true, wordRaion: true,
 	"района": true, "области": true, "отдел": true, "отделом": true,
 	"отделение": true, "отделением": true, "тп": true, "№": true,
-	"край": true, "края": true, "округ": true, "округа": true,
+	wordKrai: true, "края": true, "округ": true, "округа": true,
 }
 
 // issuerAlwaysEnd are words that always terminate the issuing authority value.

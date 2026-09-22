@@ -49,26 +49,49 @@ func (d *cardholderDetector) DetectLower(t pii.Text) []pii.Span {
 	var spans []pii.Span
 	i := 0
 	for i < len(cands) {
-		if i+2 < len(cands) && onlyWhitespace(text, toks[cands[i]].end, toks[cands[i+1]].start) &&
-			onlyWhitespace(text, toks[cands[i+1]].end, toks[cands[i+2]].start) {
-			seq := []token{toks[cands[i]], toks[cands[i+1]], toks[cands[i+2]]}
-			if d.validCardholder(seq, t, hasCard) {
-				spans = append(spans, pii.Span{Start: seq[0].start, End: seq[2].end, Category: pii.CatCardHolder, Detector: d.Name(), Confidence: 0.85})
-				i += 3
-				continue
-			}
+		if span, adv := d.tryThree(text, toks, cands, i, t, hasCard); adv > 0 {
+			spans = append(spans, span)
+			i += adv
+			continue
 		}
-		if i+1 < len(cands) && onlyWhitespace(text, toks[cands[i]].end, toks[cands[i+1]].start) {
-			seq := []token{toks[cands[i]], toks[cands[i+1]]}
-			if d.validCardholder(seq, t, hasCard) {
-				spans = append(spans, pii.Span{Start: seq[0].start, End: seq[1].end, Category: pii.CatCardHolder, Detector: d.Name(), Confidence: 0.85})
-				i += 2
-				continue
-			}
+		if span, adv := d.tryTwo(text, toks, cands, i, t, hasCard); adv > 0 {
+			spans = append(spans, span)
+			i += adv
+			continue
 		}
 		i++
 	}
 	return spans
+}
+
+// tryThree attempts to emit a three-token cardholder span starting at candidate
+// index i. It returns the span and the number of candidate indices to advance
+// (0 when no span is emitted).
+func (d *cardholderDetector) tryThree(text string, toks []token, cands []int, i int, t pii.Text, hasCard bool) (pii.Span, int) {
+	if i+2 >= len(cands) ||
+		!onlyWhitespace(text, toks[cands[i]].end, toks[cands[i+1]].start) ||
+		!onlyWhitespace(text, toks[cands[i+1]].end, toks[cands[i+2]].start) {
+		return pii.Span{}, 0
+	}
+	seq := []token{toks[cands[i]], toks[cands[i+1]], toks[cands[i+2]]}
+	if !d.validCardholder(seq, t, hasCard) {
+		return pii.Span{}, 0
+	}
+	return pii.Span{Start: seq[0].start, End: seq[2].end, Category: pii.CatCardHolder, Detector: d.Name(), Confidence: 0.85}, 3
+}
+
+// tryTwo attempts to emit a two-token cardholder span starting at candidate
+// index i. It returns the span and the number of candidate indices to advance
+// (0 when no span is emitted).
+func (d *cardholderDetector) tryTwo(text string, toks []token, cands []int, i int, t pii.Text, hasCard bool) (pii.Span, int) {
+	if i+1 >= len(cands) || !onlyWhitespace(text, toks[cands[i]].end, toks[cands[i+1]].start) {
+		return pii.Span{}, 0
+	}
+	seq := []token{toks[cands[i]], toks[cands[i+1]]}
+	if !d.validCardholder(seq, t, hasCard) {
+		return pii.Span{}, 0
+	}
+	return pii.Span{Start: seq[0].start, End: seq[1].end, Category: pii.CatCardHolder, Detector: d.Name(), Confidence: 0.85}, 2
 }
 
 // isCardholderWord reports whether s is a Latin word of 2+ letters or a single

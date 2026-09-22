@@ -58,20 +58,7 @@ func loadDatasetFile(t *testing.T, path string) []datasetRecord {
 		if err := json.Unmarshal([]byte(raw), &rec); err != nil {
 			t.Fatalf("line %d: invalid JSON: %v", line, err)
 		}
-		for i := range rec.Spans {
-			sp := &rec.Spans[i]
-			if sp.Value != "" {
-				idx := strings.Index(rec.Text, sp.Value)
-				if idx < 0 {
-					t.Fatalf("line %d (%s): value %q not found in text %q", line, rec.ID, sp.Value, rec.Text)
-				}
-				if strings.Contains(rec.Text[idx+len(sp.Value):], sp.Value) {
-					t.Fatalf("line %d (%s): value %q occurs more than once in text %q", line, rec.ID, sp.Value, rec.Text)
-				}
-				sp.Start = idx
-				sp.End = idx + len(sp.Value)
-			}
-		}
+		resolveValueSpans(t, line, &rec)
 		records = append(records, rec)
 	}
 	if err := sc.Err(); err != nil {
@@ -80,26 +67,54 @@ func loadDatasetFile(t *testing.T, path string) []datasetRecord {
 	return records
 }
 
+// resolveValueSpans resolves Value-based spans into byte offsets, failing when a
+// value is missing or occurs more than once.
+func resolveValueSpans(t *testing.T, line int, rec *datasetRecord) {
+	t.Helper()
+	for i := range rec.Spans {
+		sp := &rec.Spans[i]
+		if sp.Value == "" {
+			continue
+		}
+		idx := strings.Index(rec.Text, sp.Value)
+		if idx < 0 {
+			t.Fatalf("line %d (%s): value %q not found in text %q", line, rec.ID, sp.Value, rec.Text)
+		}
+		if strings.Contains(rec.Text[idx+len(sp.Value):], sp.Value) {
+			t.Fatalf("line %d (%s): value %q occurs more than once in text %q", line, rec.ID, sp.Value, rec.Text)
+		}
+		sp.Start = idx
+		sp.End = idx + len(sp.Value)
+	}
+}
+
 // TestDatasetSpansAreClean verifies that every expected span trims a non-empty
 // string with no leading/trailing spaces or commas.
 func TestDatasetSpansAreClean(t *testing.T) {
 	for _, rec := range loadDataset(t) {
 		for _, sp := range rec.Spans {
-			if sp.Start < 0 || sp.End > len(rec.Text) || sp.Start >= sp.End {
-				t.Errorf("%s: invalid span [%d:%d] in %q", rec.ID, sp.Start, sp.End, rec.Text)
-				continue
-			}
-			val := rec.Text[sp.Start:sp.End]
-			if strings.TrimSpace(val) == "" {
-				t.Errorf("%s: span [%d:%d] is empty/whitespace in %q", rec.ID, sp.Start, sp.End, rec.Text)
-			}
-			if strings.TrimSpace(val) != val {
-				t.Errorf("%s: span %q has leading/trailing whitespace in %q", rec.ID, val, rec.Text)
-			}
-			if strings.HasPrefix(val, ",") || strings.HasSuffix(val, ",") {
-				t.Errorf("%s: span %q has leading/trailing comma in %q", rec.ID, val, rec.Text)
-			}
+			checkCleanSpan(t, rec, sp)
 		}
+	}
+}
+
+// checkCleanSpan verifies that one expected span is valid and trims a non-empty
+// string with no leading/trailing spaces or commas.
+func checkCleanSpan(t *testing.T, rec datasetRecord, sp datasetSpan) {
+	t.Helper()
+	if sp.Start < 0 || sp.End > len(rec.Text) || sp.Start >= sp.End {
+		t.Errorf("%s: invalid span [%d:%d] in %q", rec.ID, sp.Start, sp.End, rec.Text)
+		return
+	}
+	val := rec.Text[sp.Start:sp.End]
+	if strings.TrimSpace(val) == "" {
+		t.Errorf("%s: span [%d:%d] is empty/whitespace in %q", rec.ID, sp.Start, sp.End, rec.Text)
+	}
+	if strings.TrimSpace(val) != val {
+		t.Errorf("%s: span %q has leading/trailing whitespace in %q", rec.ID, val, rec.Text)
+	}
+	if strings.HasPrefix(val, ",") || strings.HasSuffix(val, ",") {
+		t.Errorf("%s: span %q has leading/trailing comma in %q", rec.ID, val, rec.Text)
 	}
 }
 
@@ -206,6 +221,30 @@ func runAccuracy(t *testing.T, name string, records []datasetRecord, threshold f
 		accumulateRecord(p, rec, byCat, match, &totalTP, &totalFP, &totalFN)
 	}
 
+	printAccuracyTable(name, byCat, totalTP, totalFP, totalFN)
+
+	if threshold > 0 {
+		precision := ratio(totalTP, totalTP+totalFP)
+		recall := ratio(totalTP, totalTP+totalFN)
+		if recall < threshold {
+			t.Errorf("overall recall %.3f < %.3f", recall, threshold)
+		}
+		if precision < threshold {
+			t.Errorf("overall precision %.3f < %.3f", precision, threshold)
+		}
+	}
+}
+
+// ratio returns a/b as a float, or 0 when b is 0.
+func ratio(a, b int) float64 {
+	if b == 0 {
+		return 0
+	}
+	return float64(a) / float64(b)
+}
+
+// printAccuracyTable prints the per-category and total precision/recall/f1 table.
+func printAccuracyTable(name string, byCat map[pii.Category]*stats, totalTP, totalFP, totalFN int) {
 	fmt.Printf("\n=== Accuracy by category (%s) ===", name)
 	fmt.Println()
 	fmt.Printf("%-18s %6s %6s %6s %8s %8s %8s\n", "category", "tp", "fp", "fn", "precision", "recall", "f1")
@@ -219,43 +258,24 @@ func runAccuracy(t *testing.T, name string, records []datasetRecord, threshold f
 		if s == nil {
 			s = &stats{}
 		}
-		precision := 0.0
-		if s.tp+s.fp > 0 {
-			precision = float64(s.tp) / float64(s.tp+s.fp)
-		}
-		recall := 0.0
-		if s.tp+s.fn > 0 {
-			recall = float64(s.tp) / float64(s.tp+s.fn)
-		}
-		f1 := 0.0
-		if precision+recall > 0 {
-			f1 = 2 * precision * recall / (precision + recall)
-		}
+		precision := ratio(s.tp, s.tp+s.fp)
+		recall := ratio(s.tp, s.tp+s.fn)
+		f1 := f1Score(precision, recall)
 		fmt.Printf("%-18s %6d %6d %6d %8.3f %8.3f %8.3f\n", cat, s.tp, s.fp, s.fn, precision, recall, f1)
 	}
 
-	precision := 0.0
-	if totalTP+totalFP > 0 {
-		precision = float64(totalTP) / float64(totalTP+totalFP)
-	}
-	recall := 0.0
-	if totalTP+totalFN > 0 {
-		recall = float64(totalTP) / float64(totalTP+totalFN)
-	}
-	f1 := 0.0
-	if precision+recall > 0 {
-		f1 = 2 * precision * recall / (precision + recall)
-	}
+	precision := ratio(totalTP, totalTP+totalFP)
+	recall := ratio(totalTP, totalTP+totalFN)
+	f1 := f1Score(precision, recall)
 	fmt.Printf("\n%-18s %6d %6d %6d %8.3f %8.3f %8.3f\n", "TOTAL", totalTP, totalFP, totalFN, precision, recall, f1)
+}
 
-	if threshold > 0 {
-		if recall < threshold {
-			t.Errorf("overall recall %.3f < %.3f", recall, threshold)
-		}
-		if precision < threshold {
-			t.Errorf("overall precision %.3f < %.3f", precision, threshold)
-		}
+// f1Score returns the harmonic mean of precision and recall, or 0 when both are 0.
+func f1Score(precision, recall float64) float64 {
+	if precision+recall == 0 {
+		return 0
 	}
+	return 2 * precision * recall / (precision + recall)
 }
 
 // bestMatch returns the index of the expected span that best overlaps a

@@ -127,25 +127,31 @@ func runRoundTrip(t *testing.T, records []datasetRecord) {
 				if len(rec.Spans) == 0 {
 					continue
 				}
-				spans := make([]pii.Span, 0, len(rec.Spans))
-				for _, sp := range rec.Spans {
-					spans = append(spans, pii.Span{
-						Start:    sp.Start,
-						End:      sp.End,
-						Category: pii.Category(sp.Category),
-					})
-				}
-				doc := NewDocState()
-				masked, reps := Apply(rec.Text, spans, s, doc)
-				restored, misses := Restore(masked, reps)
-				if misses != 0 {
-					t.Errorf("%s (%s): Restore reported %d misses", rec.ID, s.Name(), misses)
-				}
-				if restored != rec.Text {
-					t.Errorf("%s (%s): round-trip failed:\n got %q\nwant %q", rec.ID, s.Name(), restored, rec.Text)
-				}
+				checkRoundTrip(t, s, rec)
 			}
 		})
+	}
+}
+
+// checkRoundTrip verifies that strategy s restores rec.Text from the masked text.
+func checkRoundTrip(t *testing.T, s Strategy, rec datasetRecord) {
+	t.Helper()
+	spans := make([]pii.Span, 0, len(rec.Spans))
+	for _, sp := range rec.Spans {
+		spans = append(spans, pii.Span{
+			Start:    sp.Start,
+			End:      sp.End,
+			Category: pii.Category(sp.Category),
+		})
+	}
+	doc := NewDocState()
+	masked, reps := Apply(rec.Text, spans, s, doc)
+	restored, misses := Restore(masked, reps)
+	if misses != 0 {
+		t.Errorf("%s (%s): Restore reported %d misses", rec.ID, s.Name(), misses)
+	}
+	if restored != rec.Text {
+		t.Errorf("%s (%s): round-trip failed:\n got %q\nwant %q", rec.ID, s.Name(), restored, rec.Text)
 	}
 }
 

@@ -68,17 +68,25 @@ func postProcess(spans []Span, t Text) []Span {
 			continue
 		}
 		// A bare date that immediately follows a passport_issuer span.
-		for j := range spans {
-			if spans[j].Category != CatPassportIssuer {
-				continue
-			}
-			if spans[i].Start >= spans[j].Start && spans[i].Start-spans[j].End <= 3 {
-				spans[i].Category = CatPassportDate
-				break
-			}
+		if followsPassportIssuer(spans, i) {
+			spans[i].Category = CatPassportDate
 		}
 	}
 	return spans
+}
+
+// followsPassportIssuer reports whether span i immediately follows a
+// passport_issuer span.
+func followsPassportIssuer(spans []Span, i int) bool {
+	for j := range spans {
+		if spans[j].Category != CatPassportIssuer {
+			continue
+		}
+		if spans[i].Start >= spans[j].Start && spans[i].Start-spans[j].End <= 3 {
+			return true
+		}
+	}
+	return false
 }
 
 // birthContexts are keywords that mark a birth date.

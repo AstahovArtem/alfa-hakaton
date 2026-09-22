@@ -76,20 +76,27 @@ func TestEmailCyrillic(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			res := runPipeline(t, c.in)
-			found := false
-			for _, s := range res.Spans {
-				if s.Category == pii.CatEmail {
-					found = true
-					if got := c.in[s.Start:s.End]; got != c.want {
-						t.Errorf("email value for %q = %q, want %q", c.in, got, c.want)
-					}
-				}
-			}
+			got, found := categoryValue(res, pii.CatEmail, c.in)
 			if !found {
 				t.Errorf("no email span for %q", c.in)
+				return
+			}
+			if got != c.want {
+				t.Errorf("email value for %q = %q, want %q", c.in, got, c.want)
 			}
 		})
 	}
+}
+
+// categoryValue returns the text of the first span of the given category, or
+// ("", false) when none is found.
+func categoryValue(res pii.Result, cat pii.Category, text string) (string, bool) {
+	for _, s := range res.Spans {
+		if s.Category == cat {
+			return text[s.Start:s.End], true
+		}
+	}
+	return "", false
 }
 
 func TestINNDetect(t *testing.T) {

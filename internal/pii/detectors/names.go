@@ -12,6 +12,61 @@ import (
 //go:embed dict/*.txt
 var namesFS embed.FS
 
+// Common Russian inflectional suffixes used in name/surname matching.
+const (
+	sufAmi     = "ами"
+	sufImi     = "ими"
+	sufYmi     = "ыми"
+	sufOgo     = "ого"
+	sufOmu     = "ому"
+	sufOva     = "ова"
+	sufEva     = "ева"
+	sufYova    = "ёва"
+	sufIna     = "ина"
+	sufYna     = "ына"
+	sufOvna    = "овна"
+	sufEvna    = "евна"
+	sufIchna   = "ична"
+	sufInichna = "инична"
+	sufSkaya   = "ская"
+	sufTskaya  = "цкая"
+	sufSky     = "ский"
+)
+
+// Dict file names.
+const (
+	dictFirstNames = "dict/first_names.txt"
+	dictSurnames   = "dict/surnames.txt"
+)
+
+// Month names in the genitive case.
+const (
+	monthJanuary   = "января"
+	monthFebruary  = "февраля"
+	monthMarch     = "марта"
+	monthApril     = "апреля"
+	monthMay       = "мая"
+	monthJune      = "июня"
+	monthJuly      = "июля"
+	monthAugust    = "августа"
+	monthSeptember = "сентября"
+	monthOctober   = "октября"
+	monthNovember  = "ноября"
+	monthDecember  = "декабря"
+)
+
+// Name context keywords.
+const (
+	ctxClient    = "клиент"
+	ctxFIO       = "фио"
+	ctxZovut     = "зовут"
+	ctxRussia    = "россия"
+	ctxOtdelenie = "отделение"
+	ctxOblast    = "область"
+	ctxGorod     = "город"
+	ctxDom       = "дом"
+)
+
 // token is a single word (letters, optional inner hyphen) or an initial
 // (single letter followed by a dot). Positions are byte offsets.
 type token struct {
@@ -32,31 +87,36 @@ func tokenize(text string) []token {
 		}
 		start := i
 		runeCount := 0
-		for i < n {
-			r, size = utf8.DecodeRuneInString(text[i:])
-			if isLetterRune(r) {
-				i += size
-				runeCount++
-				continue
-			}
-			if r == '-' {
-				if i+size < n {
-					nr, _ := utf8.DecodeRuneInString(text[i+size:])
-					if isLetterRune(nr) {
-						i += size
-						continue
-					}
-				}
-				break
-			}
-			break
-		}
+		i, runeCount = consumeWord(text, i, runeCount)
 		if runeCount == 1 && i < n && text[i] == '.' {
 			i++
 		}
 		toks = append(toks, token{start: start, end: i, text: text[start:i]})
 	}
 	return toks
+}
+
+// consumeWord advances i past a run of letters and inner hyphens, returning the
+// new position and the number of letters consumed.
+func consumeWord(text string, i, runeCount int) (int, int) {
+	n := len(text)
+	for i < n {
+		r, size := utf8.DecodeRuneInString(text[i:])
+		if isLetterRune(r) {
+			i += size
+			runeCount++
+			continue
+		}
+		if r == '-' && i+size < n {
+			nr, _ := utf8.DecodeRuneInString(text[i+size:])
+			if isLetterRune(nr) {
+				i += size
+				continue
+			}
+		}
+		break
+	}
+	return i, runeCount
 }
 
 // tokenLower returns the lowercased form of a token. When the lowercased text
@@ -90,6 +150,16 @@ type nameToken struct {
 	isPatrMarker   bool
 }
 
+// nameMatchCtx bundles the shared state passed between name-matching helpers.
+type nameMatchCtx struct {
+	text    string
+	nt      []nameToken
+	cands   []int
+	t       pii.Text
+	covered []bool
+	spans   *[]pii.Span
+}
+
 // namesDict holds the loaded dictionaries.
 type namesDict struct {
 	names        map[string]bool
@@ -110,11 +180,11 @@ func loadNamesDict() *namesDict {
 			nameStems:    make(map[string]bool),
 			surnameStems: make(map[string]bool),
 		}
-		for _, line := range readDict("dict/first_names.txt") {
+		for _, line := range readDict(dictFirstNames) {
 			namesData.names[line] = true
 			namesData.nameStems[nameStem(line)] = true
 		}
-		for _, line := range readDict("dict/surnames.txt") {
+		for _, line := range readDict(dictSurnames) {
 			namesData.surnameStems[surnameStem(line)] = true
 		}
 		for _, line := range readDict("dict/famous.txt") {
@@ -169,7 +239,7 @@ func surnameStem(s string) string {
 
 // normalizeWord reduces a word to a matching stem for the famous-person check.
 func normalizeWord(lower string) string {
-	for _, e := range []string{"ыми", "ими", "ого", "ому", "ами", "ах", "ым", "им", "ой", "ом", "ем", "а", "у", "ы", "е"} {
+	for _, e := range []string{sufYmi, sufImi, sufOgo, sufOmu, sufAmi, "ах", "ым", "им", "ой", "ом", "ем", "а", "у", "ы", "е"} {
 		if strings.HasSuffix(lower, e) {
 			lower = lower[:len(lower)-len(e)]
 			break
@@ -185,27 +255,27 @@ func normalizeWord(lower string) string {
 }
 
 var stopWords = map[string]bool{
-	"банк": true, "москва": true, "россия": true, "российская": true, "федерация": true,
-	"область": true, "город": true, "улица": true, "дом": true, "клиент": true, "паспорт": true,
-	"отделение": true, "офис": true, "договор": true, "счёт": true, "карта": true, "номер": true,
-	"январь": true, "января": true, "февраль": true, "февраля": true, "март": true,
-	"апрель": true, "апреля": true, "май": true, "мая": true, "июнь": true, "июня": true,
-	"июль": true, "июля": true, "августа": true, "сентябрь": true, "сентября": true,
-	"октябрь": true, "октября": true, "ноябрь": true, "ноября": true, "декабрь": true, "декабря": true,
+	"банк": true, "москва": true, ctxRussia: true, "российская": true, "федерация": true,
+	ctxOblast: true, ctxGorod: true, "улица": true, ctxDom: true, ctxClient: true, "паспорт": true,
+	ctxOtdelenie: true, "офис": true, "договор": true, "счёт": true, "карта": true, "номер": true,
+	"январь": true, monthJanuary: true, "февраль": true, monthFebruary: true, "март": true,
+	"апрель": true, monthApril: true, "май": true, monthMay: true, "июнь": true, monthJune: true,
+	"июль": true, monthJuly: true, monthAugust: true, "сентябрь": true, monthSeptember: true,
+	"октябрь": true, monthOctober: true, "ноябрь": true, monthNovember: true, "декабрь": true, monthDecember: true,
 	"понедельник": true, "вторник": true, "среда": true, "четверг": true, "пятница": true,
 	"суббота": true, "воскресенье": true,
 }
 
 var nameContext = []string{
-	"клиент", "заявитель", "гражданин", "гражданка", "держатель", "владелец",
-	"фио", "имя", "зовут", "меня зовут", "сотрудник", "менеджер",
+	ctxClient, "заявитель", "гражданин", "гражданка", "держатель", "владелец",
+	ctxFIO, "имя", ctxZovut, "меня зовут", "сотрудник", "менеджер",
 }
 
 // lowercaseNameContext are keywords that, when present to the left, allow a
 // full name to be accepted even when its tokens are not capitalised (e.g.
 // "клиент: ахметзянова зульфия ильгизовна").
 var lowercaseNameContext = []string{
-	"клиент", "фио", "ф.и.о.", "заёмщик", "заемщик", "имя", "зовут", "обращаться",
+	ctxClient, ctxFIO, "ф.и.о.", "заёмщик", "заемщик", "имя", ctxZovut, "обращаться",
 	"представьтесь", "фамилию", "фамилия",
 }
 
@@ -220,7 +290,7 @@ var patrMarkers = map[string]bool{
 // "my name is Tigran Avakyan", "name: Ivanov Ivan"). Without such context Latin
 // words are left untouched.
 var latinNameContext = []string{
-	"my name is", "name:", "имя:", "клиент", "заявитель", "фио:", "ф.и.о.",
+	"my name is", "name:", "имя:", ctxClient, "заявитель", "фио:", "ф.и.о.",
 }
 
 // foreignNameContext are keywords that, when present to the left, allow a run of
@@ -228,7 +298,7 @@ var latinNameContext = []string{
 // as a full name (e.g. a reply "Нгуен Тхи Хоа" after "Как к вам обращаться?",
 // or "ЛИ ЧЖИ ХУН" after "Данные для пропуска:").
 var foreignNameContext = []string{
-	"обращаться", "зовут", "фамилию", "фамилия", "фио", "представьтесь", "пропуска",
+	"обращаться", ctxZovut, "фамилию", "фамилия", ctxFIO, "представьтесь", "пропуска",
 }
 
 type namesDetector struct {
@@ -393,26 +463,28 @@ func (d *namesDetector) surnameGapName(text string, nt []nameToken, cands []int,
 	if i+1 >= len(cands) || !(nt[cands[i]].isSurname || nt[cands[i]].isSurnameGuess) || !nt[cands[i+1]].isPatr {
 		return false, 0
 	}
+	ctx := nameMatchCtx{text: text, nt: nt, cands: cands, t: t, covered: covered, spans: spans}
 	if mid, ok := singleNameGap(nt, cands[i], cands[i+1]); ok {
-		return d.emitGapName(text, nt, cands, i, mid, t, covered, spans, 0.95)
+		return d.emitGapName(ctx, i, mid, 0.95)
 	}
 	if mid, ok := lowercaseNameGap(nt, cands[i], cands[i+1], t); ok {
-		return d.emitGapName(text, nt, cands, i, mid, t, covered, spans, 0.9)
+		return d.emitGapName(ctx, i, mid, 0.9)
 	}
 	return false, 0
 }
 
 // emitGapName emits a surname + given name + patronymic span for a gap name at
 // mid, optionally extending to a maiden surname in parentheses.
-func (d *namesDetector) emitGapName(text string, nt []nameToken, cands []int, i, mid int, t pii.Text, covered []bool, spans *[]pii.Span, conf float64) (bool, int) {
+func (d *namesDetector) emitGapName(ctx nameMatchCtx, i, mid int, conf float64) (bool, int) {
+	nt, cands, covered, spans := ctx.nt, ctx.cands, ctx.covered, ctx.spans
 	seq := []nameToken{nt[cands[i]], nt[mid], nt[cands[i+1]]}
 	if d.isFamous(seq) {
 		return false, 0
 	}
 	start := seq[0].start
 	if i > 0 && (nt[cands[i-1]].isSurname || nt[cands[i-1]].isSurnameGuess) &&
-		hasOpenParen(text, nt[cands[i-1]].end, nt[cands[i]].start) &&
-		hasCloseParen(text, nt[cands[i]].end, nt[mid].start) {
+		hasOpenParen(ctx.text, nt[cands[i-1]].end, nt[cands[i]].start) &&
+		hasCloseParen(ctx.text, nt[cands[i]].end, nt[mid].start) {
 		start = nt[cands[i-1]].start
 		covered[cands[i-1]] = true
 	}
@@ -450,7 +522,6 @@ func (d *namesDetector) patrSurnameName(text string, nt []nameToken, cands []int
 // Russian dictionaries, so they are handled separately and only when a context
 // keyword is present.
 func (d *namesDetector) detectLatinNames(t pii.Text, toks []token, covered []bool) []pii.Span {
-	text := t.Raw
 	var spans []pii.Span
 	i := 0
 	for i < len(toks) {
@@ -462,38 +533,50 @@ func (d *namesDetector) detectLatinNames(t pii.Text, toks []token, covered []boo
 		for j < len(toks) && isLatinToken(toks[j]) {
 			j++
 		}
-		// Collect the capitalized Latin words in this run.
-		var capIdx []int
-		for k := i; k < j; k++ {
-			if covered[k] {
-				continue
-			}
-			if isCapitalized(toks[k].text) {
-				capIdx = append(capIdx, k)
-			}
-		}
-		// Emit spans for consecutive capitalized words (2 or 3) that follow a
-		// context keyword.
-		for k := 0; k+1 < len(capIdx); k++ {
-			a, b := capIdx[k], capIdx[k+1]
-			if !onlyWhitespace(text, toks[a].end, toks[b].start) {
-				continue
-			}
-			if !hasLeftContext(t, toks[a].start, latinNameContext, 40) {
-				continue
-			}
-			end := toks[b].end
-			covered[a] = true
-			covered[b] = true
-			// Extend to a third consecutive capitalized word if present.
-			if k+2 < len(capIdx) && onlyWhitespace(text, toks[b].end, toks[capIdx[k+2]].start) {
-				end = toks[capIdx[k+2]].end
-				covered[capIdx[k+2]] = true
-				k++
-			}
-			spans = append(spans, pii.Span{Start: toks[a].start, End: end, Category: pii.CatFullName, Detector: d.Name(), Confidence: 0.9})
-		}
+		capIdx := collectCapitalized(toks, i, j, covered)
+		spans = append(spans, d.emitLatinSpans(t, toks, capIdx, covered)...)
 		i = j
+	}
+	return spans
+}
+
+// collectCapitalized returns the indices of the capitalized Latin words in the
+// run [i,j) that are not already covered.
+func collectCapitalized(toks []token, i, j int, covered []bool) []int {
+	var capIdx []int
+	for k := i; k < j; k++ {
+		if covered[k] {
+			continue
+		}
+		if isCapitalized(toks[k].text) {
+			capIdx = append(capIdx, k)
+		}
+	}
+	return capIdx
+}
+
+// emitLatinSpans emits spans for consecutive capitalized words (2 or 3) that
+// follow a context keyword.
+func (d *namesDetector) emitLatinSpans(t pii.Text, toks []token, capIdx []int, covered []bool) []pii.Span {
+	text := t.Raw
+	var spans []pii.Span
+	for k := 0; k+1 < len(capIdx); k++ {
+		a, b := capIdx[k], capIdx[k+1]
+		if !onlyWhitespace(text, toks[a].end, toks[b].start) {
+			continue
+		}
+		if !hasLeftContext(t, toks[a].start, latinNameContext, 40) {
+			continue
+		}
+		end := toks[b].end
+		covered[a] = true
+		covered[b] = true
+		if k+2 < len(capIdx) && onlyWhitespace(text, toks[b].end, toks[capIdx[k+2]].start) {
+			end = toks[capIdx[k+2]].end
+			covered[capIdx[k+2]] = true
+			k++
+		}
+		spans = append(spans, pii.Span{Start: toks[a].start, End: end, Category: pii.CatFullName, Detector: d.Name(), Confidence: 0.9})
 	}
 	return spans
 }
@@ -625,7 +708,7 @@ func (d *namesDetector) isSurnameToken(lower string) (bool, bool) {
 }
 
 func (d *namesDetector) dictSurname(lower string) bool {
-	for _, e := range []string{"ыми", "ими", "ого", "ому", "ами", "ах", "ым", "им", "ой", "ом", "ем", "а", "у", "ы", "е", "ов", "ев", "ин", "ын"} {
+	for _, e := range []string{sufYmi, sufImi, sufOgo, sufOmu, sufAmi, "ах", "ым", "им", "ой", "ом", "ем", "а", "у", "ы", "е", "ов", "ев", "ин", "ын"} {
 		if strings.HasSuffix(lower, e) {
 			if d.dictSurnameBase(lower[:len(lower)-len(e)]) {
 				return true
@@ -647,15 +730,15 @@ func (d *namesDetector) dictSurnameBase(s string) bool {
 }
 
 func suffixSurname(lower string) bool {
-	for _, suf := range []string{"ский", "цкий", "ская", "цкая", "енко", "ук", "юк", "ян", "дзе", "швили", "ых", "их", "ова", "ева", "ёва", "ина", "ына", "ов", "ев", "ёв", "ин", "ын"} {
+	for _, suf := range []string{sufSky, "цкий", sufSkaya, sufTskaya, "енко", "ук", "юк", "ян", "дзе", "швили", "ых", "их", sufOva, sufEva, sufYova, sufIna, sufYna, "ов", "ев", "ёв", "ин", "ын"} {
 		if strings.HasSuffix(lower, suf) {
 			return true
 		}
 	}
-	for _, e := range []string{"ыми", "ими", "ого", "ому", "ами", "ах", "ым", "им", "ой", "ом", "ем", "а", "у", "ы", "е"} {
+	for _, e := range []string{sufYmi, sufImi, sufOgo, sufOmu, sufAmi, "ах", "ым", "им", "ой", "ом", "ем", "а", "у", "ы", "е"} {
 		if strings.HasSuffix(lower, e) {
 			base := lower[:len(lower)-len(e)]
-			for _, suf := range []string{"ов", "ев", "ёв", "ин", "ын", "ский", "цкий", "ская", "цкая"} {
+			for _, suf := range []string{"ов", "ев", "ёв", "ин", "ын", sufSky, "цкий", sufSkaya, sufTskaya} {
 				if strings.HasSuffix(base, suf) {
 					return true
 				}
@@ -666,7 +749,7 @@ func suffixSurname(lower string) bool {
 }
 
 // patSuffixes are the base patronymic suffixes in the nominative case.
-var patSuffixes = []string{"ович", "евич", "ич", "овна", "евна", "ична", "инична"}
+var patSuffixes = []string{"ович", "евич", "ич", sufOvna, sufEvna, sufIchna, sufInichna}
 
 // patForms holds every inflected form of every patronymic suffix, so that
 // patronymics in any case (e.g. "Сергеевны", "Маратовичу") are recognised.
@@ -680,12 +763,12 @@ func buildPatForms() map[string]bool {
 			// Feminine suffixes drop the final -а and take a case ending.
 			r := []rune(suf)
 			base := string(r[:len(r)-1])
-			for _, e := range []string{"ы", "е", "у", "ой", "ою", "ам", "ами", "ах"} {
+			for _, e := range []string{"ы", "е", "у", "ой", "ою", "ам", sufAmi, "ах"} {
 				forms[base+e] = true
 			}
 		} else {
 			// Masculine suffixes append a case ending.
-			for _, e := range []string{"а", "у", "ы", "е", "ем", "ом", "и", "ей", "ам", "ами", "ах"} {
+			for _, e := range []string{"а", "у", "ы", "е", "ем", "ом", "и", "ей", "ам", sufAmi, "ах"} {
 				forms[suf+e] = true
 			}
 		}

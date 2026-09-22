@@ -44,7 +44,7 @@ func (s *Server) handleProcess(w http.ResponseWriter, r *http.Request) {
 	res, err := s.engine.Process(r.Context(), req.PayloadID, req.Payload, opt)
 	if err != nil {
 		if isStoreError(err) {
-			s.storeUnavailable(w, "load", err)
+			s.storeUnavailable(w, opLoad, err)
 			return
 		}
 		writeError(w, http.StatusInternalServerError, "processing failed")
@@ -54,10 +54,10 @@ func (s *Server) handleProcess(w http.ResponseWriter, r *http.Request) {
 	if info != nil {
 		info.stages = res.Stages
 		if res.Unmasked {
-			info.direction = "unmask"
+			info.direction = dirUnmask
 			info.misses = res.Misses
 		} else {
-			info.direction = "mask"
+			info.direction = dirMask
 			info.found = res.Found
 		}
 	}
@@ -136,7 +136,7 @@ func (s *Server) handleMask(w http.ResponseWriter, r *http.Request) {
 
 	if info := reqInfoFrom(r.Context()); info != nil {
 		info.payloadID = id
-		info.direction = "mask"
+		info.direction = dirMask
 		info.textLen = len(req.Text)
 		info.found = found
 		info.stages = mres.Stages
@@ -181,7 +181,7 @@ func (s *Server) handleUnmask(w http.ResponseWriter, r *http.Request) {
 	ures, err := s.engine.UnmaskEx(r.Context(), req.ID, req.Text)
 	if err != nil {
 		if isStoreError(err) {
-			s.storeUnavailable(w, "load", err)
+			s.storeUnavailable(w, opLoad, err)
 			return
 		}
 		writeError(w, http.StatusNotFound, "record not found")
@@ -189,7 +189,7 @@ func (s *Server) handleUnmask(w http.ResponseWriter, r *http.Request) {
 	}
 	if info := reqInfoFrom(r.Context()); info != nil {
 		info.payloadID = req.ID
-		info.direction = "unmask"
+		info.direction = dirUnmask
 		info.textLen = len(req.Text)
 		info.misses = ures.Misses
 		info.stages = ures.Stages

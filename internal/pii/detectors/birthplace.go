@@ -89,23 +89,8 @@ func (d *birthplaceDetector) DetectLower(t pii.Text) []pii.Span {
 		}
 		start := ctxEnd + sub[2]
 		end := ctxEnd + sub[3]
+		end = trimBirthValue(search, start, end)
 		value := search[start:end]
-		// A birth place never extends into a citizenship clause ("гражданство
-		// Республики ..."). Truncate the value at that keyword so the following
-		// citizenship span is not swallowed by the overlap resolution.
-		if idx := strings.Index(value, "граждан"); idx >= 0 {
-			end = start + idx
-			value = search[start:end]
-		}
-		// A birth place never extends past a comma unless a region follows (e.g.
-		// "г. Краснодар, Краснодарский край").
-		if idx := strings.Index(value, ","); idx >= 0 {
-			after := strings.TrimSpace(value[idx+1:])
-			if !isRegionTail(after) {
-				end = start + idx
-				value = search[start:end]
-			}
-		}
 		// The value must start with a settlement prefix, a capitalised word or a
 		// city from the dictionary; otherwise no span is created (e.g. "родилась
 		// в один день с бабушкой").
@@ -124,6 +109,28 @@ func (d *birthplaceDetector) DetectLower(t pii.Text) []pii.Span {
 		})
 	}
 	return spans
+}
+
+// trimBirthValue truncates a birth-place value at a citizenship clause or at a
+// comma that is not followed by a region tail.
+func trimBirthValue(search string, start, end int) int {
+	value := search[start:end]
+	// A birth place never extends into a citizenship clause ("гражданство
+	// Республики ..."). Truncate the value at that keyword so the following
+	// citizenship span is not swallowed by the overlap resolution.
+	if idx := strings.Index(value, "граждан"); idx >= 0 {
+		end = start + idx
+		value = search[start:end]
+	}
+	// A birth place never extends past a comma unless a region follows (e.g.
+	// "г. Краснодар, Краснодарский край").
+	if idx := strings.Index(value, ","); idx >= 0 {
+		after := strings.TrimSpace(value[idx+1:])
+		if !isRegionTail(after) {
+			end = start + idx
+		}
+	}
+	return end
 }
 
 // validStart reports whether the birth-place value begins with a settlement
@@ -183,7 +190,7 @@ func isRegionTail(s string) bool {
 	first := strings.Fields(s)[0]
 	lower := strings.ToLower(first)
 	if lower == "область" || lower == "области" || lower == "обл." ||
-		lower == "край" || lower == "края" || lower == "район" ||
+		lower == wordKrai || lower == "края" || lower == wordRaion ||
 		lower == "района" || lower == "республика" || lower == "республики" {
 		return true
 	}
