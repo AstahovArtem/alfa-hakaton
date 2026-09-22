@@ -22,26 +22,57 @@ type addrComponent struct {
 
 var (
 	citiesOnce sync.Once
-	citiesList []string
+	citiesData *citiesDict
 )
 
-func loadCities() []string {
+// citiesDict holds the loaded city dictionary with precomputed oblique forms.
+type citiesDict struct {
+	cities  []string
+	oblique map[string][]string
+	// byPrefix maps the first two runes of a city to the cities sharing them,
+	// so locality search only checks relevant candidates per position.
+	byPrefix map[string][]string
+}
+
+func loadCities() *citiesDict {
 	citiesOnce.Do(func() {
 		data, err := citiesFS.ReadFile("dict/cities.txt")
 		if err != nil {
+			citiesData = &citiesDict{}
 			return
 		}
+		var list []string
 		for _, line := range strings.Split(string(data), "\n") {
 			line = strings.TrimSpace(line)
 			if line != "" {
-				citiesList = append(citiesList, line)
+				list = append(list, line)
 			}
 		}
-		sort.Slice(citiesList, func(i, j int) bool {
-			return len([]rune(citiesList[i])) > len([]rune(citiesList[j]))
+		sort.Slice(list, func(i, j int) bool {
+			return len([]rune(list[i])) > len([]rune(list[j]))
 		})
+		oblique := make(map[string][]string, len(list))
+		byPrefix := make(map[string][]string)
+		for _, c := range list {
+			oblique[c] = obliqueForms(c)
+			if p := firstTwoRunes(c); p != "" {
+				byPrefix[p] = append(byPrefix[p], c)
+			}
+		}
+		citiesData = &citiesDict{cities: list, oblique: oblique, byPrefix: byPrefix}
 	})
-	return citiesList
+	return citiesData
+}
+
+// firstTwoRunes returns the first two runes of s as a string, or "" if s has
+// fewer than two runes.
+func firstTwoRunes(s string) string {
+	i := 0
+	for count := 0; count < 2 && i < len(s); count++ {
+		_, size := utf8.DecodeRuneInString(s[i:])
+		i += size
+	}
+	return s[:i]
 }
 
 var (
@@ -60,6 +91,15 @@ var (
 	// It is only accepted when attached to a locality, so a bare street never
 	// stands alone.
 	addrBareStreetHouseRe = regexp.MustCompile(`[А-ЯЁ][а-яё-]+(?:\s+[А-ЯЁ][а-яё-]+){0,2}\s+\d+[а-яa-z]?`)
+	// Lowercase-only variants of the (?i) regexes, matched against the
+	// lowercased text to avoid case-folding cost.
+	addrCountryLowerRe  = regexp.MustCompile(`(?:российская федерация|республика беларусь|россия|рф|казахстан|беларусь|армения|узбекистан)`)
+	addrRegionLowerRe   = regexp.MustCompile(`(?:\S+\s+(?:область|обл\.|край|республика|респ\.|автономный округ|ао)|(?:республика|респ\.)\s+\S+)`)
+	addrDistrictLowerRe = regexp.MustCompile(`\S+\s+(?:район|р-н)`)
+	addrLocalityLowerRe = regexp.MustCompile(`(?:г\.|город|гор\.|пос\.|посёлок|поселок|с\.|село|дер\.|деревня|ст\.|станица|пгт)\s+[а-яё-]+`)
+	addrStreetLowerRe   = regexp.MustCompile(`(?:(?:ул\.|улица|пр-т|пр\.|проспект|пер\.|переулок|б-р|бульвар|ш\.|шоссе|наб\.|набережная|пл\.|площадь|проезд|пр-д|тупик|аллея)\s+[а-яё-]+\.?(?:\s+[а-яё-]+\.?){0,2}|[а-яё-]+\s+(?:улица|проспект|переулок|бульвар|шоссе|набережная|площадь|проезд|тупик|аллея))`)
+	addrHouseLowerRe    = regexp.MustCompile(`(?:д\.|дом|д)\s*\d+[а-яa-z]?(?:\s*/\s*\d+)?(?:\s*(?:к\.|корп\.|корпус|к)\s*\d+)?(?:\s*(?:стр\.|строение|с)\s*\d+)?`)
+	addrAptLowerRe      = regexp.MustCompile(`(?:кв\.|квартира|оф\.|офис|пом\.|помещение|комн\.)\s*\d+[а-я]?`)
 )
 
 // obliqueEndings are the non-nominative case endings appended to a city stem.
@@ -119,7 +159,11 @@ func (d *addressDetector) Categories() []pii.Category {
 }
 
 func (d *addressDetector) Detect(text string) []pii.Span {
-	comps := d.findComponents(text)
+	return d.DetectLower(pii.Text{Raw: text, Lower: strings.ToLower(text)})
+}
+
+func (d *addressDetector) DetectLower(t pii.Text) []pii.Span {
+	comps := d.findComponents(t)
 	if len(comps) == 0 {
 		return nil
 	}
@@ -144,11 +188,11 @@ func (d *addressDetector) Detect(text string) []pii.Span {
 	i := 0
 	for i < len(kept) {
 		j := i
-		for j+1 < len(kept) && gapRunes(text, kept[j].end, kept[j+1].start) <= 3 {
+		for j+1 < len(kept) && gapRunes(t.Raw, kept[j].end, kept[j+1].start) <= 3 {
 			j++
 		}
 		group := kept[i : j+1]
-		if d.validGroup(text, group) {
+		if d.validGroup(t, group) {
 			spans = append(spans, pii.Span{
 				Start:      group[0].start,
 				End:        group[len(group)-1].end,
@@ -162,21 +206,32 @@ func (d *addressDetector) Detect(text string) []pii.Span {
 	return spans
 }
 
-func (d *addressDetector) findComponents(text string) []addrComponent {
+func (d *addressDetector) findComponents(t pii.Text) []addrComponent {
+	text := t.Raw
+	// When byte lengths match, match the (?i) regexes against the lowercased
+	// text with lowercase-only variants to avoid case-folding cost.
+	search := text
+	countryRe, regionRe, districtRe, localityRe, streetRe, houseRe, aptRe :=
+		addrCountryRe, addrRegionRe, addrDistrictRe, addrLocalityRe, addrStreetRe, addrHouseRe, addrAptRe
+	if t.LowerOK() {
+		search = t.Lower
+		countryRe, regionRe, districtRe, localityRe, streetRe, houseRe, aptRe =
+			addrCountryLowerRe, addrRegionLowerRe, addrDistrictLowerRe, addrLocalityLowerRe, addrStreetLowerRe, addrHouseLowerRe, addrAptLowerRe
+	}
 	var comps []addrComponent
 	add := func(re *regexp.Regexp, kind string) {
-		for _, loc := range re.FindAllStringIndex(text, -1) {
+		for _, loc := range re.FindAllStringIndex(search, -1) {
 			comps = append(comps, addrComponent{start: loc[0], end: loc[1], kind: kind})
 		}
 	}
 	add(addrIndexRe, "index")
-	add(addrCountryRe, "country")
-	add(addrRegionRe, "region")
-	add(addrDistrictRe, "district")
-	add(addrLocalityRe, "locality")
-	add(addrStreetRe, "street")
-	add(addrHouseRe, "house")
-	add(addrAptRe, "apartment")
+	add(countryRe, "country")
+	add(regionRe, "region")
+	add(districtRe, "district")
+	add(localityRe, "locality")
+	add(streetRe, "street")
+	add(houseRe, "house")
+	add(aptRe, "apartment")
 
 	// Bare house number following a street (e.g. "ул. Ленина, 5").
 	for _, s := range comps {
@@ -192,50 +247,57 @@ func (d *addressDetector) findComponents(text string) []addrComponent {
 		}
 	}
 
-	// Locality from the cities dictionary (any case, any position).
-	for _, city := range loadCities() {
-		lower := strings.ToLower(text)
-		cl := strings.ToLower(city)
-		idx := 0
-		for {
-			pos := strings.Index(lower[idx:], cl)
-			if pos < 0 {
+	// Locality from the cities dictionary (any case, any position). The text is
+	// lowercased once; the dictionary is already lowercase. Cities are indexed
+	// by their first two runes so only relevant candidates are checked per
+	// position.
+	lower := t.Lower
+	if !t.LowerOK() {
+		lower = strings.ToLower(text)
+	}
+	cd := loadCities()
+	// findLocalities scans lower for every city (and its oblique forms) that
+	// shares the two-rune prefix at each position. When includeCity is true the
+	// nominative city name itself is also checked.
+	findLocalities := func(includeCity, needCtx bool) {
+		i := 0
+		for i < len(lower) {
+			p := firstTwoRunes(lower[i:])
+			if p == "" {
 				break
 			}
-			start := idx + pos
-			end := start + len(city)
-			// Require word boundaries.
-			if (start == 0 || !isLetterRune(rune(text[start-1]))) &&
-				(end == len(text) || !isLetterRune(rune(text[end]))) {
-				comps = append(comps, addrComponent{start: start, end: end, kind: "locality"})
+			cands := cd.byPrefix[p]
+			for _, city := range cands {
+				if includeCity && strings.HasPrefix(lower[i:], city) {
+					start := i
+					end := i + len(city)
+					if (start == 0 || !isLetterRune(rune(text[start-1]))) &&
+						(end == len(text) || !isLetterRune(rune(text[end]))) {
+						comps = append(comps, addrComponent{start: start, end: end, kind: "locality"})
+					}
+				}
+				for _, form := range cd.oblique[city] {
+					if !strings.HasPrefix(lower[i:], form) {
+						continue
+					}
+					start := i
+					end := i + len(form)
+					if (start == 0 || !isLetterRune(rune(text[start-1]))) &&
+						(end == len(text) || !isLetterRune(rune(text[end]))) &&
+						(!needCtx || hasLeftContext(t, start, addrContext, 30)) {
+						comps = append(comps, addrComponent{start: start, end: end, kind: "locality"})
+					}
+				}
 			}
-			idx = start + len(city)
+			_, size := utf8.DecodeRuneInString(lower[i:])
+			i += size
 		}
 	}
-
+	// Nominative city names.
+	findLocalities(true, false)
 	// Oblique-case localities (e.g. "Казани") are accepted only when an address
 	// context keyword appears to the left.
-	for _, city := range loadCities() {
-		for _, form := range obliqueForms(city) {
-			lower := strings.ToLower(text)
-			fl := strings.ToLower(form)
-			idx := 0
-			for {
-				pos := strings.Index(lower[idx:], fl)
-				if pos < 0 {
-					break
-				}
-				start := idx + pos
-				end := start + len(form)
-				if (start == 0 || !isLetterRune(rune(text[start-1]))) &&
-					(end == len(text) || !isLetterRune(rune(text[end]))) &&
-					hasLeftContext(text, start, addrContext, 30) {
-					comps = append(comps, addrComponent{start: start, end: end, kind: "locality"})
-				}
-				idx = start + len(form)
-			}
-		}
-	}
+	findLocalities(false, true)
 
 	// Bare street + house number following a locality (e.g. "Казани, Кремлёвская 5").
 	// A bare street is only accepted inside an already-valid address, so it must
@@ -255,7 +317,7 @@ func (d *addressDetector) findComponents(text string) []addrComponent {
 	return comps
 }
 
-func (d *addressDetector) validGroup(text string, group []addrComponent) bool {
+func (d *addressDetector) validGroup(t pii.Text, group []addrComponent) bool {
 	hasStreet := false
 	hasHouse := false
 	hasLocality := false
@@ -277,26 +339,21 @@ func (d *addressDetector) validGroup(text string, group []addrComponent) bool {
 	}
 	start := group[0].start
 	if hasStreet && hasHouse {
-		return !d.hasException(text, start)
+		return !d.hasException(t, start)
 	}
 	if hasLocality && (hasOther || hasStreet || hasHouse) {
-		return !d.hasException(text, start)
+		return !d.hasException(t, start)
 	}
-	if hasLeftContext(text, start, addrContext, 30) {
-		return !d.hasException(text, start)
+	if hasLeftContext(t, start, addrContext, 30) {
+		return !d.hasException(t, start)
 	}
 	return false
 }
 
-func (d *addressDetector) hasException(text string, pos int) bool {
-	prefix := text[:pos]
-	r := []rune(prefix)
-	if len(r) > 40 {
-		prefix = string(r[len(r)-40:])
-	}
-	lower := strings.ToLower(prefix)
+func (d *addressDetector) hasException(t pii.Text, pos int) bool {
+	prefix := runeWindowBefore(t, pos, 40)
 	for _, kw := range addrException {
-		if containsWord(lower, kw) {
+		if containsWord(prefix, kw) {
 			return true
 		}
 	}

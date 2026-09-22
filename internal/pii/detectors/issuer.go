@@ -13,6 +13,14 @@ var issuerStartRe = regexp.MustCompile(`(?i)^\s*:?\s*(ГУ МВД|ГУВД|ОУ�
 
 var issuerTermRe = regexp.MustCompile(`(?i)(?:\n|;|\d{1,2}[./-]\d{1,2}[./-]\d{4}|\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+\d{4}|код подразделения|к/п|дата выдачи|выдан)`)
 
+// Lowercase-only variants matched against the lowercased text to avoid
+// case-folding cost.
+var issuerContextLowerRe = regexp.MustCompile(`(?:кем выдан|выдавший орган|орган выдачи|орган, выдавший|выдано|выдан|орган)`)
+
+var issuerStartLowerRe = regexp.MustCompile(`^\s*:?\s*(гу мвд|гувд|оуфмс|уфмс|омвд|увд|овд|мвд|отделением|отделение|отделом|отдел|управлением|управление|миграционным|паспортно-визовым|паспортным|тп|оп|мп)`)
+
+var issuerTermLowerRe = regexp.MustCompile(`(?:\n|;|\d{1,2}[./-]\d{1,2}[./-]\d{4}|\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+\d{4}|код подразделения|к/п|дата выдачи|выдан)`)
+
 // issuerAbbrevs are abbreviations whose trailing period is not a sentence end.
 var issuerAbbrevs = map[string]bool{
 	"г": true, "ул": true, "д": true, "кв": true, "пр": true, "пер": true,
@@ -36,16 +44,27 @@ func (d *issuerDetector) Categories() []pii.Category {
 }
 
 func (d *issuerDetector) Detect(text string) []pii.Span {
+	return d.DetectLower(pii.Text{Raw: text, Lower: strings.ToLower(text)})
+}
+
+func (d *issuerDetector) DetectLower(t pii.Text) []pii.Span {
+	text := t.Raw
+	search := text
+	ctxRe, startRe, termRe := issuerContextRe, issuerStartRe, issuerTermRe
+	if t.LowerOK() {
+		search = t.Lower
+		ctxRe, startRe, termRe = issuerContextLowerRe, issuerStartLowerRe, issuerTermLowerRe
+	}
 	var spans []pii.Span
-	for _, loc := range issuerContextRe.FindAllStringIndex(text, -1) {
+	for _, loc := range ctxRe.FindAllStringIndex(search, -1) {
 		ctxEnd := loc[1]
-		startSub := issuerStartRe.FindStringSubmatchIndex(text[ctxEnd:])
+		startSub := startRe.FindStringSubmatchIndex(search[ctxEnd:])
 		if startSub == nil || startSub[2] < 0 {
 			continue
 		}
 		start := ctxEnd + startSub[2]
-		end := issuerEnd(text, start)
-		value := text[start:end]
+		end := issuerEnd(search, start, termRe)
+		value := search[start:end]
 		value = strings.TrimRight(value, " ,.")
 		end = start + len(value)
 		if value == "" {
@@ -65,9 +84,9 @@ func (d *issuerDetector) Detect(text string) []pii.Span {
 // issuerEnd returns the byte offset where the issuer value ends, scanning from
 // start for the earliest terminator (sentence end, date, keyword, newline) and
 // capping the value at 12 words.
-func issuerEnd(text string, start int) int {
+func issuerEnd(text string, start int, termRe *regexp.Regexp) int {
 	end := len(text)
-	for _, tloc := range issuerTermRe.FindAllStringIndex(text[start:], -1) {
+	for _, tloc := range termRe.FindAllStringIndex(text[start:], -1) {
 		pos := start + tloc[0]
 		if pos < end {
 			end = pos

@@ -33,6 +33,11 @@ var cardholderContext = []string{
 var cardNumRe = regexp.MustCompile(`(?:\d[ -]?){13,19}`)
 
 func (d *cardholderDetector) Detect(text string) []pii.Span {
+	return d.DetectLower(pii.Text{Raw: text, Lower: strings.ToLower(text)})
+}
+
+func (d *cardholderDetector) DetectLower(t pii.Text) []pii.Span {
+	text := t.Raw
 	toks := tokenize(text)
 	var cands []int
 	for i := range toks {
@@ -47,7 +52,7 @@ func (d *cardholderDetector) Detect(text string) []pii.Span {
 		if i+2 < len(cands) && onlyWhitespace(text, toks[cands[i]].end, toks[cands[i+1]].start) &&
 			onlyWhitespace(text, toks[cands[i+1]].end, toks[cands[i+2]].start) {
 			seq := []token{toks[cands[i]], toks[cands[i+1]], toks[cands[i+2]]}
-			if d.validCardholder(seq, text, hasCard) {
+			if d.validCardholder(seq, t, hasCard) {
 				spans = append(spans, pii.Span{Start: seq[0].start, End: seq[2].end, Category: pii.CatCardHolder, Detector: d.Name(), Confidence: 0.85})
 				i += 3
 				continue
@@ -55,7 +60,7 @@ func (d *cardholderDetector) Detect(text string) []pii.Span {
 		}
 		if i+1 < len(cands) && onlyWhitespace(text, toks[cands[i]].end, toks[cands[i+1]].start) {
 			seq := []token{toks[cands[i]], toks[cands[i+1]]}
-			if d.validCardholder(seq, text, hasCard) {
+			if d.validCardholder(seq, t, hasCard) {
 				spans = append(spans, pii.Span{Start: seq[0].start, End: seq[1].end, Category: pii.CatCardHolder, Detector: d.Name(), Confidence: 0.85})
 				i += 2
 				continue
@@ -86,14 +91,14 @@ func isCardholderWord(s string) bool {
 	return letterCount >= 1
 }
 
-func (d *cardholderDetector) validCardholder(seq []token, text string, hasCard bool) bool {
+func (d *cardholderDetector) validCardholder(seq []token, t pii.Text, hasCard bool) bool {
 	hasLong := false
 	allUpper := true
-	for _, t := range seq {
-		if len([]rune(t.text)) >= 2 {
+	for _, tok := range seq {
+		if len([]rune(tok.text)) >= 2 {
 			hasLong = true
 		}
-		if !isAllUpper(t.text) {
+		if !isAllUpper(tok.text) {
 			allUpper = false
 		}
 	}
@@ -103,10 +108,10 @@ func (d *cardholderDetector) validCardholder(seq []token, text string, hasCard b
 	if allUpper && hasCard {
 		return true
 	}
-	if hasLeftContext(text, seq[0].start, cardholderContext, 30) {
+	if hasLeftContext(t, seq[0].start, cardholderContext, 30) {
 		return true
 	}
-	if hasRightContext(text, seq[len(seq)-1].end, cardholderContext, 30) {
+	if hasRightContext(t, seq[len(seq)-1].end, cardholderContext, 30) {
 		return true
 	}
 	return false

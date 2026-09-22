@@ -84,9 +84,10 @@ rules:
 
   - name: passport
     category: passport
-    pattern: '(?i)(?:серия\s*:?\s*(\d{4})[\s,]*номер\s*:?\s*(\d{6})|паспорт\s*(\d{4})\s*№?\s*(\d{6})|\b(\d{4})\s+(\d{6})\b|\b(\d{2}\s\d{2})\s(\d{6})\b)'
+    pattern: '(?:серия\s*:?\s*(\d{4})[\s,]*номер\s*:?\s*(\d{6})|паспорт\s*(\d{4})\s*№?\s*(\d{6})|\b(\d{4})\s+(\d{6})\b|\b(\d{2}\s\d{2})\s(\d{6})\b)'
     validator: passport
     confidence: 0.9
+    match_lower: true
 
   - name: passport_bare
     category: passport
@@ -164,9 +165,10 @@ rules:
 
   - name: date
     category: date
-    pattern: '(?i)(?:\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b|\b\d{4}[./-]\d{1,2}[./-]\d{1,2}\b|\b\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+\d{4}\b(?:\s+(?:года|г\.|г))?)'
+    pattern: '(?:\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b|\b\d{4}[./-]\d{1,2}[./-]\d{1,2}\b|\b\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+\d{4}\b(?:\s+(?:года|г\.|г))?)'
     validator: date
     confidence: 0.85
+    match_lower: true
     reclassify:
       - context: [родил, рожден, рождён, дата рождения, д.р., др]
         context_after: [место рождения, уроженец, уроженка]
@@ -181,6 +183,7 @@ rules:
 
   - name: citizenship
     category: citizenship
-    pattern: '(?i)(?:гражданство\s*:?\s*|гражданин\s+|гражданка\s+)([а-яёА-ЯЁ\s]+)'
+    pattern: '(?:гражданство\s*:?\s*|гражданин\s+|гражданка\s+)([а-яёА-ЯЁ\s]+)'
     group: 1
     confidence: 0.9
+    match_lower: true

@@ -34,6 +34,22 @@ type Span struct {
 	Confidence float64 // 0..1
 }
 
+// Text is the input to a detector. Raw is the original UTF-8 text; Lower is
+// strings.ToLower(Raw) computed once per pipeline run. When len(Lower) !=
+// len(Raw) (rare characters such as "İ" change byte length when lowercased),
+// Lower must not be used for byte positions; detectors fall back to the Raw
+// path in that case.
+type Text struct {
+	Raw   string
+	Lower string
+}
+
+// LowerOK reports whether Lower has the same byte length as Raw, so byte
+// offsets into Raw are valid into Lower.
+func (t Text) LowerOK() bool {
+	return len(t.Lower) == len(t.Raw)
+}
+
 // Result of running the pipeline.
 type Result struct {
 	Spans []Span // sorted by Start, non-overlapping after resolve

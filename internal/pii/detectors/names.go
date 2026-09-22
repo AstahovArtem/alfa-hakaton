@@ -64,6 +64,16 @@ func isLetterRune(r rune) bool {
 		(r >= 'а' && r <= 'я') || (r >= 'А' && r <= 'Я') || r == 'ё' || r == 'Ё'
 }
 
+// tokenLower returns the lowercased form of a token. When the lowercased text
+// has the same byte length as the raw text, the token is sliced directly from
+// Text.Lower, avoiding a per-token strings.ToLower call.
+func tokenLower(t pii.Text, tok token) string {
+	if t.LowerOK() {
+		return t.Lower[tok.start:tok.end]
+	}
+	return strings.ToLower(tok.text)
+}
+
 func isLatinLetter(r rune) bool {
 	return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
 }
@@ -211,11 +221,16 @@ func (d *namesDetector) Categories() []pii.Category {
 }
 
 func (d *namesDetector) Detect(text string) []pii.Span {
+	return d.DetectLower(pii.Text{Raw: text, Lower: strings.ToLower(text)})
+}
+
+func (d *namesDetector) DetectLower(t pii.Text) []pii.Span {
+	text := t.Raw
 	toks := tokenize(text)
 	nt := make([]nameToken, len(toks))
-	for i, t := range toks {
-		nt[i].token = t
-		nt[i].lower = strings.ToLower(t.text)
+	for i, tok := range toks {
+		nt[i].token = tok
+		nt[i].lower = tokenLower(t, tok)
 		nt[i].isName, nt[i].isSurname, nt[i].isSurnameGuess, nt[i].isPatr, nt[i].isInitial =
 			d.classify(nt[i].lower)
 	}
@@ -240,7 +255,7 @@ func (d *namesDetector) Detect(text string) []pii.Span {
 		if i+2 < len(cands) && onlyWhitespace(text, nt[cands[i]].end, nt[cands[i+1]].start) &&
 			onlyWhitespace(text, nt[cands[i+1]].end, nt[cands[i+2]].start) {
 			seq := []nameToken{nt[cands[i]], nt[cands[i+1]], nt[cands[i+2]]}
-			if ok, conf := d.validSeq(seq, text); ok {
+			if ok, conf := d.validSeq(seq, t); ok {
 				spans = append(spans, pii.Span{Start: seq[0].start, End: seq[2].end, Category: pii.CatFullName, Detector: d.Name(), Confidence: conf})
 				covered[cands[i]] = true
 				covered[cands[i+1]] = true
@@ -251,7 +266,7 @@ func (d *namesDetector) Detect(text string) []pii.Span {
 		}
 		if i+1 < len(cands) && onlyWhitespace(text, nt[cands[i]].end, nt[cands[i+1]].start) {
 			seq := []nameToken{nt[cands[i]], nt[cands[i+1]]}
-			if ok, conf := d.validSeq(seq, text); ok {
+			if ok, conf := d.validSeq(seq, t); ok {
 				spans = append(spans, pii.Span{Start: seq[0].start, End: seq[1].end, Category: pii.CatFullName, Detector: d.Name(), Confidence: conf})
 				covered[cands[i]] = true
 				covered[cands[i+1]] = true
@@ -259,9 +274,9 @@ func (d *namesDetector) Detect(text string) []pii.Span {
 				continue
 			}
 		}
-		t := nt[cands[i]]
-		if t.isName && hasLeftContext(text, t.start, nameContext, 30) {
-			spans = append(spans, pii.Span{Start: t.start, End: t.end, Category: pii.CatFullName, Detector: d.Name(), Confidence: 0.8})
+		tok := nt[cands[i]]
+		if tok.isName && hasLeftContext(t, tok.start, nameContext, 30) {
+			spans = append(spans, pii.Span{Start: tok.start, End: tok.end, Category: pii.CatFullName, Detector: d.Name(), Confidence: 0.8})
 			covered[cands[i]] = true
 			i++
 			continue
@@ -387,7 +402,7 @@ func isInitialToken(lower string) bool {
 	return isLetterRune(r[0])
 }
 
-func (d *namesDetector) validSeq(seq []nameToken, text string) (bool, float64) {
+func (d *namesDetector) validSeq(seq []nameToken, t pii.Text) (bool, float64) {
 	if d.isFamous(seq) {
 		return false, 0
 	}
@@ -427,7 +442,7 @@ func (d *namesDetector) validSeq(seq []nameToken, text string) (bool, float64) {
 			}
 		}
 		if seq[0].isName && seq[1].isPatr {
-			if d.hasDictOrPatr(seq) && hasLeftContext(text, seq[0].start, nameContext, 30) {
+			if d.hasDictOrPatr(seq) && hasLeftContext(t, seq[0].start, nameContext, 30) {
 				return true, 0.85
 			}
 		}
@@ -476,16 +491,11 @@ func sameMultiset(a, b []string) bool {
 }
 
 // hasLeftContext reports whether any keyword appears within the last window
-// runes before pos.
-func hasLeftContext(text string, pos int, keywords []string, window int) bool {
-	prefix := text[:pos]
-	r := []rune(prefix)
-	if len(r) > window {
-		prefix = string(r[len(r)-window:])
-	}
-	lower := strings.ToLower(prefix)
+// runes before pos. Keywords must already be lowercased.
+func hasLeftContext(t pii.Text, pos int, keywords []string, window int) bool {
+	prefix := runeWindowBefore(t, pos, window)
 	for _, kw := range keywords {
-		if strings.Contains(lower, strings.ToLower(kw)) {
+		if strings.Contains(prefix, kw) {
 			return true
 		}
 	}
@@ -493,16 +503,11 @@ func hasLeftContext(text string, pos int, keywords []string, window int) bool {
 }
 
 // hasRightContext reports whether any keyword appears within the first window
-// runes after pos.
-func hasRightContext(text string, pos int, keywords []string, window int) bool {
-	suffix := text[pos:]
-	r := []rune(suffix)
-	if len(r) > window {
-		suffix = string(r[:window])
-	}
-	lower := strings.ToLower(suffix)
+// runes after pos. Keywords must already be lowercased.
+func hasRightContext(t pii.Text, pos int, keywords []string, window int) bool {
+	suffix := runeWindowAfter(t, pos, window)
 	for _, kw := range keywords {
-		if strings.Contains(lower, strings.ToLower(kw)) {
+		if strings.Contains(suffix, kw) {
 			return true
 		}
 	}

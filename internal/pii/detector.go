@@ -7,6 +7,14 @@ type Detector interface {
 	Detect(text string) []Span
 }
 
+// LowerDetector is an optional extension of Detector. A detector that
+// implements it receives a Text with a precomputed Lower field, avoiding
+// repeated strings.ToLower calls. The pipeline calls DetectLower when the
+// detector implements it, otherwise it falls back to Detect(raw).
+type LowerDetector interface {
+	DetectLower(t Text) []Span
+}
+
 // Registry holds a set of detectors.
 type Registry struct {
 	detectors []Detector
