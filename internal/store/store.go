@@ -25,4 +25,6 @@ type Store interface {
 	Save(ctx context.Context, id string, rec Record, ttl time.Duration) error
 	Load(ctx context.Context, id string) (Record, bool, error)
 	Delete(ctx context.Context, id string) error
+	// Ping reports whether the store is reachable.
+	Ping(ctx context.Context) error
 }

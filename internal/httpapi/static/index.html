@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pdn-shield demo</title>
+<style>
+  :root {
+    --bg: #f7f7f8;
+    --card: #ffffff;
+    --text: #1a1a1a;
+    --muted: #6b6b6b;
+    --border: #e2e2e5;
+    --accent: #2563eb;
+    --accent-dark: #1d4ed8;
+    --badge: #eef2ff;
+    --badge-text: #3730a3;
+    --mask: #fef3c7;
+    --mask-text: #92400e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .container { max-width: 960px; margin: 0 auto; padding: 32px 20px 64px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 24px; font-size: 14px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .card h2 { font-size: 16px; margin: 0 0 12px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
+  select, input[type=text], textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+    background: #fff;
+  }
+  textarea { min-height: 120px; resize: vertical; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  button {
+    padding: 9px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    background: var(--accent);
+    color: #fff;
+  }
+  button:hover { background: var(--accent-dark); }
+  button.secondary { background: #e5e7eb; color: var(--text); }
+  button.secondary:hover { background: #d1d5db; }
+  .badges { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .badge {
+    background: var(--badge);
+    color: var(--badge-text);
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 12px;
+  }
+  .output { margin-top: 12px; }
+  .output .label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .output pre {
+    background: #fafafa;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 14px;
+    margin: 0;
+  }
+  .masked mark {
+    background: var(--mask);
+    color: var(--mask-text);
+    border-radius: 3px;
+    padding: 0 2px;
+  }
+  .latency { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .footer { margin-top: 24px; font-size: 13px; color: var(--muted); }
+  .footer a { color: var(--accent); text-decoration: none; }
+  .error { color: #b91c1c; font-size: 13px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>pdn-shield</h1>
+  <p class="sub">Демо маскирования персональных данных перед отправкой в LLM</p>
+
+  <div class="card">
+    <h2>Система</h2>
+    <label for="system">Система-потребитель</label>
+    <select id="system"></select>
+    <label for="apikey">API-ключ (хранится в localStorage)</label>
+    <input type="text" id="apikey" placeholder="оставьте пустым, если ключ не требуется">
+  </div>
+
+  <div class="card">
+    <h2>Текст</h2>
+    <textarea id="text">Клиент Иванов Иван Иванович, паспорт 4509 123456, тел +7 (916) 123-45-67</textarea>
+    <div class="row">
+      <button id="btn-mask">Маскировать</button>
+      <button id="btn-llm" class="secondary">Отправить в LLM</button>
+      <button id="btn-unmask" class="secondary">Демаскировать</button>
+    </div>
+    <div id="badges" class="badges"></div>
+    <div id="error" class="error"></div>
+  </div>
+
+  <div class="card">
+    <h2>Результат</h2>
+    <div class="output">
+      <div class="label">Замаскированный текст</div>
+      <pre id="masked"></pre>
+      <div id="mask-latency" class="latency"></div>
+    </div>
+    <div class="output">
+      <div class="label">Ответ LLM</div>
+      <pre id="llm"></pre>
+      <div id="llm-latency" class="latency"></div>
+    </div>
+    <div class="output">
+      <div class="label">Демаскированный ответ</div>
+      <pre id="unmasked"></pre>
+      <div id="unmask-latency" class="latency"></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <a href="/metrics">/metrics</a> &middot; <a href="/healthz">/healthz</a> &middot; <a href="/readyz">/readyz</a>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let currentId = null;
+
+async function loadSystems() {
+  const res = await fetch('/healthz');
+  const data = await res.json();
+  // The demo page does not know the system list from the API; use a fixed set.
+  const systems = ['checker', 'demo', 'chatbot', 'legacy_crm'];
+  const sel = $('system');
+  systems.forEach((s) => {
+    const opt = document.createElement('option');
+    opt.value = s;
+    opt.textContent = s;
+    sel.appendChild(opt);
+  });
+  const saved = localStorage.getItem('pdn_system');
+  if (saved) sel.value = saved;
+  const key = localStorage.getItem('pdn_key');
+  if (key) $('apikey').value = key;
+}
+
+function headers() {
+  const sys = $('system').value;
+  const key = $('apikey').value;
+  localStorage.setItem('pdn_system', sys);
+  localStorage.setItem('pdn_key', key);
+  const h = { 'Content-Type': 'application/json', 'X-System-Id': sys };
+  if (key) h['X-API-Key'] = key;
+  return h;
+}
+
+function showError(msg) {
+  $('error').textContent = msg || '';
+}
+
+function renderBadges(found) {
+  const box = $('badges');
+  box.innerHTML = '';
+  for (const [cat, n] of Object.entries(found || {})) {
+    const b = document.createElement('span');
+    b.className = 'badge';
+    b.textContent = cat + ': ' + n;
+    box.appendChild(b);
+  }
+}
+
+function highlightMasked(text) {
+  // Highlight [CATEGORY_N] tokens and partial masks.
+  return text.replace(/\[[A-Z_0-9]+\]/g, (m) => '<mark>' + m + '</mark>');
+}
+
+$('btn-mask').addEventListener('click', async () => {
+  showError('');
+  const t0 = performance.now();
+  try {
+    const res = await fetch('/mask', {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({ text: $('text').value }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showError(data.error || 'mask failed'); return; }
+    currentId = data.id;
+    renderBadges(data.found);
+    $('masked').innerHTML = highlightMasked(escapeHtml(data.masked));
+    $('mask-latency').textContent = 'latency: ' + data.latency_ms + ' ms';
+  } catch (e) { showError(String(e)); }
+});
+
+$('btn-llm').addEventListener('click', async () => {
+  showError('');
+  const t0 = performance.now();
+  try {
+    const res = await fetch('/v1/chat/completions', {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({
+        model: 'deepseek-ai/DeepSeek-V4-Flash-0731',
+        messages: [{ role: 'user', content: $('text').value }],
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showError(data.error || 'llm failed'); return; }
+    const content = data.choices && data.choices[0] && data.choices[0].message
+      ? data.choices[0].message.content : '';
+    $('llm').textContent = content;
+    $('llm-latency').textContent = 'latency: ' + (performance.now() - t0).toFixed(0) + ' ms';
+  } catch (e) { showError(String(e)); }
+});
+
+$('btn-unmask').addEventListener('click', async () => {
+  showError('');
+  if (!currentId) { showError('Сначала выполните маскирование'); return; }
+  const t0 = performance.now();
+  try {
+    const res = await fetch('/unmask', {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({ id: currentId, text: $('masked').textContent }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showError(data.error || 'unmask failed'); return; }
+    $('unmasked').textContent = data.text;
+    $('unmask-latency').textContent = 'latency: ' + (performance.now() - t0).toFixed(0) + ' ms, misses: ' + data.misses;
+  } catch (e) { showError(String(e)); }
+});
+
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+loadSystems();
+</script>
+</body>
+</html>

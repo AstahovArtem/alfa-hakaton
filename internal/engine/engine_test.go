@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -31,6 +32,8 @@ func testEngine(t *testing.T) *Engine {
 	}
 	return New(p, st, strategies)
 }
+
+const testText = "Клиент Иванов Иван Иванович, паспорт 4509 123456, тел +7 (916) 123-45-67"
 
 func TestEngineMaskUnmask(t *testing.T) {
 	e := testEngine(t)
@@ -154,6 +157,61 @@ func TestEngineComboRules(t *testing.T) {
 	}
 }
 
+func TestEngineProcessContract(t *testing.T) {
+	e := testEngine(t)
+	ctx := context.Background()
+	opt := Options{Strategy: "partial", TTL: time.Minute}
+
+	// Unknown id: mask.
+	res, err := e.Process(ctx, "p1", testText, opt)
+	if err != nil {
+		t.Fatalf("Process mask: %v", err)
+	}
+	if res.Unmasked || res.Found[pii.CatFullName] != 1 {
+		t.Errorf("mask result: %+v", res)
+	}
+	masked := res.Result
+
+	// Same id, same payload: idempotent, returns stored mask.
+	res2, err := e.Process(ctx, "p1", testText, opt)
+	if err != nil {
+		t.Fatalf("Process idempotent: %v", err)
+	}
+	if res2.Result != masked {
+		t.Errorf("idempotent result = %q, want %q", res2.Result, masked)
+	}
+
+	// Payload equals the mask: unmask.
+	res3, err := e.Process(ctx, "p1", masked, opt)
+	if err != nil {
+		t.Fatalf("Process unmask: %v", err)
+	}
+	if !res3.Unmasked || res3.Result != testText {
+		t.Errorf("unmask result: %+v", res3)
+	}
+
+	// Payload differs from both: returns payload as-is with misses.
+	res4, err := e.Process(ctx, "p1", "совсем другой текст", opt)
+	if err != nil {
+		t.Fatalf("Process differs: %v", err)
+	}
+	if res4.Result != "совсем другой текст" || res4.Misses == 0 {
+		t.Errorf("differs result: %+v", res4)
+	}
+}
+
+func TestEngineProcessUnknownID(t *testing.T) {
+	e := testEngine(t)
+	ctx := context.Background()
+	res, err := e.Process(ctx, "missing", "текст без пд", Options{Strategy: "partial", TTL: time.Minute})
+	if err != nil {
+		t.Fatalf("Process: %v", err)
+	}
+	if res.Result != "текст без пд" {
+		t.Errorf("result = %q", res.Result)
+	}
+}
+
 func contains(s, sub string) bool {
 	for i := 0; i+len(sub) <= len(s); i++ {
 		if s[i:i+len(sub)] == sub {
@@ -161,4 +219,46 @@ func contains(s, sub string) bool {
 		}
 	}
 	return false
+}
+
+func TestEngineChunkedLargeText(t *testing.T) {
+	e := testEngine(t)
+	ctx := context.Background()
+
+	// Build a ~400 KiB text with repeated PII values separated by sentences.
+	var b strings.Builder
+	line := "Клиент Иванов Иван Иванович, паспорт 4509 123456, тел +7 (916) 123-45-67. "
+	for b.Len() < 400*1024 {
+		b.WriteString(line)
+	}
+	text := b.String()
+
+	masked, found, err := e.Mask(ctx, "big", text, Options{Strategy: "partial", TTL: time.Minute})
+	if err != nil {
+		t.Fatalf("Mask: %v", err)
+	}
+	if found[pii.CatFullName] == 0 || found[pii.CatPassport] == 0 || found[pii.CatPhone] == 0 {
+		t.Errorf("expected PII found in large text, counts: %v", found)
+	}
+
+	// Whole-text processing must yield the same number of spans per category.
+	res := e.pipeline.Run(text)
+	whole := counts(filterSpans(res.Spans, nil, nil))
+	for cat, n := range whole {
+		if found[cat] != n {
+			t.Errorf("category %s: chunked=%d whole=%d", cat, found[cat], n)
+		}
+	}
+
+	// Round-trip must restore the original text.
+	restored, misses, err := e.Unmask(ctx, "big", masked)
+	if err != nil {
+		t.Fatalf("Unmask: %v", err)
+	}
+	if misses != 0 {
+		t.Errorf("Unmask reported %d misses", misses)
+	}
+	if restored != text {
+		t.Errorf("round-trip failed for large text")
+	}
 }

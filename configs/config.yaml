@@ -1,0 +1,47 @@
+server:
+  addr: ":8080"
+  read_timeout: 5s
+  write_timeout: 15s
+  max_body_bytes: 2097152        # 2 MiB (~100k токенов кириллицы с запасом)
+  max_inflight: 512              # больше — 429 с Retry-After: 1
+  default_system: checker
+store:
+  kind: memory                   # memory | redis
+  redis_addr: "redis.pdn.svc.cluster.local:6379"
+  ttl: 1h
+  encryption_key_env: PDN_ENC_KEY
+llm:
+  base_url: "https://alfagen.alfabank.ru/continue-dev/"
+  api_key_env: MODEL_KEY
+  model: "deepseek-ai/DeepSeek-V4-Flash-0731"
+  timeout: 60s
+  stream_only: true              # шлюз AlfaGen принимает только stream:true
+logging:
+  level: info
+  format: json
+systems:                         # allowlist систем-потребителей
+  - id: checker                  # система проверки хакатона (без ключа, только /process)
+    enabled: true
+    api_key: ""                  # пусто = не требуется
+    categories: []               # пусто = все
+    strategy: partial
+    unmask: true
+    combo_rules: []
+  - id: demo
+    enabled: true
+    api_key_env: PDN_DEMO_KEY
+    categories: []
+    strategy: partial
+    unmask: true
+  - id: chatbot
+    enabled: true
+    api_key_env: PDN_CHATBOT_KEY
+    categories: [full_name, phone, email, card_number, cvv, pin, passport]
+    strategy: token
+    unmask: false
+    combo_rules:
+      - category: pin
+        requires_any: [card_number]
+  - id: legacy_crm
+    enabled: false
+    api_key_env: PDN_LEGACY_KEY

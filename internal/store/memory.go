@@ -125,3 +125,8 @@ func (m *Memory) Delete(_ context.Context, id string) error {
 	m.mu.Unlock()
 	return nil
 }
+
+// Ping reports that the in-memory store is always reachable.
+func (m *Memory) Ping(_ context.Context) error {
+	return nil
+}
