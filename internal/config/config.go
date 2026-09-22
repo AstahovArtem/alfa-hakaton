@@ -25,6 +25,9 @@ type Server struct {
 type Store struct {
 	Kind             string        `yaml:"kind"`
 	RedisAddr        string        `yaml:"redis_addr"`
+	RedisPool        int           `yaml:"redis_pool"`
+	RedisWait        time.Duration `yaml:"redis_wait"`
+	RedisTimeout     time.Duration `yaml:"redis_timeout"`
 	TTL              time.Duration `yaml:"ttl"`
 	EncryptionKeyEnv string        `yaml:"encryption_key_env"`
 }

@@ -210,6 +210,28 @@ func (e *Engine) maskEx(ctx context.Context, id, text string, opt Options, doc *
 		if rec.MaskedText == text {
 			return MaskResult{}, ErrLooksLikeUnmask
 		}
+		return e.maskWithRecord(ctx, id, text, opt, doc, &rec)
+	}
+	return e.maskWithRecord(ctx, id, text, opt, doc, nil)
+}
+
+// maskWithRecord masks text and saves the mapping under id. existing, when
+// non-nil, is a record already loaded by the caller so the store is not hit a
+// second time.
+func (e *Engine) maskWithRecord(ctx context.Context, id, text string, opt Options, doc *mask.DocState, existing *store.Record) (MaskResult, error) {
+	hash := hashText(text)
+
+	// Idempotency: if the caller already loaded a record with a matching hash,
+	// return the stored mask without re-loading.
+	if existing != nil {
+		if existing.Hash == hash {
+			return MaskResult{Masked: existing.MaskedText, Found: countsFromRec(*existing)}, nil
+		}
+		// If the incoming text equals the stored masked text, this is an unmask
+		// request.
+		if existing.MaskedText == text {
+			return MaskResult{}, ErrLooksLikeUnmask
+		}
 	}
 
 	strategy := e.strategies[opt.Strategy]
@@ -412,8 +434,13 @@ func (e *Engine) Process(ctx context.Context, id, payload string, opt Options) (
 		return ProcessResult{Result: payload, Misses: misses}, nil
 	}
 
-	// Unknown id: mask normally.
-	mres, err := e.MaskEx(ctx, id, payload, opt)
+	// Unknown id: mask normally, reusing the already-loaded record so the store
+	// is hit exactly once (1 GET + 1 SET).
+	var existing *store.Record
+	if exists {
+		existing = &rec
+	}
+	mres, err := e.maskWithRecord(ctx, id, payload, opt, mask.NewDocState(), existing)
 	if err != nil {
 		return ProcessResult{}, err
 	}

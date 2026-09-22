@@ -8,6 +8,7 @@ server:
 store:
   kind: memory                   # memory | redis
   redis_addr: "redis.pdn.svc.cluster.local:6379"
+  redis_pool: 64                 # размер пула Redis-соединений
   ttl: 1h
   encryption_key_env: PDN_ENC_KEY
 llm:

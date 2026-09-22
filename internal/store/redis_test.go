@@ -1,8 +1,13 @@
 package store
 
 import (
+	"bufio"
 	"context"
+	"fmt"
+	"net"
 	"os"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -65,5 +70,88 @@ func TestRedisStore(t *testing.T) {
 	}
 	if ok {
 		t.Errorf("record still present after delete")
+	}
+}
+
+// fakeRedisServer accepts TCP connections and answers every command with +OK.
+// It counts the number of accepted connections.
+type fakeRedisServer struct {
+	ln     net.Listener
+	accept atomic.Int64
+}
+
+func newFakeRedisServer(t *testing.T) *fakeRedisServer {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	s := &fakeRedisServer{ln: ln}
+	go s.serve()
+	t.Cleanup(func() { ln.Close() })
+	return s
+}
+
+func (s *fakeRedisServer) serve() {
+	for {
+		conn, err := s.ln.Accept()
+		if err != nil {
+			return
+		}
+		s.accept.Add(1)
+		go func(c net.Conn) {
+			defer c.Close()
+			br := bufio.NewReader(c)
+			for {
+				if _, err := readRESP(br); err != nil {
+					return
+				}
+				// Reply +OK to every command.
+				if _, err := c.Write([]byte("+OK\r\n")); err != nil {
+					return
+				}
+			}
+		}(conn)
+	}
+}
+
+func (s *fakeRedisServer) addr() string { return s.ln.Addr().String() }
+
+// TestRedisPoolFixedSize verifies that under heavy concurrency the pool opens
+// no more than poolSize connections and no call fails.
+func TestRedisPoolFixedSize(t *testing.T) {
+	srv := newFakeRedisServer(t)
+	rs, err := NewRedisWithOptions(srv.addr(), "", testKey(), Options{
+		PoolSize: 8,
+		Wait:     2 * time.Second,
+		Timeout:  time.Second,
+	})
+	if err != nil {
+		t.Fatalf("NewRedisWithOptions: %v", err)
+	}
+	defer rs.Close()
+
+	ctx := context.Background()
+	const calls = 500
+	var wg sync.WaitGroup
+	errs := make(chan error, calls)
+	for i := 0; i < calls; i++ {
+		wg.Add(1)
+		go func(n int) {
+			defer wg.Done()
+			id := fmt.Sprintf("id-%d", n)
+			if err := rs.Save(ctx, id, Record{Strategy: "partial", Hash: "h"}, time.Minute); err != nil {
+				errs <- err
+			}
+		}(i)
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Errorf("call failed: %v", err)
+	}
+
+	if got := srv.accept.Load(); got > 8 {
+		t.Errorf("pool opened %d connections, want <= 8", got)
 	}
 }

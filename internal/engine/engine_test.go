@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -260,5 +261,71 @@ func TestEngineChunkedLargeText(t *testing.T) {
 	}
 	if restored != text {
 		t.Errorf("round-trip failed for large text")
+	}
+}
+
+// countingStore wraps a Store and counts Load/Save/Delete calls.
+type countingStore struct {
+	store.Store
+	loads atomic.Int64
+	saves atomic.Int64
+}
+
+func (c *countingStore) Load(ctx context.Context, id string) (store.Record, bool, error) {
+	c.loads.Add(1)
+	return c.Store.Load(ctx, id)
+}
+
+func (c *countingStore) Save(ctx context.Context, id string, rec store.Record, ttl time.Duration) error {
+	c.saves.Add(1)
+	return c.Store.Save(ctx, id, rec, ttl)
+}
+
+// TestProcessStoreCallCount verifies Process performs exactly 1 GET + 1 SET for
+// a mask and exactly 1 GET for an unmask.
+func TestProcessStoreCallCount(t *testing.T) {
+	key := make([]byte, 32)
+	for i := range key {
+		key[i] = byte(i)
+	}
+	ms, err := store.NewMemory(key)
+	if err != nil {
+		t.Fatalf("NewMemory: %v", err)
+	}
+	t.Cleanup(ms.Close)
+	cs := &countingStore{Store: ms}
+
+	p := pii.NewPipeline(detectors.Default()...)
+	strategies := map[string]mask.Strategy{
+		"partial":   mask.MustPartial(),
+		"token":     mask.NewToken(),
+		"synthetic": mask.NewSynthetic(),
+	}
+	e := New(p, cs, strategies)
+	ctx := context.Background()
+	opt := Options{Strategy: "partial", TTL: time.Minute}
+
+	// Mask: 1 GET (miss) + 1 SET.
+	res, err := e.Process(ctx, "c1", testText, opt)
+	if err != nil {
+		t.Fatalf("Process mask: %v", err)
+	}
+	if cs.loads.Load() != 1 || cs.saves.Load() != 1 {
+		t.Errorf("mask: loads=%d saves=%d, want 1/1", cs.loads.Load(), cs.saves.Load())
+	}
+	masked := res.Result
+
+	// Unmask: 1 GET only.
+	cs.loads.Store(0)
+	cs.saves.Store(0)
+	res2, err := e.Process(ctx, "c1", masked, opt)
+	if err != nil {
+		t.Fatalf("Process unmask: %v", err)
+	}
+	if !res2.Unmasked || res2.Result != testText {
+		t.Errorf("unmask result: %+v", res2)
+	}
+	if cs.loads.Load() != 1 || cs.saves.Load() != 0 {
+		t.Errorf("unmask: loads=%d saves=%d, want 1/0", cs.loads.Load(), cs.saves.Load())
 	}
 }

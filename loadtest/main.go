@@ -51,6 +51,7 @@ type sample struct {
 // counters aggregates the run.
 type counters struct {
 	total       atomic.Int64
+	pairs       atomic.Int64
 	byCode      sync.Map // code -> int64
 	badRound    atomic.Int64
 	latencies   []sample
@@ -62,14 +63,15 @@ type counters struct {
 
 func main() {
 	var (
-		url      = flag.String("url", "http://localhost:8080/process", "URL of the /process endpoint")
-		rps      = flag.Int("rps", 1000, "target requests per second")
-		duration = flag.Duration("duration", 5*time.Minute, "test duration")
-		workers  = flag.Int("workers", 256, "number of concurrent workers")
-		dataset  = flag.String("dataset", "internal/pii/testdata/dataset.jsonl", "path to jsonl dataset")
-		timeout  = flag.Duration("timeout", 10*time.Second, "per-request timeout")
-		system   = flag.String("system", "", "X-System-Id header; empty means the default checker system")
-		apiKey   = flag.String("api-key", "", "X-API-Key header; empty means no key")
+		url        = flag.String("url", "http://localhost:8080/process", "URL of the /process endpoint")
+		rps        = flag.Int("rps", 1000, "target requests per second")
+		duration   = flag.Duration("duration", 5*time.Minute, "test duration")
+		workers    = flag.Int("workers", 256, "number of concurrent workers")
+		dataset    = flag.String("dataset", "internal/pii/testdata/dataset.jsonl", "path to jsonl dataset")
+		timeout    = flag.Duration("timeout", 10*time.Second, "per-request timeout")
+		system     = flag.String("system", "", "X-System-Id header; empty means the default checker system")
+		apiKey     = flag.String("api-key", "", "X-API-Key header; empty means no key")
+		reportPath = flag.String("report", "", "path to write the report; default ./loadtest-report-<ts>.md")
 	)
 	flag.Parse()
 
@@ -105,14 +107,16 @@ func main() {
 		}()
 	}
 
-	// Open-model generator: a ticker emits one job per request at the target
-	// RPS. Workers pull from the pool, so the generator never blocks on the
-	// service.
+	// Open-model generator: a ticker emits one tick per HTTP request at the
+	// target RPS. A pair (mask + unmask) consumes two ticks, so one job is
+	// emitted every two ticks. Workers pull from the pool, so the generator
+	// never blocks on the service.
 	interval := time.Second / time.Duration(*rps)
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	seq := int64(0)
+	ticks := int64(0)
 	genDone := make(chan struct{})
 	go func() {
 		defer close(genDone)
@@ -121,6 +125,11 @@ func main() {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
+				ticks++
+				// A pair is two HTTP requests = two ticks.
+				if ticks%2 != 0 {
+					continue
+				}
 				seq++
 				select {
 				case jobs <- int(seq):
@@ -139,7 +148,7 @@ func main() {
 	c.done = time.Now()
 	c.reportedRPS = float64(c.total.Load()) / c.done.Sub(c.start).Seconds()
 
-	report(&c, *rps, *duration, *url, *dataset)
+	report(&c, *rps, *duration, *url, *dataset, *reportPath)
 }
 
 // worker pulls job indices, runs a mask+unmask round-trip per job and records
@@ -154,6 +163,7 @@ func worker(ctx context.Context, jobs <-chan int, items []datasetItem, url, runP
 		}
 		item := items[int(time.Now().UnixNano())%len(items)]
 		id := fmt.Sprintf("%s-%d", runPrefix, seq)
+		c.pairs.Add(1)
 
 		// Step 1: mask the original text.
 		mStart := time.Now()
@@ -243,8 +253,9 @@ func loadDataset(path string) ([]datasetItem, error) {
 	return items, sc.Err()
 }
 
-// report prints the summary to stdout and writes loadtest/report-<ts>.md.
-func report(c *counters, targetRPS int, duration time.Duration, url, dataset string) {
+// report prints the summary to stdout and writes the report to the given path
+// (or a default location when path is empty).
+func report(c *counters, targetRPS int, duration time.Duration, url, dataset, reportPath string) {
 	c.mu.Lock()
 	samples := c.latencies
 	c.mu.Unlock()
@@ -252,14 +263,19 @@ func report(c *counters, targetRPS int, duration time.Duration, url, dataset str
 	maskLat := latenciesFor(samples, "mask")
 	unmaskLat := latenciesFor(samples, "unmask")
 
+	elapsed := c.done.Sub(c.start).Seconds()
+	pairsPerSec := float64(c.pairs.Load()) / elapsed
+
 	var b strings.Builder
 	fmt.Fprintf(&b, "# Нагрузочный тест pdn-shield\n\n")
-	fmt.Fprintf(&b, "- Целевой RPS: %d\n", targetRPS)
+	fmt.Fprintf(&b, "- Целевой RPS (запросов/с): %d\n", targetRPS)
 	fmt.Fprintf(&b, "- Длительность: %s\n", duration)
 	fmt.Fprintf(&b, "- URL process: %s\n", url)
 	fmt.Fprintf(&b, "- Датасет: %s\n", dataset)
-	fmt.Fprintf(&b, "- Достигнутый RPS: %.2f\n", c.reportedRPS)
+	fmt.Fprintf(&b, "- Достигнутый RPS (запросов/с): %.2f\n", c.reportedRPS)
+	fmt.Fprintf(&b, "- Пар в секунду: %.2f\n", pairsPerSec)
 	fmt.Fprintf(&b, "- Всего запросов: %d\n", c.total.Load())
+	fmt.Fprintf(&b, "- Всего пар: %d\n", c.pairs.Load())
 	fmt.Fprintf(&b, "- Длительность прогона: %s\n", c.done.Sub(c.start).Round(time.Millisecond))
 	fmt.Fprintf(&b, "\n## Ошибки по кодам\n\n")
 	fmt.Fprintf(&b, "| Код | Кол-во |\n|---|---|\n")
@@ -283,7 +299,10 @@ func report(c *counters, targetRPS int, duration time.Duration, url, dataset str
 	fmt.Println(b.String())
 
 	ts := time.Now().Format("20060102-150405")
-	path := fmt.Sprintf("loadtest/report-%s.md", ts)
+	path := reportPath
+	if path == "" {
+		path = fmt.Sprintf("./loadtest-report-%s.md", ts)
+	}
 	if err := os.WriteFile(path, []byte(b.String()), 0o644); err != nil {
 		fmt.Fprintf(os.Stderr, "loadtest: write report: %v\n", err)
 		return

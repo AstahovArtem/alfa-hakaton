@@ -57,7 +57,11 @@ func main() {
 	switch cfg.Store.Kind {
 	case "redis":
 		password := os.Getenv("PDN_REDIS_PASSWORD")
-		rs, err := store.NewRedis(cfg.Store.RedisAddr, password, key, 32)
+		rs, err := store.NewRedisWithOptions(cfg.Store.RedisAddr, password, key, store.Options{
+			PoolSize: cfg.Store.RedisPool,
+			Wait:     cfg.Store.RedisWait,
+			Timeout:  cfg.Store.RedisTimeout,
+		})
 		if err != nil {
 			logger.Error("redis store init failed", "err", err)
 			os.Exit(1)
