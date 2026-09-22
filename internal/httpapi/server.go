@@ -138,15 +138,9 @@ func (s *Server) wrap(h http.HandlerFunc, route string) http.HandlerFunc {
 		if info.misses > 0 {
 			attrs = append(attrs, "misses", info.misses)
 		}
-		if info.stages.DetectMs > 0 {
-			attrs = append(attrs, "detect_ms", info.stages.DetectMs)
-		}
-		if info.stages.MaskMs > 0 {
-			attrs = append(attrs, "mask_ms", info.stages.MaskMs)
-		}
-		if info.stages.StoreMs > 0 {
-			attrs = append(attrs, "store_ms", info.stages.StoreMs)
-		}
+		attrs = append(attrs, "detect_ms", info.stages.DetectMs)
+		attrs = append(attrs, "mask_ms", info.stages.MaskMs)
+		attrs = append(attrs, "store_ms", info.stages.StoreMs)
 		if info.stages.LLMMs > 0 {
 			attrs = append(attrs, "llm_ms", info.stages.LLMMs)
 		}

@@ -1,4 +1,4 @@
-.PHONY: build test vet lint run accuracy docker-build deploy k8s-apply load-test compose-up compose-down platform-bootstrap platform-render
+.PHONY: build test vet lint run accuracy docker-build deploy k8s-apply load-test compose-up compose-down platform-bootstrap platform-render zip
 
 build:
 	go build -o bin/pdn-shield ./cmd/pdn-shield
@@ -48,3 +48,7 @@ platform-render:
 	SERVER_IP=$${SERVER_IP:-127.0.0.1} \
 	GRAFANA_ADMIN_PASSWORD=$${GRAFANA_ADMIN_PASSWORD:-render-only} \
 	bash deploy/platform/bootstrap.sh --dry-run
+
+# Package tracked sources into a zip for submission. Excludes docs binaries.
+zip:
+	git ls-files | grep -vE '^docs/.*\.(pdf|txt)$$' | zip pdn-shield-src.zip -@

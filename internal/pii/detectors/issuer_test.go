@@ -73,3 +73,29 @@ func TestIssuerSpanValue(t *testing.T) {
 		}
 	}
 }
+
+func TestIssuerStopsBeforeNonContinuation(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"Паспорт выдан ГУ МВД России по г. Санкт-Петербургу и Ленинградской области, копия страницы приложена к делу.", "ГУ МВД России по г. Санкт-Петербургу и Ленинградской области"},
+		{"Паспорт выдан Отделом внутренних дел Кировского района г. Уфы, копия страницы приложена к делу.", "Отделом внутренних дел Кировского района г. Уфы"},
+		{"Паспорт выдан УФМС России по Московской области в г. Балашиха, копия страницы приложена к делу.", "УФМС России по Московской области в г. Балашиха"},
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c.in)
+		found := false
+		for _, s := range res.Spans {
+			if s.Category == pii.CatPassportIssuer {
+				found = true
+				if got := c.in[s.Start:s.End]; got != c.want {
+					t.Errorf("passport_issuer value for %q = %q, want %q", c.in, got, c.want)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("no passport_issuer span for %q", c.in)
+		}
+	}
+}

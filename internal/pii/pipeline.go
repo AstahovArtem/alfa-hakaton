@@ -25,5 +25,26 @@ func (p *Pipeline) Run(text string) Result {
 			spans = append(spans, d.Detect(text)...)
 		}
 	}
-	return Result{Spans: Resolve(spans)}
+	return Result{Spans: postProcess(Resolve(spans))}
+}
+
+// postProcess applies cross-span reclassification rules that depend on the
+// resolved span set. A bare date that immediately follows a passport_issuer
+// span is reclassified to passport_date.
+func postProcess(spans []Span) []Span {
+	for i := range spans {
+		if spans[i].Category != CatDate {
+			continue
+		}
+		for j := range spans {
+			if spans[j].Category != CatPassportIssuer {
+				continue
+			}
+			if spans[i].Start >= spans[j].Start && spans[i].Start-spans[j].End <= 3 {
+				spans[i].Category = CatPassportDate
+				break
+			}
+		}
+	}
+	return spans
 }

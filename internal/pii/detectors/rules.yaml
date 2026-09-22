@@ -10,7 +10,7 @@ rules:
 
   - name: email
     category: email
-    pattern: '(?i)[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}'
+    pattern: '[\p{L}\p{N}._%+\-]+@[\p{L}\p{N}.\-]+\.\p{L}{2,}'
     confidence: 0.95
 
   - name: inn
@@ -48,7 +48,7 @@ rules:
     category: cvv
     pattern: '(?i)\b\d{3,4}\b'
     require_context: true
-    context_window: 30
+    context_window: 60
     confidence: 0.9
     not_in_digit_sequence: true
     context:
@@ -84,7 +84,7 @@ rules:
 
   - name: passport
     category: passport
-    pattern: '(?:серия\s*:?\s*(\d{4})[\s,]*номер\s*:?\s*(\d{6})|паспорт\s*(\d{4})\s*№?\s*(\d{6})|\b(\d{4})\s+(\d{6})\b|\b(\d{2}\s\d{2})\s(\d{6})\b)'
+    pattern: '(?:серия\s*:?\s*(\d{4})[\s,]*номер\s*:?\s*(\d{6})|паспорт\s*(\d{4})\s*№?\s*(\d{6})|\b(\d{4})\s+(\d{6})\b|\b(\d{2}\s\d{2})\s(\d{6})\b|серия\s*:?\s*(\d{2}\s\d{2})\s*,?\s*(?:№|номер\s*:?)\s*(\d{6})|\b(\d{2}\s\d{2})\s*,?\s*(?:№|номер\s*:?)\s*(\d{6})\b)'
     validator: passport
     confidence: 0.9
     match_lower: true
@@ -158,10 +158,18 @@ rules:
       - загранпаспорт
       - загран
       - заграничный паспорт
+      - заграничный
+      - загран.
+      - иностранный паспорт
+      - паспорт иностранного гражданина
     context_after:
       - загранпаспорт
       - загран
       - заграничный паспорт
+      - заграничный
+      - загран.
+      - иностранный паспорт
+      - паспорт иностранного гражданина
 
   - name: date
     category: date
@@ -171,13 +179,13 @@ rules:
     match_lower: true
     reclassify:
       - context: [родил, рожден, рождён, дата рождения, д.р., др]
-        context_after: [место рождения, уроженец, уроженка]
+        context_after: [место рождения, уроженец, уроженка, г.р., г. р., года рождения, г.р, р.]
         context_window: 120
         context_after_window: 40
         category: birth_date
       - context: [выдан, дата выдачи]
         context_after: [код подразделения, к/п, код подр]
-        context_window: 120
+        context_window: 160
         context_after_window: 40
         category: passport_date
 

@@ -35,14 +35,14 @@ func birthValueBody(upper bool) string {
 	}
 	cityAlt := strings.Join(cityParts, "|")
 	date := `(?:\d{1,2}[./-]\d{1,2}[./-]\d{4}\s+в\s+|\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+\d{4}\s+года?\s+в\s+)?`
-	prefix := `(?:г\.|гор\.|город|пос\.|село|дер\.|станица|пгт|с\.|ст\.)?`
+	prefix := `(?:г\.|гор\.|город|пос\.|посёлок|село|дер\.|деревня|станица|пгт|с\.|ст\.|аул|х\.|хутор|п\.|рп|д\.)?`
 	word := `[а-яё-]+`
 	if upper {
 		word = `[А-ЯЁ][а-яё-]+`
 	}
 	place := `(?:` + word + `|` + cityAlt + `)(?:\s+` + word + `){0,2}`
 	region := `(?:область|области|край|края|район|района|республика|республики)`
-	tail := `(?:,?\s*(?:` + region + `\s+` + word + `|` + word + `\s+` + region + `|` + region + `))?`
+	tail := `(?:,?\s*(?:` + region + `\s+` + word + `(?:\s+` + word + `)?|` + word + `\s+` + region + `|` + region + `))?`
 	return date + `(` + prefix + `\s*` + place + tail + `)`
 }
 
@@ -81,6 +81,13 @@ func (d *birthplaceDetector) DetectLower(t pii.Text) []pii.Span {
 		start := ctxEnd + sub[2]
 		end := ctxEnd + sub[3]
 		value := search[start:end]
+		// A birth place never extends into a citizenship clause ("гражданство
+		// Республики ..."). Truncate the value at that keyword so the following
+		// citizenship span is not swallowed by the overlap resolution.
+		if idx := strings.Index(value, "гражданство"); idx >= 0 {
+			end = start + idx
+			value = search[start:end]
+		}
 		if wordCount(value) > 6 {
 			continue
 		}

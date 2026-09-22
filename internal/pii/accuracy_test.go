@@ -125,37 +125,71 @@ func overlapRatio(det, exp datasetSpan) float64 {
 	return float64(overlap) / float64(expLen)
 }
 
+// matchRatio reports how well a detected span matches an expected span. It is
+// the larger of the overlap relative to the expected span and the overlap
+// relative to the detected span. This tolerates convention differences where
+// our spans exclude context words that the external markup includes (e.g.
+// "серия: 4765, номер: 549251" vs our "4765, номер: 549251").
+func matchRatio(det, exp datasetSpan) float64 {
+	r1 := overlapRatio(det, exp)
+	r2 := overlapRatio(exp, det)
+	if r2 > r1 {
+		return r2
+	}
+	return r1
+}
+
+// strictMatch reports whether a detected span matches an expected span under
+// the strict rule: same category and at least 80% overlap in both directions
+// (relative to the expected span and relative to the detected span).
+func strictMatch(det, exp datasetSpan) bool {
+	return overlapRatio(det, exp) >= 0.8 && overlapRatio(exp, det) >= 0.8
+}
+
+// softMatch reports whether a detected span matches an expected span under the
+// soft rule: same category and matchRatio at least 0.8. It tolerates convention
+// differences where our spans exclude context words that the external markup
+// includes.
+func softMatch(det, exp datasetSpan) bool {
+	return matchRatio(det, exp) >= 0.8
+}
+
 // TestAccuracy runs the pipeline over the dataset and reports precision/recall
-// per category.
+// per category using strict span matching.
 func TestAccuracy(t *testing.T) {
 	records := loadDataset(t)
-	runAccuracy(t, "dataset", records, 0.95)
+	runAccuracy(t, "dataset", records, 0.95, strictMatch)
 }
 
 // TestAccuracyBlind runs the pipeline over the blind dataset, which the
 // detectors have not been tuned on, and enforces the same precision/recall
-// threshold.
+// threshold using strict span matching.
 func TestAccuracyBlind(t *testing.T) {
 	records := loadDatasetFile(t, "testdata/blind.jsonl")
-	runAccuracy(t, "blind", records, 0.95)
+	runAccuracy(t, "blind", records, 0.95, strictMatch)
 }
 
 // TestAccuracyExternal runs the pipeline over a dataset given by the
 // PDN_EVAL_DATASET environment variable. It is skipped when the variable is
-// empty and only reports metrics without enforcing a threshold.
+// empty and only reports metrics without enforcing a threshold. It prints both
+// a strict table and a soft table (with the markup-convention allowance).
 func TestAccuracyExternal(t *testing.T) {
 	path := os.Getenv("PDN_EVAL_DATASET")
 	if path == "" {
 		t.Skip("PDN_EVAL_DATASET not set")
 	}
 	records := loadDatasetFile(t, path)
-	runAccuracy(t, "external", records, 0.0)
+	runAccuracy(t, "external (strict)", records, 0.0, strictMatch)
+	runAccuracy(t, "external (soft, с поправкой на конвенцию разметки: контекстные слова вне спана)", records, 0.0, softMatch)
 }
+
+// matchFunc decides whether a detected span matches an expected span.
+type matchFunc func(det, exp datasetSpan) bool
 
 // runAccuracy runs the pipeline over records, prints a per-category table and
 // enforces an overall precision/recall threshold. A threshold of 0 disables the
 // check.
-func runAccuracy(t *testing.T, name string, records []datasetRecord, threshold float64) {
+func runAccuracy(t *testing.T, name string, records []datasetRecord, threshold float64, match matchFunc) {
 	t.Helper()
 	p := pii.NewPipeline(detectors.Default()...)
 
@@ -179,13 +213,13 @@ func runAccuracy(t *testing.T, name string, records []datasetRecord, threshold f
 				if exp.Category != string(cat) {
 					continue
 				}
-				r := overlapRatio(datasetSpan{Start: det.Start, End: det.End}, exp)
+				r := matchRatio(datasetSpan{Start: det.Start, End: det.End}, exp)
 				if r > bestRatio {
 					bestRatio = r
 					best = i
 				}
 			}
-			if best >= 0 && bestRatio >= 0.8 {
+			if best >= 0 && match(datasetSpan{Start: det.Start, End: det.End}, rec.Spans[best]) {
 				if !matched[best] {
 					matched[best] = true
 					byCat[cat].tp++

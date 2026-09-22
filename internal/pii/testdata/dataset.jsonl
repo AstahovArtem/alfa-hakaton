@@ -217,3 +217,26 @@
 {"id":"birthplace-010","text":"родился в с. Ивановка Рязанской области","spans":[{"value":"с. Ивановка Рязанской области","category":"birth_place"}]}
 {"id":"address-011","text":"живёт в Казани, Кремлёвская 5","spans":[{"value":"Казани, Кремлёвская 5","category":"address"}]}
 {"id":"address-012","text":"проживает в Москве, Тверская 10","spans":[{"value":"Москве, Тверская 10","category":"address"}]}
+{"id":"defect-email-001","text":"лебедева30@gmail.com","spans":[{"value":"лебедева30@gmail.com","category":"email"}]}
+{"id":"defect-email-002","text":"фeдоров92@gmail.com","spans":[{"value":"фeдоров92@gmail.com","category":"email"}]}
+{"id":"defect-email-003","text":"иван@почта.рф","spans":[{"value":"иван@почта.рф","category":"email"}]}
+{"id":"defect-birth-001","text":"16 июня 1980 года г.р.","spans":[{"value":"16 июня 1980 года","category":"birth_date"}]}
+{"id":"defect-birth-002","text":"22.08.1990 года рождения","spans":[{"value":"22.08.1990","category":"birth_date"}]}
+{"id":"defect-passdate-001","text":"выдан ТП №5 ОУФМС России по Республике Татарстан в г. Казани 18 августа 2019 года","spans":[{"value":"ТП №5 ОУФМС России по Республике Татарстан в г. Казани","category":"passport_issuer"},{"value":"18 августа 2019 года","category":"passport_date"}]}
+{"id":"defect-foreign-001","text":"иностранный паспорт 61 4074552","spans":[{"value":"61 4074552","category":"foreign_passport"}]}
+{"id":"defect-foreign-002","text":"паспорт иностранного гражданина 71 1234567","spans":[{"value":"71 1234567","category":"foreign_passport"}]}
+{"id":"defect-passport-001","text":"серия 45 75 № 841641","spans":[{"value":"45 75 № 841641","category":"passport"}]}
+{"id":"defect-passport-002","text":"45 75 № 841641","spans":[{"value":"45 75 № 841641","category":"passport"}]}
+{"id":"defect-issuer-001","text":"Паспорт выдан ГУ МВД России по г. Санкт-Петербургу и Ленинградской области, копия страницы приложена к делу.","spans":[{"value":"ГУ МВД России по г. Санкт-Петербургу и Ленинградской области","category":"passport_issuer"}]}
+{"id":"defect-birthplace-001","text":"Место рождения: аул Хучни Республики Дагестан","spans":[{"value":"аул Хучни Республики Дагестан","category":"birth_place"}]}
+{"id":"defect-birthplace-002","text":"Место рождения: д. Малиновка Брянской области","spans":[{"value":"д. Малиновка Брянской области","category":"birth_place"}]}
+{"id":"defect-card-001","text":"карта 5536470369258147 ","spans":[{"value":"5536470369258147","category":"card_number"}]}
+{"id":"defect-name-001","text":"ФИО: Ахметова Айгуль Расуловна","spans":[{"value":"Ахметова Айгуль Расуловна","category":"full_name"}]}
+{"id":"defect-name-002","text":"Оганесян Арам Самвелович","spans":[{"value":"Оганесян Арам Самвелович","category":"full_name"}]}
+{"id":"defect-name-003","text":"Мамедова Севиль Рустамовна","spans":[{"value":"Мамедова Севиль Рустамовна","category":"full_name"}]}
+{"id":"defect-name-004","text":"ДОВЕРЕННОСТЬ ВЫДАНА НА ИМЯ КИМ В.С.","spans":[{"value":"КИМ В.С.","category":"full_name"}]}
+{"id":"defect-citizen-001","text":"гражданин Республики Казахстан","spans":[{"value":"Республики Казахстан","category":"citizenship"}]}
+{"id":"defect-citizen-002","text":"гражданство РФ","spans":[{"value":"РФ","category":"citizenship"}]}
+{"id":"defect-citizen-003","text":"гражданка Российской Федерации","spans":[{"value":"Российской Федерации","category":"citizenship"}]}
+{"id":"defect-famous-001","text":"Александр Сергеевич Пушкин","spans":[]}
+{"id":"defect-famous-002","text":"Юрий Алексеевич Гагарин","spans":[]}

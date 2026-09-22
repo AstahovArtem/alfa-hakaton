@@ -63,6 +63,35 @@ func TestEmailDetect(t *testing.T) {
 	}
 }
 
+func TestEmailCyrillic(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"cyrillicLocal", "лебедева30@gmail.com", "лебедева30@gmail.com"},
+		{"mixedLocal", "фeдоров92@gmail.com", "фeдоров92@gmail.com"},
+		{"cyrillicDomain", "иван@почта.рф", "иван@почта.рф"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			res := runPipeline(t, c.in)
+			found := false
+			for _, s := range res.Spans {
+				if s.Category == pii.CatEmail {
+					found = true
+					if got := c.in[s.Start:s.End]; got != c.want {
+						t.Errorf("email value for %q = %q, want %q", c.in, got, c.want)
+					}
+				}
+			}
+			if !found {
+				t.Errorf("no email span for %q", c.in)
+			}
+		})
+	}
+}
+
 func TestINNDetect(t *testing.T) {
 	cases := []struct {
 		name string
@@ -304,6 +333,83 @@ func TestBirthDateReclassifyRightContext(t *testing.T) {
 	}
 }
 
+func TestBirthDateReclassifyRightContextGR(t *testing.T) {
+	cases := []string{
+		"16 июня 1980 года г.р.",
+		"22.08.1990 года рождения",
+		"16 июня 1980 года г. р.",
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c)
+		if !hasCategory(t, res, pii.CatBirthDate) {
+			t.Errorf("expected birth_date for %q, got %+v", c, res.Spans)
+		}
+	}
+}
+
+func TestPassportDateAfterLongIssuer(t *testing.T) {
+	res := runPipeline(t, "выдан ТП №5 ОУФМС России по Республике Татарстан в г. Казани 18 августа 2019 года")
+	if !hasCategory(t, res, pii.CatPassportDate) {
+		t.Errorf("expected passport_date for date after long issuer, got %+v", res.Spans)
+	}
+	if hasCategory(t, res, pii.CatDate) {
+		t.Errorf("date should be reclassified to passport_date, got %+v", res.Spans)
+	}
+}
+
+func TestForeignPassportContexts(t *testing.T) {
+	cases := []string{
+		"иностранный паспорт 61 4074552",
+		"паспорт иностранного гражданина 71 1234567",
+		"заграничный паспорт 71 1234567",
+		"загран. 71 1234567",
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c)
+		if !hasCategory(t, res, pii.CatForeignPassport) {
+			t.Errorf("expected foreign_passport for %q, got %+v", c, res.Spans)
+		}
+	}
+}
+
+func TestPassportSeriesTwoPairs(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"серия 45 75 № 841641", "45 75 № 841641"},
+		{"45 75 № 841641", "45 75 № 841641"},
+		{"серия: 45 75, номер: 841641", "45 75, номер: 841641"},
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c.in)
+		found := false
+		for _, s := range res.Spans {
+			if s.Category == pii.CatPassport {
+				found = true
+				if got := c.in[s.Start:s.End]; got != c.want {
+					t.Errorf("passport value for %q = %q, want %q", c.in, got, c.want)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("no passport span for %q", c.in)
+		}
+	}
+}
+
+func TestCardNumberNoTrailingSpace(t *testing.T) {
+	in := "карта 5536470369258147 "
+	res := runPipeline(t, in)
+	for _, s := range res.Spans {
+		if s.Category == pii.CatCardNumber {
+			if got := in[s.Start:s.End]; got != "5536470369258147" {
+				t.Errorf("card span should not include trailing space, got %q", got)
+			}
+		}
+	}
+}
+
 func TestCitizenshipDetect(t *testing.T) {
 	cases := []struct {
 		name string
@@ -333,6 +439,32 @@ func TestCitizenshipSpanExcludesContext(t *testing.T) {
 			if s.Start != 23 {
 				t.Errorf("citizenship span should start after context word, got start=%d", s.Start)
 			}
+		}
+	}
+}
+
+func TestCitizenshipForms(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"гражданин Республики Казахстан", "Республики Казахстан"},
+		{"гражданство РФ", "РФ"},
+		{"гражданка Российской Федерации", "Российской Федерации"},
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c.in)
+		found := false
+		for _, s := range res.Spans {
+			if s.Category == pii.CatCitizenship {
+				found = true
+				if got := c.in[s.Start:s.End]; got != c.want {
+					t.Errorf("citizenship value for %q = %q, want %q", c.in, got, c.want)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("no citizenship span for %q", c.in)
 		}
 	}
 }

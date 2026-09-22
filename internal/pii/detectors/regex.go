@@ -231,6 +231,18 @@ func (d *regexDetector) detectRule(t pii.Text, r Rule) []pii.Span {
 		}
 		match := t.Raw[start:end]
 
+		// Trim trailing separators so a span never ends with a space, dash,
+		// period or comma (e.g. a card number followed by a space).
+		for end > start {
+			c := t.Raw[end-1]
+			if c == ' ' || c == '-' || c == '.' || c == ',' {
+				end--
+				continue
+			}
+			break
+		}
+		match = t.Raw[start:end]
+
 		if r.Validator != "" {
 			if v, ok := Validators[r.Validator]; ok && !v(match) {
 				continue

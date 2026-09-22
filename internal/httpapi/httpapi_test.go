@@ -394,3 +394,38 @@ func TestIndexPage(t *testing.T) {
 		t.Errorf("index page missing title")
 	}
 }
+
+func TestRequestLogStageTimings(t *testing.T) {
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&buf, nil))
+	cfg := testConfig()
+	st, err := store.NewMemory(make([]byte, 32))
+	if err != nil {
+		t.Fatalf("NewMemory: %v", err)
+	}
+	t.Cleanup(st.Close)
+	s := newServerWithLogger(cfg, st, logger)
+	ts := httptest.NewServer(s.Handler())
+	t.Cleanup(ts.Close)
+
+	resp, _ := doJSON(t, ts, "POST", "/process", nil, map[string]string{
+		"payload":    testText,
+		"payload_id": "doc1",
+	})
+	if resp.StatusCode != 200 {
+		t.Fatalf("status = %d", resp.StatusCode)
+	}
+
+	out := buf.String()
+	for _, field := range []string{"detect_ms", "mask_ms", "store_ms"} {
+		if !strings.Contains(out, field) {
+			t.Errorf("request log missing %s", field)
+		}
+	}
+	if strings.Contains(out, "llm_ms") {
+		t.Errorf("request log should not contain llm_ms for /process")
+	}
+	if strings.Contains(out, "Иванов") || strings.Contains(out, "4509") {
+		t.Errorf("request log leaks PII")
+	}
+}

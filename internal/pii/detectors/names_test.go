@@ -123,3 +123,58 @@ func TestFullNameConfidence(t *testing.T) {
 		}
 	}
 }
+
+func TestFullNameUnknownGivenNameWithPatronymic(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"ФИО: Ахметова Айгуль Расуловна", "Ахметова Айгуль Расуловна"},
+		{"Оганесян Арам Самвелович", "Оганесян Арам Самвелович"},
+		{"Мамедова Севиль Рустамовна", "Мамедова Севиль Рустамовна"},
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c.in)
+		found := false
+		for _, s := range res.Spans {
+			if s.Category == pii.CatFullName {
+				found = true
+				if got := c.in[s.Start:s.End]; got != c.want {
+					t.Errorf("full_name value for %q = %q, want %q", c.in, got, c.want)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("no full_name span for %q", c.in)
+		}
+	}
+}
+
+func TestFullNameFamousWithPatronymic(t *testing.T) {
+	cases := []string{
+		"Александр Сергеевич Пушкин",
+		"Юрий Алексеевич Гагарин",
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c)
+		if hasCategory(t, res, pii.CatFullName) {
+			t.Errorf("famous person with patronymic should not be PII: %q, got %+v", c, res.Spans)
+		}
+	}
+}
+
+func TestFullNameSurnameInitialsUppercase(t *testing.T) {
+	res := runPipeline(t, "ДОВЕРЕННОСТЬ ВЫДАНА НА ИМЯ КИМ В.С.")
+	found := false
+	for _, s := range res.Spans {
+		if s.Category == pii.CatFullName {
+			found = true
+			if got := "ДОВЕРЕННОСТЬ ВЫДАНА НА ИМЯ КИМ В.С."[s.Start:s.End]; got != "КИМ В.С." {
+				t.Errorf("full_name value = %q, want %q", got, "КИМ В.С.")
+			}
+		}
+	}
+	if !found {
+		t.Errorf("no full_name span for КИМ В.С.")
+	}
+}

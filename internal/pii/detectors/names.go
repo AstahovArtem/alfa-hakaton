@@ -192,9 +192,9 @@ var stopWords = map[string]bool{
 	"банк": true, "москва": true, "россия": true, "российская": true, "федерация": true,
 	"область": true, "город": true, "улица": true, "дом": true, "клиент": true, "паспорт": true,
 	"отделение": true, "офис": true, "договор": true, "счёт": true, "карта": true, "номер": true,
-	"январь": true, "января": true, "февраль": true, "февраля": true, "март": true, "марта": true,
+	"январь": true, "января": true, "февраль": true, "февраля": true, "март": true,
 	"апрель": true, "апреля": true, "май": true, "мая": true, "июнь": true, "июня": true,
-	"июль": true, "июля": true, "август": true, "августа": true, "сентябрь": true, "сентября": true,
+	"июль": true, "июля": true, "августа": true, "сентябрь": true, "сентября": true,
 	"октябрь": true, "октября": true, "ноябрь": true, "ноября": true, "декабрь": true, "декабря": true,
 	"понедельник": true, "вторник": true, "среда": true, "четверг": true, "пятница": true,
 	"суббота": true, "воскресенье": true,
@@ -272,6 +272,21 @@ func (d *namesDetector) DetectLower(t pii.Text) []pii.Span {
 				covered[cands[i+1]] = true
 				i += 2
 				continue
+			}
+		}
+		// Surname + unknown given name + patronymic: the patronymic makes the
+		// sequence unambiguous even when the given name is not in the dictionary.
+		if i+1 < len(cands) && (nt[cands[i]].isSurname || nt[cands[i]].isSurnameGuess) && nt[cands[i+1]].isPatr {
+			if mid, ok := singleNameGap(nt, cands[i], cands[i+1]); ok {
+				seq := []nameToken{nt[cands[i]], nt[mid], nt[cands[i+1]]}
+				if !d.isFamous(seq) {
+					spans = append(spans, pii.Span{Start: seq[0].start, End: seq[2].end, Category: pii.CatFullName, Detector: d.Name(), Confidence: 0.95})
+					covered[cands[i]] = true
+					covered[mid] = true
+					covered[cands[i+1]] = true
+					i += 2
+					continue
+				}
 			}
 		}
 		tok := nt[cands[i]]
@@ -423,6 +438,11 @@ func (d *namesDetector) validSeq(seq []nameToken, t pii.Text) (bool, float64) {
 				return true, 0.95
 			}
 		}
+		if seq[0].isName && seq[1].isInitial && seq[2].isInitial {
+			if d.hasDictOrPatr(seq) {
+				return true, 0.95
+			}
+		}
 		if seq[0].isInitial && seq[1].isInitial && (seq[2].isSurname || seq[2].isSurnameGuess) {
 			if d.hasDictOrPatr(seq) {
 				return true, 0.95
@@ -453,7 +473,7 @@ func (d *namesDetector) validSeq(seq []nameToken, t pii.Text) (bool, float64) {
 
 func (d *namesDetector) hasDictOrPatr(seq []nameToken) bool {
 	for _, t := range seq {
-		if t.isName || t.isSurname || t.isPatr {
+		if t.isName || t.isSurname || t.isSurnameGuess || t.isPatr {
 			return true
 		}
 	}
@@ -463,6 +483,11 @@ func (d *namesDetector) hasDictOrPatr(seq []nameToken) bool {
 func (d *namesDetector) isFamous(seq []nameToken) bool {
 	var stems []string
 	for _, t := range seq {
+		// Ignore patronymics and initials: famous persons are matched on
+		// name + surname only.
+		if t.isPatr || t.isInitial {
+			continue
+		}
 		stems = append(stems, normalizeWord(t.lower))
 	}
 	for _, f := range d.dict.famous {
@@ -512,4 +537,26 @@ func hasRightContext(t pii.Text, pos int, keywords []string, window int) bool {
 		}
 	}
 	return false
+}
+
+// singleNameGap reports whether there is exactly one non-candidate token
+// between candidate indices a and b, and that token looks like a given name
+// (capitalised, not a stopword). It returns the token index and true when so.
+func singleNameGap(nt []nameToken, a, b int) (int, bool) {
+	if b-a != 2 {
+		return 0, false
+	}
+	mid := a + 1
+	t := nt[mid]
+	if t.isName || t.isSurname || t.isSurnameGuess || t.isPatr || t.isInitial {
+		return 0, false
+	}
+	if stopWords[t.lower] {
+		return 0, false
+	}
+	r, _ := utf8.DecodeRuneInString(t.text)
+	if !isUpperRune(r) {
+		return 0, false
+	}
+	return mid, true
 }

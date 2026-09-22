@@ -30,6 +30,20 @@ var issuerAbbrevs = map[string]bool{
 	"т": true, "др": true, "пр-т": true, "пр-д": true, "б-р": true,
 }
 
+// issuerContinuations are words that may follow a comma and still belong to the
+// issuing authority name (e.g. "по г. Москве, отделом по району Хамовники").
+var issuerContinuations = map[string]bool{
+	"по": true, "в": true, "и": true, "г": true, "гор": true, "район": true,
+	"района": true, "области": true, "отдел": true, "отделом": true,
+	"отделение": true, "отделением": true, "тп": true, "№": true,
+	"край": true, "края": true, "округ": true, "округа": true,
+}
+
+// issuerAlwaysEnd are words that always terminate the issuing authority value.
+var issuerAlwaysEnd = map[string]bool{
+	"копия": true, "приложена": true, "документ": true, "дата": true, "код": true,
+}
+
 type issuerDetector struct{}
 
 // NewIssuerDetector builds the passport_issuer detector.
@@ -107,6 +121,29 @@ func issuerEnd(text string, start int, termRe *regexp.Regexp) int {
 			}
 		}
 	}
+	// A comma ends the value when the following word is not a continuation of
+	// the issuing authority (e.g. "..., копия страницы приложена к делу").
+	for i := start; i < len(text); i++ {
+		if text[i] != ',' {
+			continue
+		}
+		next := nextWord(text, i+1)
+		if next == "" {
+			continue
+		}
+		lower := strings.ToLower(next)
+		if issuerAlwaysEnd[lower] {
+			if i < end {
+				end = i
+			}
+			continue
+		}
+		if !issuerContinuations[lower] {
+			if i < end {
+				end = i
+			}
+		}
+	}
 	// Cap at 12 words.
 	words := strings.Fields(text[start:end])
 	if len(words) > 12 {
@@ -132,6 +169,18 @@ func isAbbrevPeriod(text string, pos int) bool {
 	}
 	tok := strings.ToLower(text[tokStart:tokEnd])
 	return issuerAbbrevs[tok]
+}
+
+// nextWord returns the first whitespace-delimited word at or after pos, or "".
+func nextWord(text string, pos int) string {
+	for pos < len(text) && (text[pos] == ' ' || text[pos] == '\t' || text[pos] == '\n') {
+		pos++
+	}
+	start := pos
+	for pos < len(text) && text[pos] != ' ' && text[pos] != '\t' && text[pos] != '\n' && text[pos] != ',' {
+		pos++
+	}
+	return text[start:pos]
 }
 
 func isUpperRune(r rune) bool {
