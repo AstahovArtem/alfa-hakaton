@@ -294,14 +294,16 @@ func (d *addressDetector) findComponents(t pii.Text) []addrComponent {
 }
 
 // bareHousesAfterStreet finds bare house numbers following a street component
-// (e.g. "ул. Ленина, 5").
+// (e.g. "ул. Ленина, 5"). The search is limited to a window of 200 runes after
+// the street so the cost stays linear in the number of streets.
 func bareHousesAfterStreet(text string, comps []addrComponent) []addrComponent {
 	var out []addrComponent
 	for _, s := range comps {
 		if s.kind != "street" {
 			continue
 		}
-		for _, loc := range addrBareHouseRe.FindAllStringIndex(text[s.end:], -1) {
+		windowEnd := runeOffsetAfter(text, s.end, 200)
+		for _, loc := range addrBareHouseRe.FindAllStringIndex(text[s.end:windowEnd], -1) {
 			start := s.end + loc[0]
 			end := s.end + loc[1]
 			if gapRunes(text, s.end, start) <= 3 {
@@ -386,13 +388,17 @@ func matchCity(lower, text string, cd *citiesDict, i int, city string, includeCi
 // bareStreetsAfterLocality finds a bare street + house number following a
 // locality (e.g. "Казани, Кремлёвская 5"). A bare street is only accepted
 // inside an already-valid address, so it must attach to a locality component.
+// The search is limited to a window of 200 runes after the locality so the
+// cost stays linear in the number of localities rather than quadratic in the
+// text length.
 func bareStreetsAfterLocality(text string, comps []addrComponent) []addrComponent {
 	var out []addrComponent
 	for _, s := range comps {
 		if s.kind != "locality" {
 			continue
 		}
-		for _, loc := range addrBareStreetHouseRe.FindAllStringIndex(text[s.end:], -1) {
+		windowEnd := runeOffsetAfter(text, s.end, 200)
+		for _, loc := range addrBareStreetHouseRe.FindAllStringIndex(text[s.end:windowEnd], -1) {
 			start := s.end + loc[0]
 			end := s.end + loc[1]
 			if gapRunes(text, s.end, start) <= 3 {

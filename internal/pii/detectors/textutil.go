@@ -37,12 +37,36 @@ func decodedRune(s string, pos int) rune {
 	return r
 }
 
-// gapRunes returns the number of runes between byte positions a and b.
+// gapRunes returns the number of runes between byte positions a and b. All
+// callers only compare the result against a small threshold (<= 3), so the scan
+// is capped at 4 runes to keep the cost constant even when a and b are far
+// apart in a long text.
 func gapRunes(text string, a, b int) int {
 	if b <= a {
 		return 0
 	}
-	return utf8.RuneCountInString(text[a:b])
+	count := 0
+	for i := a; i < b && count < 4; {
+		_, size := utf8.DecodeRuneInString(text[i:])
+		i += size
+		count++
+	}
+	return count
+}
+
+// runeOffsetAfter returns the byte offset that is n runes after byte position
+// pos in s, clamped to len(s). It walks forward over rune boundaries without
+// allocating a []rune.
+func runeOffsetAfter(s string, pos, n int) int {
+	if n <= 0 {
+		return pos
+	}
+	end := pos
+	for count := 0; count < n && end < len(s); count++ {
+		_, size := utf8.DecodeRuneInString(s[end:])
+		end += size
+	}
+	return end
 }
 
 // runeWindowBefore returns the last n runes before byte position pos, taken from
@@ -66,15 +90,12 @@ func runeWindowAfter(t pii.Text, pos, n int) string {
 }
 
 // lastNRunesLower returns the last n runes of s as a string without allocating
-// a []rune. It walks back from the end over rune boundaries.
+// a []rune. It walks back from the end over rune boundaries. When s has fewer
+// than n runes the whole string is returned.
 func lastNRunesLower(s string, n int) string {
 	if n <= 0 {
 		return ""
 	}
-	if utf8.RuneCountInString(s) <= n {
-		return s
-	}
-	// Walk back n runes from the end.
 	i := len(s)
 	for count := 0; count < n && i > 0; count++ {
 		i--
@@ -86,13 +107,11 @@ func lastNRunesLower(s string, n int) string {
 }
 
 // firstNRunesLower returns the first n runes of s as a string without allocating
-// a []rune. It walks forward over rune boundaries.
+// a []rune. It walks forward over rune boundaries. When s has fewer than n runes
+// the whole string is returned.
 func firstNRunesLower(s string, n int) string {
 	if n <= 0 {
 		return ""
-	}
-	if utf8.RuneCountInString(s) <= n {
-		return s
 	}
 	i := 0
 	for count := 0; count < n && i < len(s); count++ {
@@ -102,20 +121,32 @@ func firstNRunesLower(s string, n int) string {
 	return s[:i]
 }
 
-// lastNRunes returns the last n runes of s as a string.
+// lastNRunes returns the last n runes of s as a string without allocating a
+// []rune. When s has fewer than n runes the whole string is returned.
 func lastNRunes(s string, n int) string {
-	r := []rune(s)
-	if len(r) <= n {
-		return s
+	if n <= 0 {
+		return ""
 	}
-	return string(r[len(r)-n:])
+	i := len(s)
+	for count := 0; count < n && i > 0; count++ {
+		i--
+		for i > 0 && s[i]&0xC0 == 0x80 {
+			i--
+		}
+	}
+	return s[i:]
 }
 
-// firstNRunes returns the first n runes of s as a string.
+// firstNRunes returns the first n runes of s as a string without allocating a
+// []rune. When s has fewer than n runes the whole string is returned.
 func firstNRunes(s string, n int) string {
-	r := []rune(s)
-	if len(r) <= n {
-		return s
+	if n <= 0 {
+		return ""
 	}
-	return string(r[:n])
+	i := 0
+	for count := 0; count < n && i < len(s); count++ {
+		_, size := utf8.DecodeRuneInString(s[i:])
+		i += size
+	}
+	return s[:i]
 }

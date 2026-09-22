@@ -108,15 +108,17 @@ func (d *issuerDetector) DetectLower(t pii.Text) []pii.Span {
 // begins, scanning forward from from for the first start word. A gap of
 // non-letter text (whitespace, digits, dates, punctuation) and dialogue labels
 // may sit between the context keyword and the value. It returns -1 when no
-// start word is found.
+// start word is found within a window of 300 runes, so the cost stays linear in
+// the number of context matches rather than quadratic in the text length.
 func findIssuerStart(search string, from int, startRe, gapRe *regexp.Regexp) int {
+	windowEnd := runeOffsetAfter(search, from, 300)
 	pos := from
-	for pos < len(search) {
-		if loc := gapRe.FindStringIndex(search[pos:]); loc != nil && loc[1] > 0 {
+	for pos < windowEnd {
+		if loc := gapRe.FindStringIndex(search[pos:windowEnd]); loc != nil && loc[1] > 0 {
 			pos += loc[1]
 			continue
 		}
-		m := startRe.FindStringIndex(search[pos:])
+		m := startRe.FindStringIndex(search[pos:windowEnd])
 		if m == nil {
 			return -1
 		}
@@ -139,10 +141,13 @@ func isCyrillicLetter(b byte) bool {
 // start for the earliest terminator (sentence end, date, keyword, newline) and
 // capping the value at 12 words. raw is the original text (used for the
 // uppercase sentence-end check); text is the text the terminator regexes run
-// against (the lowercased text when byte lengths match).
+// against (the lowercased text when byte lengths match). The search is limited
+// to a window of 300 runes from start so the cost stays linear in the number of
+// issuer contexts rather than quadratic in the text length.
 func issuerEnd(raw, text string, start int, termRe *regexp.Regexp) int {
-	end := len(text)
-	for _, tloc := range termRe.FindAllStringIndex(text[start:], -1) {
+	windowEnd := runeOffsetAfter(text, start, 300)
+	end := windowEnd
+	for _, tloc := range termRe.FindAllStringIndex(text[start:windowEnd], -1) {
 		pos := start + tloc[0]
 		if pos < end {
 			end = pos
@@ -166,9 +171,10 @@ func issuerEnd(raw, text string, start int, termRe *regexp.Regexp) int {
 }
 
 // issuerEndAtPeriod trims the value at a sentence-ending period (not an
-// abbreviation) followed by whitespace+capital or the end of the text.
+// abbreviation) followed by whitespace+capital or the end of the text. It only
+// scans within [start, end).
 func issuerEndAtPeriod(raw, text string, start, end int) int {
-	for i := start; i < len(text); i++ {
+	for i := start; i < end; i++ {
 		if text[i] != '.' {
 			continue
 		}
@@ -185,9 +191,9 @@ func issuerEndAtPeriod(raw, text string, start, end int) int {
 }
 
 // issuerEndAtComma trims the value at a comma when the following word is not a
-// continuation of the issuing authority.
+// continuation of the issuing authority. It only scans within [start, end).
 func issuerEndAtComma(text string, start, end int) int {
-	for i := start; i < len(text); i++ {
+	for i := start; i < end; i++ {
 		if text[i] != ',' {
 			continue
 		}
