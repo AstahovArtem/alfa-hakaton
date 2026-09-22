@@ -13,5 +13,8 @@ func Default() []pii.Detector {
 		NewRegexDetector(rules),
 		NewNamesDetector(),
 		NewCardholderDetector(),
+		NewAddressDetector(),
+		NewBirthplaceDetector(),
+		NewIssuerDetector(),
 	}
 }

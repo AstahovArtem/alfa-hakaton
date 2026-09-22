@@ -1,0 +1,78 @@
+package detectors
+
+import (
+	"testing"
+
+	"pdn-shield/internal/pii"
+)
+
+func TestBirthplaceDetect(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{"placeBirth", "место рождения: г. Москва", true},
+		{"bornIn", "родился в Москве", true},
+		{"bornInCity", "родился в г. Казань", true},
+		{"bornDate", "родился 12.05.1990 в Москве", true},
+		{"bornWordDate", "родился 12 мая 1990 года в Казани", true},
+		{"native", "уроженец города Казани", true},
+		{"nativeF", "уроженка города Москвы", true},
+		{"regionTail", "родился в г. Краснодар, Краснодарский край", true},
+		{"caseInsensitive", "МЕСТО РОЖДЕНИЯ: Г. МОСКВА", true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			res := runPipeline(t, c.in)
+			if got := hasCategory(t, res, pii.CatBirthPlace); got != c.want {
+				t.Errorf("birth_place detect %q = %v, want %v (spans: %+v)", c.in, got, c.want, res.Spans)
+			}
+		})
+	}
+}
+
+func TestBirthplaceNegative(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+	}{
+		{"noContext", "Москва — столица"},
+		{"noPlace", "родился в 1990 году"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			res := runPipeline(t, c.in)
+			if got := hasCategory(t, res, pii.CatBirthPlace); got {
+				t.Errorf("birth_place should not detect %q, got spans: %+v", c.in, res.Spans)
+			}
+		})
+	}
+}
+
+func TestBirthplaceSpanValue(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"место рождения: г. Москва", "г. Москва"},
+		{"родился в Москве", "Москве"},
+		{"родился 12.05.1990 в Москве", "Москве"},
+		{"уроженец города Казани", "города Казани"},
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c.in)
+		found := false
+		for _, s := range res.Spans {
+			if s.Category == pii.CatBirthPlace {
+				found = true
+				if got := c.in[s.Start:s.End]; got != c.want {
+					t.Errorf("birth_place value for %q = %q, want %q", c.in, got, c.want)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("no birth_place span for %q", c.in)
+		}
+	}
+}

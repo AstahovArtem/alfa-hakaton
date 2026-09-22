@@ -23,6 +23,8 @@ func TestFullNameDetect(t *testing.T) {
 		{"initialsF", "И. О. Иванов", true},
 		{"initialsFNoSpace", "И.О. Иванов", true},
 		{"genitive", "паспорт Иванова Ивана Ивановича", true},
+		{"genitivePatrFeminine", "Заявление от Петровой Марии Сергеевны", true},
+		{"suffixSurnameAfterColon", "Заявитель: Ахметов Руслан Маратович", true},
 		{"singleNameContext", "клиент Иван", true},
 		{"namePatrContext", "клиент Иван Иванович", true},
 	}
@@ -67,6 +69,31 @@ func TestFullNameSpanExcludesContext(t *testing.T) {
 			if s.Start != 13 {
 				t.Errorf("span should start at the name, got start=%d", s.Start)
 			}
+		}
+	}
+}
+
+func TestFullNameSpanValue(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"Заявление от Петровой Марии Сергеевны", "Петровой Марии Сергеевны"},
+		{"Заявитель: Ахметов Руслан Маратович", "Ахметов Руслан Маратович"},
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c.in)
+		found := false
+		for _, s := range res.Spans {
+			if s.Category == pii.CatFullName {
+				found = true
+				if got := c.in[s.Start:s.End]; got != c.want {
+					t.Errorf("full_name value for %q = %q, want %q", c.in, got, c.want)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("no full_name span for %q", c.in)
 		}
 	}
 }

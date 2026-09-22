@@ -324,7 +324,7 @@ func (d *namesDetector) dictSurnameBase(s string) bool {
 }
 
 func suffixSurname(lower string) bool {
-	for _, suf := range []string{"ский", "цкий", "ская", "цкая", "енко", "ук", "юк", "ян", "дзе", "швили", "ых", "их", "ова", "ева", "ёва", "ина", "ына"} {
+	for _, suf := range []string{"ский", "цкий", "ская", "цкая", "енко", "ук", "юк", "ян", "дзе", "швили", "ых", "их", "ова", "ева", "ёва", "ина", "ына", "ов", "ев", "ёв", "ин", "ын"} {
 		if strings.HasSuffix(lower, suf) {
 			return true
 		}
@@ -342,23 +342,37 @@ func suffixSurname(lower string) bool {
 	return false
 }
 
-func isPatronymic(lower string) bool {
-	if hasPatSuffix(lower) {
-		return true
-	}
-	for _, e := range []string{"а", "у", "ем", "е", "ой", "ы"} {
-		if strings.HasSuffix(lower, e) {
-			if hasPatSuffix(lower[:len(lower)-len(e)]) {
-				return true
+// patSuffixes are the base patronymic suffixes in the nominative case.
+var patSuffixes = []string{"ович", "евич", "ич", "овна", "евна", "ична", "инична"}
+
+// patForms holds every inflected form of every patronymic suffix, so that
+// patronymics in any case (e.g. "Сергеевны", "Маратовичу") are recognised.
+var patForms = buildPatForms()
+
+func buildPatForms() map[string]bool {
+	forms := make(map[string]bool)
+	for _, suf := range patSuffixes {
+		forms[suf] = true
+		if strings.HasSuffix(suf, "а") {
+			// Feminine suffixes drop the final -а and take a case ending.
+			r := []rune(suf)
+			base := string(r[:len(r)-1])
+			for _, e := range []string{"ы", "е", "у", "ой", "ою", "ам", "ами", "ах"} {
+				forms[base+e] = true
+			}
+		} else {
+			// Masculine suffixes append a case ending.
+			for _, e := range []string{"а", "у", "ы", "е", "ем", "ом", "и", "ей", "ам", "ами", "ах"} {
+				forms[suf+e] = true
 			}
 		}
 	}
-	return false
+	return forms
 }
 
-func hasPatSuffix(s string) bool {
-	for _, suf := range []string{"ович", "евич", "ич", "овна", "евна", "ична", "инична"} {
-		if strings.HasSuffix(s, suf) {
+func isPatronymic(lower string) bool {
+	for suf := range patForms {
+		if strings.HasSuffix(lower, suf) {
 			return true
 		}
 	}

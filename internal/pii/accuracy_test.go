@@ -181,7 +181,7 @@ func TestAccuracy(t *testing.T) {
 		pii.CatPhone, pii.CatEmail, pii.CatINN, pii.CatCardNumber, pii.CatCVV, pii.CatPIN, pii.CatPassport,
 		pii.CatDivisionCode, pii.CatDriverLicense, pii.CatSNILS, pii.CatForeignPassport,
 		pii.CatBirthDate, pii.CatPassportDate, pii.CatDate, pii.CatCitizenship,
-		pii.CatFullName, pii.CatCardHolder,
+		pii.CatFullName, pii.CatCardHolder, pii.CatAddress, pii.CatBirthPlace, pii.CatPassportIssuer,
 	} {
 		s := byCat[cat]
 		if s == nil {
