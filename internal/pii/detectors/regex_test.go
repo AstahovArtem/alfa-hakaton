@@ -383,6 +383,32 @@ func TestDateDetect(t *testing.T) {
 	}
 }
 
+// Point 2: a short date d.m.yy preceded by a version keyword is not a date.
+func TestDateShortYearVersionNegative(t *testing.T) {
+	cases := []string{
+		"Обновление приложения до версии 4.7.17 устраняет ошибки авторизации.",
+		"Обновление приложения до версии 2.5.5 устраняет ошибки авторизации.",
+		"Обновление приложения до версии 5.3.13 устраняет ошибки авторизации.",
+		"Обновление приложения до версии 3.1.1 устраняет ошибки авторизации.",
+		"Релиз 4.7.17 выходит завтра.",
+		"build 5.3.13 собран.",
+		"v1.2.3 доступна.",
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c)
+		if hasCategory(t, res, pii.CatDate) {
+			t.Errorf("date should not detect version %q, got %+v", c, res.Spans)
+		}
+	}
+}
+
+func TestDateShortYearPositive(t *testing.T) {
+	res := runPipeline(t, "дата рождения 05.03.85")
+	if !hasCategory(t, res, pii.CatBirthDate) {
+		t.Errorf("expected birth_date for short year date, got %+v", res.Spans)
+	}
+}
+
 func TestBirthDateReclassify(t *testing.T) {
 	res := runPipeline(t, "дата рождения 12.05.1990")
 	if !hasCategory(t, res, pii.CatBirthDate) {

@@ -229,6 +229,43 @@ func TestAddressLowercaseBareStreetFullSpan(t *testing.T) {
 	}
 }
 
+// Point 1: a lowercase bare street must be an adjective and not a time/duration
+// phrase (e.g. "будний день до 19:00" is not an address).
+func TestAddressBareStreetAdjectiveOnly(t *testing.T) {
+	cases := []string{
+		"Доставить в будний день до 19:00.",
+		"Доставить в рабочий день до 18:00.",
+		"Доставить в любой день до 20:00.",
+		"Доставить в ближайший день до 17:00.",
+		"Доставить в следующий день до 16:00.",
+		"Доставить в этот день до 15:00.",
+		"Доставить в каждый день до 14:00.",
+		"Доставить в день до 13:00.",
+		"Доставить во время до 12:00.",
+		"Доставить в час до 11:00.",
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c)
+		if hasCategory(t, res, pii.CatAddress) {
+			t.Errorf("address should not detect %q, got %+v", c, res.Spans)
+		}
+	}
+}
+
+func TestAddressBareStreetAdjectivePositive(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"я проживаю на тверской 5, квартира 8", "тверской 5, квартира 8"},
+		{"снимаю на профсоюзной 96 корпус 2", "профсоюзной 96 корпус 2"},
+		{"живу на тверской 5", "тверской 5"},
+	}
+	for _, c := range cases {
+		assertSpanValue(t, runPipeline(t, c.in), pii.CatAddress, c.in, c.want)
+	}
+}
+
 func TestAddressOrgHotelFalsePositive(t *testing.T) {
 	cases := []string{
 		"Конференция «ФинТех-2026» пройдёт в отеле по адресу: Санкт-Петербург, Невский пр., 57.",

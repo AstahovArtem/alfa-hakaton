@@ -312,3 +312,9 @@ rules:
     confidence: 0.85
     match_lower: true
     reclassify_date: true
+    reject_context:
+      - верси
+      - релиз
+      - build
+      - v
+    reject_context_window: 40

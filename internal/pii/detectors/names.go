@@ -43,6 +43,7 @@ const (
 	sufIm  = "им"
 	sufEy  = "ей"
 	sufIch = "ич"
+	sufIy  = "ий"
 )
 
 // Dict file names.
@@ -77,6 +78,15 @@ const (
 	ctxOblast    = "область"
 	ctxGorod     = "город"
 	ctxDom       = "дом"
+)
+
+// Full-name stop words that also appear as literals elsewhere in the codebase,
+// so they are defined once and reused to keep goconst clean.
+const (
+	stopWordGrazhdanin = "гражданин"
+	stopWordGrazhdanka = "гражданка"
+	stopWordRespublika = "республика"
+	stopWordPo         = "по"
 )
 
 type namesDetector struct {

@@ -230,6 +230,8 @@ var stopWords = map[string]bool{
 	"банк": true, "москва": true, ctxRussia: true, "российская": true, "федерация": true,
 	ctxOblast: true, ctxGorod: true, "улица": true, ctxDom: true, ctxClient: true, "паспорт": true,
 	ctxOtdelenie: true, "офис": true, "договор": true, "счёт": true, "карта": true, "номер": true,
+	"карты": true, "зачисления": true, "для": true, "на": true, stopWordPo: true, "от": true,
+	stopWordGrazhdanin: true, stopWordGrazhdanka: true, "республики": true, stopWordRespublika: true,
 	"дата": true, "место": true, "рождения": true, "рождение": true, "рожден": true, "рождён": true,
 	"xxxx": true, "тест": true, "тестов": true, "тестовой": true, "тестовой среде": true,
 	"январь": true, monthJanuary: true, "февраль": true, monthFebruary: true, "март": true,
@@ -241,7 +243,7 @@ var stopWords = map[string]bool{
 }
 
 var nameContext = []string{
-	ctxClient, "заявитель", "гражданин", "гражданка", "держатель", "владелец",
+	ctxClient, "заявитель", stopWordGrazhdanin, stopWordGrazhdanka, "держатель", "владелец",
 	ctxFIO, "имя", ctxZovut, "меня зовут", "сотрудник", "менеджер",
 }
 

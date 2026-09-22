@@ -249,6 +249,28 @@ var addrExceptionStems = []string{
 	"отель", "гостиниц", "конференц",
 }
 
+// bareStreetAdjectiveSuffixes are the adjective endings a lowercase bare street
+// name must have (e.g. "тверской", "профсоюзной", "тверская"). A bare street
+// name that is not an adjective (e.g. "будний день до 19") is not an address.
+var bareStreetAdjectiveSuffixes = []string{
+	"ской", sufSkaya, "ая", sufOy, sufIy, "ому", sufOm,
+}
+
+// bareStreetStopWords are lowercase words that must not be treated as a bare
+// street name even when they precede a number (e.g. "будний день до 19:00").
+var bareStreetStopWords = map[string]bool{
+	"будний": true, "рабочий": true, "любой": true, "ближайший": true,
+	"следующий": true, "этот": true, "каждый": true, "день": true,
+	"время": true, "час": true,
+}
+
+// bareStreetDurationWords are words that, when they follow the house number of a
+// bare street match, mark it as a time/duration phrase rather than an address
+// (e.g. "до 19:00", "в 5 часов").
+var bareStreetDurationWords = map[string]bool{
+	"час": true, "день": true, "до": true,
+}
+
 // addrNonStreetWords are capitalised words that must not be treated as a bare
 // street name in a street+house pattern (e.g. "Паспорт 5414", "Серия 45 09").
 var addrNonStreetWords = map[string]bool{
@@ -451,10 +473,7 @@ func findBareStreetContextLower(t pii.Text, text string) []addrComponent {
 		if start < 0 {
 			continue
 		}
-		if followedByDigit(text, end) {
-			continue
-		}
-		if bareStreetIsNonStreet(text, start) {
+		if !bareStreetContextMatchOK(text, bareCtxSearch, start, end) {
 			continue
 		}
 		if hasLeftContext(t, start, addrContext, 30) {
@@ -462,6 +481,70 @@ func findBareStreetContextLower(t pii.Text, text string) []addrComponent {
 		}
 	}
 	return comps
+}
+
+// bareStreetContextMatchOK reports whether a lowercase bare street+house match
+// is a plausible address: not a non-street word, not a time/duration phrase, and
+// the street name is an adjective.
+func bareStreetContextMatchOK(text, lower string, start, end int) bool {
+	if followedByDigit(text, end) {
+		return false
+	}
+	if bareStreetIsNonStreet(text, start) {
+		return false
+	}
+	return bareStreetAdjectiveOK(lower, start, end)
+}
+
+// bareStreetAdjectiveOK reports whether a lowercase bare street+house match is a
+// plausible adjective street name: the first word must be an adjective ending in
+// -ой/-ской/-ская/-ая/-ий/-ому/-ом, must not be a stop word, and the house
+// number must not be a time (followed by ":") or a duration word ("час", "день",
+// "до").
+func bareStreetAdjectiveOK(lower string, start, end int) bool {
+	word := nextWord(lower, start)
+	if bareStreetStopWords[word] || !hasAdjectiveSuffix(word) {
+		return false
+	}
+	// The house number must not be a time (e.g. "19:00") or a duration word.
+	number := lastDigitRun(lower, start, end)
+	if number < 0 {
+		return false
+	}
+	after := number + 1
+	for after < end && lower[after] == ' ' {
+		after++
+	}
+	if after < len(lower) && lower[after] == ':' {
+		return false
+	}
+	if after < end && bareStreetDurationWords[nextWord(lower, after)] {
+		return false
+	}
+	return true
+}
+
+// hasAdjectiveSuffix reports whether word ends with one of the adjective
+// suffixes used by Russian street names.
+func hasAdjectiveSuffix(word string) bool {
+	for _, suf := range bareStreetAdjectiveSuffixes {
+		if strings.HasSuffix(word, suf) {
+			return true
+		}
+	}
+	return false
+}
+
+// lastDigitRun returns the byte offset of the last run of digits within
+// [start, end), or -1 when there is none.
+func lastDigitRun(s string, start, end int) int {
+	pos := -1
+	for i := start; i < end; i++ {
+		if s[i] >= '0' && s[i] <= '9' {
+			pos = i
+		}
+	}
+	return pos
 }
 
 // findLabeledComponents finds labelled address components (e.g. "Страна:

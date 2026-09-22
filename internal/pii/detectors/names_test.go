@@ -328,3 +328,47 @@ func TestFullNameNamePatronymicSignature(t *testing.T) {
 		assertSpanValue(t, runPipeline(t, c.in), pii.CatFullName, c.in, c.want)
 	}
 }
+
+// Point 3: "КАРТЫ ДЛЯ ЗАЧИСЛЕНИЯ" after a card number label is not a full name.
+func TestFullNameCardLabelNegative(t *testing.T) {
+	cases := []string{
+		"ДОВЕРЕННОСТЬ ВЫДАНА НА ИМЯ ВАСИЛЬЕВА М.Д., НОМЕР КАРТЫ ДЛЯ ЗАЧИСЛЕНИЯ 4276036925814702.",
+		"ДОВЕРЕННОСТЬ ВЫДАНА НА ИМЯ КИМ В.С., НОМЕР КАРТЫ ДЛЯ ЗАЧИСЛЕНИЯ 4276581470369255.",
+		"ДОВЕРЕННОСТЬ ВЫДАНА НА ИМЯ ИВАНОВ П.С., НОМЕР КАРТЫ ДЛЯ ЗАЧИСЛЕНИЯ 4276036925814702.",
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c)
+		for _, s := range res.Spans {
+			if s.Category == pii.CatFullName {
+				val := c[s.Start:s.End]
+				if val == "КАРТЫ ДЛЯ ЗАЧИСЛЕНИЯ" {
+					t.Errorf("full_name should not detect %q in %q, got %+v", val, c, res.Spans)
+				}
+			}
+		}
+	}
+}
+
+// Point 4: "гражданин Республики" is not a full name.
+func TestFullNameCitizenNegative(t *testing.T) {
+	cases := []string{
+		"В анкете клиента указано: гражданин Республики Казахстан, документ действителен.",
+		"В анкете клиента указано: гражданка Республики Беларусь, документ действителен.",
+		"Ахметова Айгуль Расуловна обратился в отделение, гражданин Республики Казахстан, документы на верификации.",
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c)
+		for _, s := range res.Spans {
+			if s.Category == pii.CatFullName && citizenNameSpan(c, s.Start, s.End) {
+				t.Errorf("full_name should not detect %q in %q, got %+v", c[s.Start:s.End], c, res.Spans)
+			}
+		}
+	}
+}
+
+// citizenNameSpan reports whether the span [start,end) is a citizen phrase that
+// must not be a full name.
+func citizenNameSpan(text string, start, end int) bool {
+	val := text[start:end]
+	return val == "гражданин Республики" || val == "гражданка Республики"
+}
