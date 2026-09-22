@@ -8,3 +8,6 @@ resources:
   - hpa.yaml
   - ingress.yaml
   - pdb.yaml
+images:
+  - name: pdn-shield
+    newTag: latest

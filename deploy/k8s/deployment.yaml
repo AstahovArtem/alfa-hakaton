@@ -22,6 +22,9 @@ spec:
       terminationGracePeriodSeconds: 35
       securityContext:
         runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
       containers:
         - name: pdn-shield
           image: pdn-shield:latest
@@ -48,6 +51,8 @@ spec:
               memory: 512Mi
           securityContext:
             runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
             readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
           readinessProbe:
