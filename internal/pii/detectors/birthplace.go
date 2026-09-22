@@ -18,6 +18,15 @@ var birthContextRe = regexp.MustCompile(
 // settlementPrefixGorod is the "г." settlement prefix.
 const settlementPrefixGorod = "г."
 
+// settlementPrefixes lists the settlement prefixes that introduce a place name
+// (e.g. "г.", "пос.", "село", "деревня"). Longer prefixes come first so that
+// the longest match wins.
+var settlementPrefixes = []string{
+	"посёлоке", "поселке", "посёлка", "посёлок", "поселок", "деревня", "деревне",
+	"станица", "станице", "городе", "город", "гор.", settlementPrefixGorod, "пос.",
+	"с.", "ст.", "дер.", "д.", "пгт", "аул", "х.", "хутор", "п.", "рп", "село", "селе",
+}
+
 var birthContextLowerRe = regexp.MustCompile(
 	`(?:место рождения|место рожд\.|родился\s+в\s+|родилась\s+в\s+|родился|родилась|рожден в|рождён в|уроженец|уроженка|род\.)`,
 )
@@ -128,6 +137,12 @@ func (d *birthplaceDetector) matchAtContext(t pii.Text, search string, ctxEnd in
 	if !d.validStart(t, start, value) {
 		return pii.Span{}, false
 	}
+	// A settlement prefix must be followed by an actual place name. When the
+	// prefix is followed by end of text, a period, a comma or a lowercase word
+	// not in the dictionary, no span is created (e.g. "родилась ... в деревне").
+	if !d.hasPlaceAfterPrefix(t, start, value) {
+		return pii.Span{}, false
+	}
 	// Trim a prepositional settlement prefix (e.g. "в городе Тула" keeps only
 	// "Тула", "в деревне Малые Вяземы" keeps only "Малые Вяземы"), while the
 	// genitive/nominative forms (e.g. "уроженец города Казани", "аул Хучни") stay
@@ -173,6 +188,42 @@ func trimBirthValue(search string, start, end int) int {
 	return end
 }
 
+// hasPlaceAfterPrefix reports whether a settlement prefix in value is followed
+// by an actual place name (a capitalised word or a dictionary city). When the
+// prefix is followed by end of text, a period, a comma or a lowercase word not
+// in the dictionary, no span is created.
+func (d *birthplaceDetector) hasPlaceAfterPrefix(t pii.Text, start int, value string) bool {
+	prefixLen := settlementPrefixLen(value)
+	if prefixLen < 0 {
+		return true
+	}
+	rest := strings.TrimSpace(value[prefixLen:])
+	if rest == "" {
+		return false
+	}
+	// A period or comma right after the prefix means no place name follows.
+	if strings.HasPrefix(rest, ".") || strings.HasPrefix(rest, ",") {
+		return false
+	}
+	// The place name must be a capitalised word (in the raw text) or a city
+	// from the dictionary.
+	raw := t.Raw[start+prefixLen : start+len(value)]
+	raw = strings.TrimSpace(raw)
+	if raw != "" {
+		r, _ := utf8.DecodeRuneInString(raw)
+		if isUpperRune(r) {
+			return true
+		}
+	}
+	lower := strings.ToLower(rest)
+	for _, c := range loadCities().cities {
+		if strings.HasPrefix(lower, c) {
+			return true
+		}
+	}
+	return false
+}
+
 // validStart reports whether the birth-place value begins with a settlement
 // prefix, a capitalised word or a city from the dictionary.
 func (d *birthplaceDetector) validStart(t pii.Text, start int, value string) bool {
@@ -203,18 +254,32 @@ func (d *birthplaceDetector) validStart(t pii.Text, start int, value string) boo
 }
 
 // hasSettlementPrefix reports whether s starts with a settlement prefix such as
-// "г.", "пос.", "село" or "деревня".
+// "г.", "пос.", "село" or "деревня". It uses loose matching so that genitive
+// forms like "города Казани" are also accepted.
 func hasSettlementPrefix(s string) bool {
-	for _, p := range []string{
-		settlementPrefixGorod, "гор.", "пос.", "с.", "ст.", "дер.", "д.", "пгт", "аул", "х.",
-		"хутор", "п.", "рп", "город", "городе", "посёлок", "посёлка", "посёлоке", "поселок",
-		"поселке", "село", "селе", "деревня", "деревне", "станица", "станице",
-	} {
+	for _, p := range settlementPrefixes {
 		if strings.HasPrefix(s, p) {
 			return true
 		}
 	}
 	return false
+}
+
+// settlementPrefixLen returns the length of the settlement prefix at the start
+// of s, or -1 when s does not start with a settlement prefix. The prefix must be
+// a complete word: it is followed by a space, a period or the end of the string
+// (so "город" does not match the genitive "города").
+func settlementPrefixLen(s string) int {
+	for _, p := range settlementPrefixes {
+		if !strings.HasPrefix(s, p) {
+			continue
+		}
+		after := s[len(p):]
+		if after == "" || after[0] == ' ' || after[0] == '.' {
+			return len(p)
+		}
+	}
+	return -1
 }
 
 func wordCount(s string) int {

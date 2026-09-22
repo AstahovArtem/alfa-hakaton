@@ -47,6 +47,10 @@ func TestBirthplaceNegative(t *testing.T) {
 	}{
 		{"noContext", "Москва — столица"},
 		{"noPlace", "родился в 1990 году"},
+		{"noPlaceAfterPrefix", "родилась десятого октября тысяча девятьсот шестьдесят второго года в деревне"},
+		{"noPlaceAfterPrefixPeriod", "родился в деревне. Далее текст"},
+		{"noPlaceAfterPrefixComma", "родился в деревне, далее текст"},
+		{"noPlaceAfterPrefixLower", "родился в деревне малые вяземы"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
