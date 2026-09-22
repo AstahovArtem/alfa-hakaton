@@ -182,6 +182,8 @@ func TestFullStrategy(t *testing.T) {
 		{pii.CatAddress, "ул. Ленина, д. 5, кв. 12", "ул. ******, д. *, кв. **"},
 		{pii.CatPassportIssuer, "ОУФМС России по г. Москве", "ОУФМС России по г. ******"},
 		{pii.CatPassport, "серия 4509 номер 123456", "серия **** номер ******"},
+		{pii.CatCitizenship, "РФ", "**"},
+		{pii.CatCitizenship, "Российская Федерация", "********** *********"},
 	}
 	for _, tc := range cases {
 		got := s.Mask(tc.value, tc.cat, doc)

@@ -49,6 +49,8 @@ func TestAddressNegative(t *testing.T) {
 		{"cityOnly", "Москва — столица"},
 		{"indexOnly", "индекс качества 123456"},
 		{"streetOnly", "ул. Иванова"},
+		{"orgBranchSentence", "Стихи Александра Пушкина читали в отделении банка по адресу ул. Тверская, 12. Заказ 1234567890 на сумму 15000 руб."},
+		{"orgBranchWorkingHours", "Отделение банка по адресу ул. Тверская, 12 работает до 20:00"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -69,6 +71,7 @@ func TestAddressSpanValue(t *testing.T) {
 		{"Ленинский проспект, 10", "Ленинский проспект, 10"},
 		{"адрес: г. Москва, ул. Ленина, д. 5", "г. Москва, ул. Ленина, д. 5"},
 		{"живёт в Казани, Кремлёвская 5", "Казани, Кремлёвская 5"},
+		{"Доставить: ул. Тверская, 12. Заказ 1234567890", "ул. Тверская, 12"},
 	}
 	for _, c := range cases {
 		assertSpanValue(t, runPipeline(t, c.in), pii.CatAddress, c.in, c.want)

@@ -53,8 +53,12 @@ func (s *fullStrategy) Mask(value string, _ pii.Category, doc *DocState) string 
 // service word (see serviceWords) is kept intact, otherwise every letter and
 // digit in it is replaced with "*". Abbreviations with a dot ("г.", "ул.",
 // "д.", "кв.", "обл.", "корп.", "стр.", "пр-т") are preserved together with
-// the dot.
+// the dot. When the whole value consists only of service words (e.g. "РФ",
+// "России"), every letter is masked so no service word leaks the value.
 func maskFull(value string) string {
+	if allServiceWords(value) {
+		return maskAllLetters(value)
+	}
 	var b strings.Builder
 	b.Grow(len(value))
 	i := 0
@@ -74,6 +78,42 @@ func maskFull(value string) string {
 			continue
 		}
 		writeMaskedWord(&b, word)
+	}
+	return b.String()
+}
+
+// allServiceWords reports whether every word in value is a service word.
+func allServiceWords(value string) bool {
+	i := 0
+	n := len(value)
+	found := false
+	for i < n {
+		r, size := utf8.DecodeRuneInString(value[i:])
+		if !isWordRune(r) {
+			i += size
+			continue
+		}
+		start := i
+		i = scanWord(value, i)
+		if !isServiceWord(value[start:i]) {
+			return false
+		}
+		found = true
+	}
+	return found
+}
+
+// maskAllLetters replaces every letter and digit in value with "*", keeping all
+// other characters in place.
+func maskAllLetters(value string) string {
+	var b strings.Builder
+	b.Grow(len(value))
+	for _, r := range value {
+		if isWordRune(r) {
+			b.WriteByte('*')
+		} else {
+			b.WriteRune(r)
+		}
 	}
 	return b.String()
 }

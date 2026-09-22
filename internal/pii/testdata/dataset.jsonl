@@ -276,3 +276,9 @@
 {"id":"name13e-011","text":"компании «Пётр и Павел»","spans":[]}
 {"id":"name13e-012","text":"ООО «Иванов и партнёры»","spans":[]}
 {"id":"name13e-013","text":"Tigran Avakyan","spans":[]}
+{"id":"addr-org-001","text":"Стихи Александра Пушкина читали в отделении банка по адресу ул. Тверская, 12. Заказ 1234567890 на сумму 15000 руб.","spans":[]}
+{"id":"addr-org-002","text":"Отделение банка по адресу ул. Тверская, 12 работает до 20:00","spans":[]}
+{"id":"addr-delivery-001","text":"Доставить: ул. Тверская, 12. Заказ 1234567890","spans":[{"value":"ул. Тверская, 12","category":"address"}]}
+{"id":"birthplace-date-001","text":"родился 5 марта 1985 г. в г. Казани","spans":[{"value":"5 марта 1985 г","category":"birth_date"},{"value":"г. Казани","category":"birth_place"}]}
+{"id":"birthplace-date-002","text":"родилась 05.03.1985 г. в г. Казани","spans":[{"value":"05.03.1985","category":"birth_date"},{"value":"г. Казани","category":"birth_place"}]}
+{"id":"birthplace-date-003","text":"родился в 1985 году в г. Казани","spans":[{"value":"г. Казани","category":"birth_place"}]}

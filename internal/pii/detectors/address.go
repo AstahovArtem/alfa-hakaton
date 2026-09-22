@@ -142,17 +142,18 @@ var (
 	// addrBareStreetCtxRe matches a bare street name (no marker) followed by a
 	// house number and optional корпус/квартира, e.g. "Профсоюзной 96 корпус 2,
 	// квартира 15" or "Пушкина, 15, кв. 2". It is only accepted when a housing
-	// context keyword appears to the left.
+	// context keyword appears to the left. The house number is limited to 4
+	// digits so long numbers (e.g. order ids) are not attached.
 	addrBareStreetCtxRe = regexp.MustCompile(
-		`[А-ЯЁ][а-яё-]+(?:\s+[А-ЯЁ][а-яё-]+){0,2}\s*,?\s*\d+[а-яa-z]?(?:\s+(?:корп\.|корпус|к)\s*\d+)?(?:\s*,\s*(?:кв\.|квартира)\s*\d+[а-я]?)?`,
+		`[А-ЯЁ][а-яё-]+(?:\s+[А-ЯЁ][а-яё-]+){0,2}\s*,?\s*\d{1,4}[а-яa-z]?(?:\s+(?:корп\.|корпус|к)\s*\d+)?(?:\s*,\s*(?:кв\.|квартира)\s*\d+[а-я]?)?`,
 	)
-	addrBareHouseRe = regexp.MustCompile(`,\s*\d+[а-яa-z]?(?:\s*-\s*\d+)?`)
+	addrBareHouseRe = regexp.MustCompile(`,\s*\d{1,4}[а-яa-z]?(?:\s*-\s*\d+)?`)
 	// addrBareStreetHouseRe matches a bare street name (no marker) followed by a
 	// house number, e.g. "Кремлёвская 5". The street name must start with an
 	// uppercase letter so common nouns like "паспорт" or "код" are not captured.
 	// It is only accepted when attached to a locality, so a bare street never
 	// stands alone.
-	addrBareStreetHouseRe = regexp.MustCompile(`[А-ЯЁ][а-яё-]+(?:\s+[А-ЯЁ][а-яё-]+){0,2}\s+\d+[а-яa-z]?`)
+	addrBareStreetHouseRe = regexp.MustCompile(`[А-ЯЁ][а-яё-]+(?:\s+[А-ЯЁ][а-яё-]+){0,2}\s+\d{1,4}[а-яa-z]?`)
 	// Lowercase-only variants of the (?i) regexes, matched against the
 	// lowercased text to avoid case-folding cost.
 	addrCountryLowerRe = regexp.MustCompile(
@@ -214,11 +215,23 @@ var addrContext = []string{
 	"проживаю", "прописка", "почтовый адрес",
 }
 
-var addrException = []string{
-	"отделение", "офис банка", "банкомат", "филиал", "дополнительный офис",
-	"головной офис", "доп. офис", "до", "офис", "наш офис", "юридический адрес",
-	"юрадрес", "адрес банка", "пункт выдачи",
+// addrExceptionStems are word stems that mark an organisation address (e.g.
+// "отделении", "офисе", "банкомат"). A word whose lowercase form starts with a
+// stem triggers the exception, so inflected forms like "отделении" and
+// "отделения" are covered.
+var addrExceptionStems = []string{
+	"отделени", "офис", "банкомат", "филиал", "юридическ", "юрадрес", "головн",
 }
+
+// addrExceptionPhrases are whole-word organisation-address phrases that are not
+// covered by a single stem.
+var addrExceptionPhrases = []string{
+	"пункт выдачи", "адрес банка", "до",
+}
+
+// addrExceptionWindow is the number of runes scanned before an address group
+// for an organisation-address exception keyword.
+const addrExceptionWindow = 60
 
 type addressDetector struct{}
 
@@ -279,13 +292,42 @@ func (d *addressDetector) DetectLower(t pii.Text) []pii.Span {
 }
 
 // groupEnd returns the index of the last component in the group starting at i,
-// where adjacent components are separated by at most 3 runes.
+// where adjacent components are separated by at most 3 runes and do not cross a
+// sentence boundary.
 func groupEnd(text string, kept []addrComponent, i int) int {
 	j := i
-	for j+1 < len(kept) && gapRunes(text, kept[j].end, kept[j+1].start) <= 3 {
+	for j+1 < len(kept) &&
+		gapRunes(text, kept[j].end, kept[j+1].start) <= 3 &&
+		!crossesSentenceBoundary(text, kept[j].end, kept[j+1].start) {
 		j++
 	}
 	return j
+}
+
+// crossesSentenceBoundary reports whether the text between from and to contains
+// a sentence boundary: a newline, "!", "?", or ". " followed by a capital
+// letter. The capital letter may sit at to (the start of the next component).
+func crossesSentenceBoundary(text string, from, to int) bool {
+	seg := text[from:to]
+	if strings.ContainsAny(seg, "!?\n") {
+		return true
+	}
+	search := seg
+	for {
+		i := strings.Index(search, ". ")
+		if i < 0 {
+			break
+		}
+		after := from + i + 2
+		if after < len(text) {
+			r, _ := utf8.DecodeRuneInString(text[after:])
+			if isUpperRune(r) {
+				return true
+			}
+		}
+		search = search[i+2:]
+	}
+	return false
 }
 
 func (d *addressDetector) findComponents(t pii.Text) []addrComponent {
@@ -326,6 +368,9 @@ func (d *addressDetector) findComponents(t pii.Text) []addrComponent {
 	// left (e.g. "снимаю на Профсоюзной 96 корпус 2, квартира 15").
 	for _, loc := range addrBareStreetCtxRe.FindAllStringIndex(text, -1) {
 		start, end := loc[0], loc[1]
+		if followedByDigit(text, end) {
+			continue
+		}
 		if hasLeftContext(t, start, addrContext, 30) {
 			comps = append(comps, addrComponent{start: start, end: end, kind: kindStreetHouse})
 		}
@@ -384,7 +429,7 @@ func bareHousesAfterStreet(text string, comps []addrComponent) []addrComponent {
 		for _, loc := range addrBareHouseRe.FindAllStringIndex(text[s.end:windowEnd], -1) {
 			start := s.end + loc[0]
 			end := s.end + loc[1]
-			if gapRunes(text, s.end, start) <= 3 {
+			if !followedByDigit(text, end) && gapRunes(text, s.end, start) <= 3 {
 				out = append(out, addrComponent{start: start, end: end, kind: kindHouse})
 			}
 		}
@@ -493,7 +538,7 @@ func bareStreetsAfterLocality(text string, comps []addrComponent) []addrComponen
 		for _, loc := range addrBareStreetHouseRe.FindAllStringIndex(text[s.end:windowEnd], -1) {
 			start := s.end + loc[0]
 			end := s.end + loc[1]
-			if gapRunes(text, s.end, start) <= 3 {
+			if !followedByDigit(text, end) && gapRunes(text, s.end, start) <= 3 {
 				out = append(out, addrComponent{start: start, end: end, kind: kindStreetHouse})
 			}
 		}
@@ -546,13 +591,46 @@ func classifyGroup(group []addrComponent) groupFlags {
 }
 
 func (d *addressDetector) hasException(t pii.Text, pos int) bool {
-	prefix := runeWindowBefore(t, pos, 40)
-	for _, kw := range addrException {
+	prefix := runeWindowBefore(t, pos, addrExceptionWindow)
+	for _, stem := range addrExceptionStems {
+		if containsStem(prefix, stem) {
+			return true
+		}
+	}
+	for _, kw := range addrExceptionPhrases {
 		if containsWord(prefix, kw) {
 			return true
 		}
 	}
 	return false
+}
+
+// containsStem reports whether any word in s starts with stem. s must already
+// be lowercased.
+func containsStem(s, stem string) bool {
+	idx := 0
+	for {
+		pos := strings.Index(s[idx:], stem)
+		if pos < 0 {
+			return false
+		}
+		start := idx + pos
+		if start == 0 || !isLetterRune(runeBefore(s, start)) {
+			return true
+		}
+		idx = start + 1
+	}
+}
+
+// followedByDigit reports whether the rune at byte position pos in text is a
+// digit. It is used to reject a bare house number that is only a prefix of a
+// longer number (e.g. "1234" inside "1234567890").
+func followedByDigit(text string, pos int) bool {
+	if pos >= len(text) {
+		return false
+	}
+	r, _ := utf8.DecodeRuneInString(text[pos:])
+	return r >= '0' && r <= '9'
 }
 
 // containsWord reports whether kw appears in s as a whole word.

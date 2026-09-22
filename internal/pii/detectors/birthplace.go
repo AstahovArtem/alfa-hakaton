@@ -12,14 +12,14 @@ import (
 // an optional pronoun ("я") and preposition ("в") between the keyword and the
 // value, and an optional separator (":", "—", "-").
 var birthContextRe = regexp.MustCompile(
-	`(?i)(?:место рождения|место рожд\.|родился|родилась|родился в|родилась в|рожден в|рождён в|уроженец|уроженка)`,
+	`(?i)(?:место рождения|место рожд\.|родился в|родилась в|родился|родилась|рожден в|рождён в|уроженец|уроженка)`,
 )
 
 // settlementPrefixGorod is the "г." settlement prefix.
 const settlementPrefixGorod = "г."
 
 var birthContextLowerRe = regexp.MustCompile(
-	`(?:место рождения|место рожд\.|родился|родилась|родился в|родилась в|рожден в|рождён в|уроженец|уроженка)`,
+	`(?:место рождения|место рожд\.|родился в|родилась в|родился|родилась|рожден в|рождён в|уроженец|уроженка)`,
 )
 
 // birthValueRe matches the value after a birth-place context keyword. It
@@ -46,8 +46,11 @@ func birthValueBody(upper bool) string {
 	}
 	cityAlt := strings.Join(cityParts, "|")
 	// An optional date between the context and the place, including abbreviated
-	// month names (e.g. "05 мар 1985 в").
-	date := `(?:\d{1,2}[./-]\d{1,2}[./-]\d{4}\s+в\s+|\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря|янв|фев|мар|апр|май|июн|июл|авг|сен|окт|ноя|дек)\s+\d{4}\s+(?:года?\s+)?в\s+)?`
+	// month names (e.g. "05 мар 1985 в") and a trailing "г.", "г" or "года"
+	// before the preposition "в". A bare year (e.g. "1985 году") is also
+	// skipped.
+	dateTail := `(?:г\.|года|году|г)?\s*`
+	date := `(?:\d{1,2}[./-]\d{1,2}[./-]\d{4}\s+` + dateTail + `в\s+|\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря|янв|фев|мар|апр|май|июн|июл|авг|сен|окт|ноя|дек)\s+\d{4}\s+` + dateTail + `в\s+|\d{4}\s+` + dateTail + `в\s+)?`
 	// An optional pronoun and preposition between the context and the place
 	// (e.g. "Родилась я в Ташкенте"). These stay outside the captured value.
 	lead := `(?:я\s+)?(?:в\s+)?`
