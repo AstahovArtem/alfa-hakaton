@@ -94,3 +94,61 @@ func assertCovered(t *testing.T, text string, spans []pii.Span, expected []struc
 		}
 	}
 }
+
+// TestDateReclassifyContexts covers the date reclassification rules driven by
+// surrounding context: "род." and JSON keys for birth_date, "doc_issue"/"issue"
+// for passport_date, and the "ву" non-passport override.
+func TestDateReclassifyContexts(t *testing.T) {
+	cases := []struct {
+		name     string
+		text     string
+		value    string
+		category pii.Category
+	}{
+		{"rodAbbrev", "Клиент Степанов Б. Н., род. 12 окт 1969 в г. Орёл.", "12 окт 1969", pii.CatBirthDate},
+		{"jsonBirth", `{"birth": "1995-02-17"}`, "1995-02-17", pii.CatBirthDate},
+		{"jsonDocIssue", `{"doc_issue": "15-03-2015"}`, "15-03-2015", pii.CatPassportDate},
+		{"issueDate", "issue date 04.28.2011 (месяц.день.год)", "04.28.2011", pii.CatPassportDate},
+		{"dobUsFormat", "DOB (US format mm.dd.yyyy): 12.31.1975", "12.31.1975", pii.CatBirthDate},
+		{"vuOverridesPassport", "ВУ 7712345678, категории B, C. Выдано 14.06.2018.", "14.06.2018", pii.CatDate},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assertDateCategory(t, c.text, c.value, c.category)
+		})
+	}
+}
+
+// assertDateCategory runs the pipeline over text and fails unless a span with
+// the given value carries the expected category.
+func assertDateCategory(t *testing.T, text, value string, category pii.Category) {
+	t.Helper()
+	p := pii.NewPipeline(detectors.Default()...)
+	res := p.Run(text)
+	for _, s := range res.Spans {
+		if text[s.Start:s.End] == value {
+			if s.Category != category {
+				t.Fatalf("value %q = %s, want %s (spans: %+v)", value, s.Category, category, res.Spans)
+			}
+			return
+		}
+	}
+	t.Fatalf("value %q not detected (spans: %+v)", value, res.Spans)
+}
+
+// TestTwoDatesNearestContext verifies that when two dates appear in one
+// sentence, the nearest context wins: the second date after "выдали" is a
+// passport_date, not a birth_date.
+func TestTwoDatesNearestContext(t *testing.T) {
+	text := "Родился я двенадцатого мая тысяча девятьсот девяностого года, а паспорт мне выдали двадцать первого августа две тысячи девятнадцатого года."
+	p := pii.NewPipeline(detectors.Default()...)
+	res := p.Run(text)
+	expected := []struct {
+		value    string
+		category pii.Category
+	}{
+		{"двенадцатого мая тысяча девятьсот девяностого года", pii.CatBirthDate},
+		{"двадцать первого августа две тысячи девятнадцатого года", pii.CatPassportDate},
+	}
+	assertCovered(t, text, res.Spans, expected)
+}

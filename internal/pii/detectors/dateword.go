@@ -78,20 +78,30 @@ func buildDateWordDayRe() *regexp.Regexp {
 // enumerated explicitly and sorted longest-first so the longest match wins
 // (RE2 does not reliably extend an optional group inside an alternation).
 func buildDateWordYearRe() *regexp.Regexp {
-	tens := []string{
+	// Genitive tens for round years (e.g. "тысяча девятьсот девяностого").
+	genTens := []string{
 		"двадцатого", "тридцатого", "сорокового", "пятидесятого",
-		"шестидесятого", "семидесятого", "восемьдесят", "девяностого",
+		"шестидесятого", "семидесятого", "восьмидесятого", "девяностого",
+	}
+	// Nominative tens for compound years (e.g. "тысяча девятьсот семьдесят
+	// шестого" = 1976, where the tens stay nominative and the unit is a
+	// genitive ordinal).
+	nomTens := []string{
+		"двадцать", "тридцать", "сорок", "пятьдесят",
+		"шестьдесят", "семьдесят", "восемьдесят", "девяносто",
 	}
 	var alts []string
 	// 1901-1919: тысяча девятьсот + units.
 	for _, u := range dateWordGenUnits {
 		alts = append(alts, "тысяча девятьсот "+u)
 	}
-	// 1920-1999: тысяча девятьсот + tens, and + tens + units (1-9).
-	for _, t := range tens {
+	// 1920-1999: round years use the genitive tens; compound years use the
+	// nominative tens followed by a genitive unit (1-9).
+	for i, t := range genTens {
 		alts = append(alts, "тысяча девятьсот "+t)
+		nt := nomTens[i]
 		for _, u := range dateWordGenUnits[:9] {
-			alts = append(alts, "тысяча девятьсот "+t+" "+u)
+			alts = append(alts, "тысяча девятьсот "+nt+" "+u)
 		}
 	}
 	// 2000: двухтысячного.
@@ -99,6 +109,15 @@ func buildDateWordYearRe() *regexp.Regexp {
 	// 2001-2019: две тысячи + units.
 	for _, u := range dateWordGenUnits {
 		alts = append(alts, "две тысячи "+u)
+	}
+	// 2020-2099: round years use the genitive tens; compound years use the
+	// nominative tens followed by a genitive unit (1-9).
+	for i, t := range genTens {
+		alts = append(alts, "две тысячи "+t)
+		nt := nomTens[i]
+		for _, u := range dateWordGenUnits[:9] {
+			alts = append(alts, "две тысячи "+nt+" "+u)
+		}
 	}
 	sort.Slice(alts, func(i, j int) bool { return len(alts[i]) > len(alts[j]) })
 	alts = append(alts, `\d{4}`)

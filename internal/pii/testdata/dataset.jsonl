@@ -332,3 +332,11 @@
 {"id":"ultra-name-005","text":"зовут Каримов Бахтиёр","spans":[{"value":"Каримов Бахтиёр","category":"full_name"}]}
 {"id":"ultra-name-006","text":"доставка карты для Нгуен Тхи Лан","spans":[{"value":"Нгуен Тхи Лан","category":"full_name"}]}
 {"id":"ultra-name-007","text":"Бабушка написала в чат: внучок, я забыла, пин-код от карты 5536 9104 6872 0190 это 4071 или 4017? Роза Мусаевна.","spans":[{"value":"5536 9104 6872 0190","category":"card_number"},{"value":"4071","category":"pin"},{"value":"4017","category":"pin"},{"value":"Роза Мусаевна","category":"full_name"}]}
+{"id":"ultra-date-014a","text":"род. 12 окт 1969 в г. Орёл","spans":[{"value":"12 окт 1969","category":"birth_date"}]}
+{"id":"ultra-date-014b","text":"{\"birth\": \"1995-02-17\", \"doc_issue\": \"15-03-2015\"}","spans":[{"value":"1995-02-17","category":"birth_date"},{"value":"15-03-2015","category":"passport_date"}]}
+{"id":"ultra-date-015a","text":"Назовите дату рождения.\nКлиент: Двадцать третьего февраля тысяча девятьсот семьдесят шестого.","spans":[{"value":"Двадцать третьего февраля тысяча девятьсот семьдесят шестого","category":"birth_date"}]}
+{"id":"ultra-date-015b","text":"родилась десятого октября тысяча девятьсот шестьдесят второго года в деревне","spans":[{"value":"десятого октября тысяча девятьсот шестьдесят второго года","category":"birth_date"}]}
+{"id":"ultra-date-016","text":"Родился я двенадцатого мая тысяча девятьсот девяностого года, а паспорт мне выдали двадцать первого августа две тысячи девятнадцатого года.","spans":[{"value":"двенадцатого мая тысяча девятьсот девяностого года","category":"birth_date"},{"value":"двадцать первого августа две тысячи девятнадцатого года","category":"passport_date"}]}
+{"id":"ultra-date-017","text":"ВУ 7712345678, категории B, C. Выдано 14.06.2018.","spans":[{"value":"7712345678","category":"driver_license"},{"value":"14.06.2018","category":"date"}]}
+{"id":"ultra-date-018a","text":"issue date 04.28.2011 (месяц.день.год), серия 6008 номер 215734.","spans":[{"value":"04.28.2011","category":"passport_date"},{"value":"6008 номер 215734","category":"passport"}]}
+{"id":"ultra-date-018b","text":"DOB (US format mm.dd.yyyy): 12.31.1975","spans":[{"value":"12.31.1975","category":"birth_date"}]}

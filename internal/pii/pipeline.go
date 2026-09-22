@@ -38,10 +38,17 @@ var nonPassportContexts = []string{
 	"справка", "действительн", "билет", "полис", "сертификат", "лицензия",
 }
 
+// nonPassportWordContexts are non-passport document keywords matched at a word
+// boundary (unlike nonPassportContexts, which use substring matching). "ву"
+// (водительское удостоверение) is a short token that must not match inside a
+// longer word, so it is matched as a standalone word.
+var nonPassportWordContexts = []string{"ву"}
+
 // issueContexts are keywords that mark a passport issue date.
 var issueContexts = []string{
-	"выдан", "выдано", "дата выдачи", "дату выдачи", "получал", "получала",
-	"получил", "получила",
+	"выдан", "выдано", "выдали", "выдал", "выдала", "дата выдачи", "дату выдачи",
+	"получал", "получала", "получил", "получила", "получен", "поменял", "поменяла",
+	"doc_issue", "issue",
 }
 
 // postProcess applies cross-span reclassification rules that depend on the
@@ -99,11 +106,15 @@ func followsPassportIssuer(spans []Span, i int) bool {
 var BirthContexts = []string{
 	"родился", "родилась", "родился", "родились", "родил", "рожден", "рождён",
 	"дата рождения", "дату рождения", "уроженец", "уроженка", "г.р.", "г. р.", "д.р.", "др",
+	"род.", "род", "рожд.", "рожд", "birth", "dob",
 }
 
 // isPassportDate reports whether a date span is a passport issue date.
 func isPassportDate(t Text, s Span) bool {
 	if hasAnyContext(t, s.Start, 160, nonPassportContexts) {
+		return false
+	}
+	if hasWordContext(t, s.Start, 160, nonPassportWordContexts) {
 		return false
 	}
 	issueLeft := hasAnyContext(t, s.Start, 160, issueContexts)
@@ -169,6 +180,52 @@ func hasAnyContext(t Text, pos, n int, keywords []string) bool {
 	return false
 }
 
+// hasWordContext reports whether any keyword appears within n runes to the left
+// of byte position pos as a standalone word (not part of a longer word).
+func hasWordContext(t Text, pos, n int, keywords []string) bool {
+	window := windowBefore(t, pos, n)
+	for _, kw := range keywords {
+		if lastKeywordIndex(window, kw) >= 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// lastKeywordIndex returns the index of the last occurrence of kw in s that is
+// at a word boundary, or -1 if none.
+func lastKeywordIndex(s, kw string) int {
+	searchFrom := len(s)
+	for {
+		idx := strings.LastIndex(s[:searchFrom], kw)
+		if idx < 0 {
+			return -1
+		}
+		if keywordAtBoundary(s, idx, idx+len(kw)) {
+			return idx
+		}
+		searchFrom = idx
+	}
+}
+
+// keywordAtBoundary reports whether the substring s[start:end] is not part of a
+// longer word: the rune before start and the rune after end are not letters.
+func keywordAtBoundary(s string, start, end int) bool {
+	if start > 0 {
+		r, _ := utf8.DecodeLastRuneInString(s[:start])
+		if isLetterRune(r) {
+			return false
+		}
+	}
+	if end < len(s) {
+		r, _ := utf8.DecodeRuneInString(s[end:])
+		if isLetterRune(r) {
+			return false
+		}
+	}
+	return true
+}
+
 // hasAnyContextAfter reports whether any keyword appears within n runes to the
 // right of byte position pos.
 func hasAnyContextAfter(t Text, pos, n int, keywords []string) bool {
@@ -203,4 +260,10 @@ func windowAfter(t Text, pos, n int) string {
 		count++
 	}
 	return strings.ToLower(t.Raw[pos:end])
+}
+
+// isLetterRune reports whether r is a Latin or Cyrillic letter.
+func isLetterRune(r rune) bool {
+	return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') ||
+		(r >= 'а' && r <= 'я') || (r >= 'А' && r <= 'Я') || r == 'ё' || r == 'Ё'
 }
