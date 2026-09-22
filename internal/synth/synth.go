@@ -6,6 +6,7 @@ package synth
 import (
 	"embed"
 	"hash/fnv"
+	// math/rand: deterministic fake values seeded by the input, not used for security.
 	"math/rand"
 	"strings"
 	"sync"
@@ -22,6 +23,19 @@ type Dict struct {
 	patrM    []string
 	patrF    []string
 }
+
+// Russian inflectional suffixes used to build name forms.
+const (
+	sufOv  = "ов"
+	sufEv  = "ев"
+	sufYov = "ёв"
+	sufIn  = "ин"
+	sufYn  = "ын"
+	sufIya = "ия"
+	sufYa  = "ья"
+	sufEy  = "ей"
+	sufIch = "ич"
+)
 
 var (
 	dictOnce sync.Once
@@ -203,7 +217,7 @@ func FullNameGenitive(rng *rand.Rand) string {
 // isFemaleName guesses gender from the first name ending.
 func isFemaleName(name string) bool {
 	lower := strings.ToLower(name)
-	for _, suf := range []string{"а", "я", "ия", "ья"} {
+	for _, suf := range []string{"а", "я", sufIya, sufYa} {
 		if strings.HasSuffix(lower, suf) {
 			return true
 		}
@@ -214,7 +228,7 @@ func isFemaleName(name string) bool {
 // feminize turns a masculine surname into its feminine form.
 func feminize(s string) string {
 	lower := strings.ToLower(s)
-	for _, suf := range []string{"ов", "ев", "ёв", "ин", "ын"} {
+	for _, suf := range []string{sufOv, sufEv, sufYov, sufIn, sufYn} {
 		if strings.HasSuffix(lower, suf) {
 			return s[:len(s)-len(suf)] + "а"
 		}
@@ -233,7 +247,7 @@ func genitiveSurname(s string, female bool) string {
 		}
 		return s
 	}
-	for _, suf := range []string{"ов", "ев", "ёв", "ин", "ын"} {
+	for _, suf := range []string{sufOv, sufEv, sufYov, sufIn, sufYn} {
 		if strings.HasSuffix(lower, suf) {
 			return s + "а"
 		}
@@ -245,7 +259,7 @@ func genitiveSurname(s string, female bool) string {
 func genitiveName(s string, female bool) string {
 	lower := strings.ToLower(s)
 	if female {
-		if out, ok := replaceSuffix(s, lower, []string{"ия", "ья"}, "и", 1); ok {
+		if out, ok := replaceSuffix(s, lower, []string{sufIya, sufYa}, "и", 1); ok {
 			return out
 		}
 		if out, ok := replaceSuffix(s, lower, []string{"а", "я"}, "ы", 1); ok {
@@ -253,7 +267,7 @@ func genitiveName(s string, female bool) string {
 		}
 		return s
 	}
-	if out, ok := replaceSuffix(s, lower, []string{"ий", "ей"}, "я", 2); ok {
+	if out, ok := replaceSuffix(s, lower, []string{"ий", sufEy}, "я", 2); ok {
 		return out
 	}
 	if out, ok := replaceSuffix(s, lower, []string{"й"}, "я", 1); ok {
@@ -281,7 +295,7 @@ func genitivePatr(p string) string {
 			return p + "ы"
 		}
 	}
-	for _, suf := range []string{"ович", "евич", "ич"} {
+	for _, suf := range []string{"ович", "евич", sufIch} {
 		if strings.HasSuffix(lower, suf) {
 			return p + "а"
 		}

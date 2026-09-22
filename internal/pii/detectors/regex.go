@@ -252,21 +252,9 @@ func (d *regexDetector) detectRule(t pii.Text, r Rule) []pii.Span {
 			continue
 		}
 
-		conf := r.Confidence
-		if conf == 0 {
-			conf = 0.9
-		}
-
-		// Context keywords to the left or right raise confidence. A context is
-		// satisfied only when no other digit group sits between the keyword and
-		// the match. The nearest satisfying keyword yields a small bonus so that
-		// competing categories (e.g. cvv vs pin) resolve to the closer keyword.
-		hasCtx, dist, _ := contextDistance(t, start, end, r)
-		if r.RequireContext && !hasCtx {
+		conf, ok := r.matchConfidence(t, start, end)
+		if !ok {
 			continue
-		}
-		if hasCtx {
-			conf = confidenceWithContext(conf, dist)
 		}
 
 		cat := reclassify(t, start, end, r)
@@ -280,6 +268,29 @@ func (d *regexDetector) detectRule(t pii.Text, r Rule) []pii.Span {
 		})
 	}
 	return spans
+}
+
+// matchConfidence computes the confidence for a match, applying the context
+// bonus and the require-context gate. It returns false when the match must be
+// skipped.
+func (r Rule) matchConfidence(t pii.Text, start, end int) (float64, bool) {
+	conf := r.Confidence
+	if conf == 0 {
+		conf = 0.9
+	}
+
+	// Context keywords to the left or right raise confidence. A context is
+	// satisfied only when no other digit group sits between the keyword and
+	// the match. The nearest satisfying keyword yields a small bonus so that
+	// competing categories (e.g. cvv vs pin) resolve to the closer keyword.
+	hasCtx, dist, _ := contextDistance(t, start, end, r)
+	if r.RequireContext && !hasCtx {
+		return 0, false
+	}
+	if hasCtx {
+		conf = confidenceWithContext(conf, dist)
+	}
+	return conf, true
 }
 
 // trimTrailingSeparators trims trailing spaces, dashes, periods and commas so a

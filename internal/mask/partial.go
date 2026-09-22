@@ -124,12 +124,7 @@ func (s *partialStrategy) Mask(value string, cat pii.Category, doc *DocState) st
 // keepTail digits; all non-digit characters are preserved in place. If there
 // are at most head+tail+1 digits, all digits are masked.
 func maskDigits(value string, keepHead, keepTail int, char string) string {
-	var digitIdx []int
-	for i := 0; i < len(value); i++ {
-		if value[i] >= '0' && value[i] <= '9' {
-			digitIdx = append(digitIdx, i)
-		}
-	}
+	digitIdx := collectDigitIdx(value)
 	if len(digitIdx) == 0 {
 		return value
 	}
@@ -137,6 +132,24 @@ func maskDigits(value string, keepHead, keepTail int, char string) string {
 	if len(digitIdx) <= keepHead+keepTail+1 {
 		keepHead, keepTail = 0, 0
 	}
+	keep := keepSet(digitIdx, keepHead, keepTail)
+	return maskDigitRuns(value, keep, char)
+}
+
+// collectDigitIdx returns the byte offsets of every digit in value.
+func collectDigitIdx(value string) []int {
+	var digitIdx []int
+	for i := 0; i < len(value); i++ {
+		if isDigit(rune(value[i])) {
+			digitIdx = append(digitIdx, i)
+		}
+	}
+	return digitIdx
+}
+
+// keepSet returns the set of digit offsets to keep unmasked: the first keepHead
+// and the last keepTail digits.
+func keepSet(digitIdx []int, keepHead, keepTail int) map[int]bool {
 	keep := make(map[int]bool)
 	for i := 0; i < keepHead && i < len(digitIdx); i++ {
 		keep[digitIdx[i]] = true
@@ -144,9 +157,15 @@ func maskDigits(value string, keepHead, keepTail int, char string) string {
 	for i := 0; i < keepTail && i < len(digitIdx); i++ {
 		keep[digitIdx[len(digitIdx)-1-i]] = true
 	}
+	return keep
+}
+
+// maskDigitRuns replaces every digit not in keep with char, preserving all
+// other characters in place.
+func maskDigitRuns(value string, keep map[int]bool, char string) string {
 	var b strings.Builder
 	for i := 0; i < len(value); i++ {
-		if value[i] >= '0' && value[i] <= '9' && !keep[i] {
+		if isDigit(rune(value[i])) && !keep[i] {
 			b.WriteString(char)
 		} else {
 			b.WriteByte(value[i])
@@ -235,30 +254,27 @@ func maskDate(value string, char string) string {
 	n := len(value)
 	for i < n {
 		r, size := utf8.DecodeRuneInString(value[i:])
-		if r >= '0' && r <= '9' {
+		if isDigit(r) {
 			b.WriteString(char)
 			i += size
 			continue
 		}
 		if isLetter(r) {
 			start := i
-			for i < n {
-				r, size = utf8.DecodeRuneInString(value[i:])
-				if !isLetter(r) {
-					break
-				}
-				i += size
-			}
-			word := value[start:i]
-			first, _ := utf8.DecodeRuneInString(word)
-			b.WriteString(string(first))
-			b.WriteString(strings.Repeat(char, utf8.RuneCountInString(word)-1))
+			i = scanLetters(value, i)
+			b.WriteString(maskDateWord(value[start:i], char))
 			continue
 		}
 		b.WriteRune(r)
 		i += size
 	}
 	return b.String()
+}
+
+// maskDateWord masks a month word: first letter plus char*(len-1).
+func maskDateWord(word, char string) string {
+	first, _ := utf8.DecodeRuneInString(word)
+	return string(first) + strings.Repeat(char, utf8.RuneCountInString(word)-1)
 }
 
 // maskEmail masks the local part: first letter + char*(len-1), domain kept.
@@ -285,7 +301,7 @@ func maskWords(value string, char string) string {
 	n := len(value)
 	for i < n {
 		r, size := utf8.DecodeRuneInString(value[i:])
-		if r >= '0' && r <= '9' {
+		if isDigit(r) {
 			b.WriteString(char)
 			i += size
 			continue
@@ -296,32 +312,59 @@ func maskWords(value string, char string) string {
 			continue
 		}
 		start := i
-		for i < n {
-			r, size = utf8.DecodeRuneInString(value[i:])
-			if !isLetter(r) {
-				break
-			}
-			i += size
-		}
-		word := value[start:i]
-		lower := strings.ToLower(word)
-		if serviceWords[lower] {
-			b.WriteString(word)
-			continue
-		}
-		rc := utf8.RuneCountInString(word)
-		if rc <= 1 {
-			b.WriteString(word)
-			continue
-		}
-		first, _ := utf8.DecodeRuneInString(word)
-		b.WriteString(string(first))
-		b.WriteString(strings.Repeat(char, rc-1))
+		i = scanLetters(value, i)
+		b.WriteString(maskWord(value[start:i], char))
 	}
 	return b.String()
 }
 
+// scanLetters advances i past a run of letters.
+func scanLetters(value string, i int) int {
+	n := len(value)
+	for i < n {
+		r, size := utf8.DecodeRuneInString(value[i:])
+		if !isLetter(r) {
+			break
+		}
+		i += size
+	}
+	return i
+}
+
+// maskWord masks a single word: keeps the first letter and replaces the rest
+// with char. Service abbreviations and single-letter words are kept whole.
+func maskWord(word, char string) string {
+	if serviceWords[strings.ToLower(word)] {
+		return word
+	}
+	rc := utf8.RuneCountInString(word)
+	if rc <= 1 {
+		return word
+	}
+	first, _ := utf8.DecodeRuneInString(word)
+	return string(first) + strings.Repeat(char, rc-1)
+}
+
+func isDigit(r rune) bool {
+	return r >= '0' && r <= '9'
+}
+
 func isLetter(r rune) bool {
-	return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') ||
-		(r >= 'а' && r <= 'я') || (r >= 'А' && r <= 'Я') || r == 'ё' || r == 'Ё'
+	return isLatinLetter(r) || isCyrillicLetter(r)
+}
+
+func isLatinLetter(r rune) bool {
+	return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
+}
+
+func isCyrillicLetter(r rune) bool {
+	return isLowerCyrillic(r) || isUpperCyrillic(r)
+}
+
+func isLowerCyrillic(r rune) bool {
+	return (r >= 'а' && r <= 'я') || r == 'ё'
+}
+
+func isUpperCyrillic(r rune) bool {
+	return (r >= 'А' && r <= 'Я') || r == 'Ё'
 }

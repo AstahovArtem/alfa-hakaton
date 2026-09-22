@@ -48,31 +48,36 @@ var issueContexts = []string{
 // resolved span set and the surrounding text.
 func postProcess(spans []Span, t Text) []Span {
 	for i := range spans {
-		if spans[i].Category != CatDate && spans[i].Category != CatBirthDate {
-			continue
-		}
-		// A date is a passport issue date when an issue keyword is present and
-		// no non-passport document context (в/у, внж, ...) appears to the left,
-		// and the issue context is nearer than any birth context.
-		if isPassportDate(t, spans[i]) {
-			spans[i].Category = CatPassportDate
-			continue
-		}
-		if spans[i].Category != CatDate {
-			continue
-		}
-		// Table rule: a date in a tab-separated row below a "дата рождения"
-		// header is a birth date.
-		if isTableBirthDate(t, spans[i]) {
-			spans[i].Category = CatBirthDate
-			continue
-		}
-		// A bare date that immediately follows a passport_issuer span.
-		if followsPassportIssuer(spans, i) {
-			spans[i].Category = CatPassportDate
-		}
+		reclassifySpan(spans, i, t)
 	}
 	return spans
+}
+
+// reclassifySpan applies the cross-span reclassification rules to one span.
+func reclassifySpan(spans []Span, i int, t Text) {
+	if spans[i].Category != CatDate && spans[i].Category != CatBirthDate {
+		return
+	}
+	// A date is a passport issue date when an issue keyword is present and
+	// no non-passport document context (в/у, внж, ...) appears to the left,
+	// and the issue context is nearer than any birth context.
+	if isPassportDate(t, spans[i]) {
+		spans[i].Category = CatPassportDate
+		return
+	}
+	if spans[i].Category != CatDate {
+		return
+	}
+	// Table rule: a date in a tab-separated row below a "дата рождения"
+	// header is a birth date.
+	if isTableBirthDate(t, spans[i]) {
+		spans[i].Category = CatBirthDate
+		return
+	}
+	// A bare date that immediately follows a passport_issuer span.
+	if followsPassportIssuer(spans, i) {
+		spans[i].Category = CatPassportDate
+	}
 }
 
 // followsPassportIssuer reports whether span i immediately follows a

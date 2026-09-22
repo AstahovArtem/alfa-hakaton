@@ -33,6 +33,23 @@ const (
 	sufSky     = "ский"
 )
 
+// Short Russian inflectional suffixes reused across name/surname matching.
+const (
+	sufOv  = "ов"
+	sufEv  = "ев"
+	sufYov = "ёв"
+	sufIn  = "ин"
+	sufYn  = "ын"
+	sufOy  = "ой"
+	sufOm  = "ом"
+	sufEm  = "ем"
+	sufAh  = "ах"
+	sufYm  = "ым"
+	sufIm  = "им"
+	sufEy  = "ей"
+	sufIch = "ич"
+)
+
 // Dict file names.
 const (
 	dictFirstNames = "dict/first_names.txt"
@@ -150,6 +167,28 @@ type nameToken struct {
 	isPatrMarker   bool
 }
 
+// isNameLike reports whether the token is any kind of name token (given name,
+// surname, patronymic, initial or patronymic marker).
+func (t nameToken) isNameLike() bool {
+	return t.isCoreName() || t.isPatrMarker
+}
+
+// isNameLikeNoMarker reports whether the token is a name token other than a
+// patronymic marker.
+func (t nameToken) isNameLikeNoMarker() bool {
+	return t.isCoreName()
+}
+
+// isCoreName reports whether the token is a given name, surname or patronymic.
+func (t nameToken) isCoreName() bool {
+	return t.isNameOrSurname() || t.isPatr || t.isInitial
+}
+
+// isNameOrSurname reports whether the token is a given name or a surname.
+func (t nameToken) isNameOrSurname() bool {
+	return t.isName || t.isSurname || t.isSurnameGuess
+}
+
 // nameMatchCtx bundles the shared state passed between name-matching helpers.
 type nameMatchCtx struct {
 	text    string
@@ -229,7 +268,7 @@ func nameStem(name string) string {
 
 // surnameStem reduces a dict surname to its stem by removing the possessive suffix.
 func surnameStem(s string) string {
-	for _, suf := range []string{"ов", "ев", "ин", "ын"} {
+	for _, suf := range []string{sufOv, sufEv, sufIn, sufYn} {
 		if strings.HasSuffix(s, suf) {
 			return s[:len(s)-len(suf)]
 		}
@@ -239,13 +278,13 @@ func surnameStem(s string) string {
 
 // normalizeWord reduces a word to a matching stem for the famous-person check.
 func normalizeWord(lower string) string {
-	for _, e := range []string{sufYmi, sufImi, sufOgo, sufOmu, sufAmi, "ах", "ым", "им", "ой", "ом", "ем", "а", "у", "ы", "е"} {
+	for _, e := range []string{sufYmi, sufImi, sufOgo, sufOmu, sufAmi, sufAh, sufYm, sufIm, sufOy, sufOm, sufEm, "а", "у", "ы", "е"} {
 		if strings.HasSuffix(lower, e) {
 			lower = lower[:len(lower)-len(e)]
 			break
 		}
 	}
-	for _, suf := range []string{"ов", "ев", "ёв", "ин", "ын"} {
+	for _, suf := range []string{sufOv, sufEv, sufYov, sufIn, sufYn} {
 		if strings.HasSuffix(lower, suf) {
 			lower = lower[:len(lower)-len(suf)]
 			break
@@ -334,7 +373,7 @@ func (d *namesDetector) DetectLower(t pii.Text) []pii.Span {
 	var cands []int
 	for i := range nt {
 		t := &nt[i]
-		if t.isName || t.isSurname || t.isSurnameGuess || t.isPatr || t.isInitial || t.isPatrMarker {
+		if t.isNameLike() {
 			cands = append(cands, i)
 		}
 	}
@@ -610,12 +649,7 @@ func (d *namesDetector) detectForeignNames(t pii.Text, nt []nameToken, covered [
 			i++
 			continue
 		}
-		j := i
-		for j+1 < len(nt) && !covered[j+1] && isForeignNameCandidate(nt[j+1]) &&
-			onlyWhitespace(text, nt[j].end, nt[j+1].start) &&
-			!strings.Contains(text[nt[j].end:nt[j+1].start], "\n") {
-			j++
-		}
+		j := foreignNameRunEnd(text, nt, covered, i)
 		runLen := j - i + 1
 		if runLen >= 2 && runLen <= 4 &&
 			hasLeftContext(t, nt[i].start, foreignNameContext, 40) &&
@@ -632,11 +666,23 @@ func (d *namesDetector) detectForeignNames(t pii.Text, nt []nameToken, covered [
 	return spans
 }
 
+// foreignNameRunEnd returns the index of the last token in a contiguous run of
+// foreign-name candidates starting at i.
+func foreignNameRunEnd(text string, nt []nameToken, covered []bool, i int) int {
+	j := i
+	for j+1 < len(nt) && !covered[j+1] && isForeignNameCandidate(nt[j+1]) &&
+		onlyWhitespace(text, nt[j].end, nt[j+1].start) &&
+		!strings.Contains(text[nt[j].end:nt[j+1].start], "\n") {
+		j++
+	}
+	return j
+}
+
 // isForeignNameCandidate reports whether a token could be part of a foreign
 // full name: capitalised, not a known Russian name/surname/patronymic, not a
 // stopword.
 func isForeignNameCandidate(t nameToken) bool {
-	if t.isName || t.isSurname || t.isSurnameGuess || t.isPatr || t.isInitial || t.isPatrMarker {
+	if t.isNameLike() {
 		return false
 	}
 	if stopWords[t.lower] {
@@ -692,7 +738,7 @@ func (d *namesDetector) isNameToken(lower string) bool {
 	if d.dict.names[lower] {
 		return true
 	}
-	for _, e := range []string{"а", "я", "у", "ю", "ой", "ей", "ом", "ем", "е", "и", "ы"} {
+	for _, e := range []string{"а", "я", "у", "ю", sufOy, sufEy, sufOm, sufEm, "е", "и", "ы"} {
 		if strings.HasSuffix(lower, e) {
 			stem := lower[:len(lower)-len(e)]
 			if d.dict.names[stem] || d.dict.nameStems[stem] {
@@ -708,7 +754,7 @@ func (d *namesDetector) isSurnameToken(lower string) (bool, bool) {
 }
 
 func (d *namesDetector) dictSurname(lower string) bool {
-	for _, e := range []string{sufYmi, sufImi, sufOgo, sufOmu, sufAmi, "ах", "ым", "им", "ой", "ом", "ем", "а", "у", "ы", "е", "ов", "ев", "ин", "ын"} {
+	for _, e := range []string{sufYmi, sufImi, sufOgo, sufOmu, sufAmi, sufAh, sufYm, sufIm, sufOy, sufOm, sufEm, "а", "у", "ы", "е", sufOv, sufEv, sufIn, sufYn} {
 		if strings.HasSuffix(lower, e) {
 			if d.dictSurnameBase(lower[:len(lower)-len(e)]) {
 				return true
@@ -719,7 +765,7 @@ func (d *namesDetector) dictSurname(lower string) bool {
 }
 
 func (d *namesDetector) dictSurnameBase(s string) bool {
-	for _, suf := range []string{"ов", "ев", "ин", "ын"} {
+	for _, suf := range []string{sufOv, sufEv, sufIn, sufYn} {
 		if strings.HasSuffix(s, suf) {
 			if d.dict.surnameStems[s[:len(s)-len(suf)]] {
 				return true
@@ -730,26 +776,32 @@ func (d *namesDetector) dictSurnameBase(s string) bool {
 }
 
 func suffixSurname(lower string) bool {
-	for _, suf := range []string{sufSky, "цкий", sufSkaya, sufTskaya, "енко", "ук", "юк", "ян", "дзе", "швили", "ых", "их", sufOva, sufEva, sufYova, sufIna, sufYna, "ов", "ев", "ёв", "ин", "ын"} {
+	for _, suf := range []string{sufSky, "цкий", sufSkaya, sufTskaya, "енко", "ук", "юк", "ян", "дзе", "швили", "ых", "их", sufOva, sufEva, sufYova, sufIna, sufYna, sufOv, sufEv, sufYov, sufIn, sufYn} {
 		if strings.HasSuffix(lower, suf) {
 			return true
 		}
 	}
-	for _, e := range []string{sufYmi, sufImi, sufOgo, sufOmu, sufAmi, "ах", "ым", "им", "ой", "ом", "ем", "а", "у", "ы", "е"} {
-		if strings.HasSuffix(lower, e) {
-			base := lower[:len(lower)-len(e)]
-			for _, suf := range []string{"ов", "ев", "ёв", "ин", "ын", sufSky, "цкий", sufSkaya, sufTskaya} {
-				if strings.HasSuffix(base, suf) {
-					return true
-				}
-			}
+	for _, e := range []string{sufYmi, sufImi, sufOgo, sufOmu, sufAmi, sufAh, sufYm, sufIm, sufOy, sufOm, sufEm, "а", "у", "ы", "е"} {
+		if strings.HasSuffix(lower, e) && suffixSurnameBase(lower[:len(lower)-len(e)]) {
+			return true
+		}
+	}
+	return false
+}
+
+// suffixSurnameBase reports whether base ends with a surname suffix that, when
+// combined with a case ending, forms an inflected surname.
+func suffixSurnameBase(base string) bool {
+	for _, suf := range []string{sufOv, sufEv, sufYov, sufIn, sufYn, sufSky, "цкий", sufSkaya, sufTskaya} {
+		if strings.HasSuffix(base, suf) {
+			return true
 		}
 	}
 	return false
 }
 
 // patSuffixes are the base patronymic suffixes in the nominative case.
-var patSuffixes = []string{"ович", "евич", "ич", sufOvna, sufEvna, sufIchna, sufInichna}
+var patSuffixes = []string{"ович", "евич", sufIch, sufOvna, sufEvna, sufIchna, sufInichna}
 
 // patForms holds every inflected form of every patronymic suffix, so that
 // patronymics in any case (e.g. "Сергеевны", "Маратовичу") are recognised.
@@ -763,12 +815,12 @@ func buildPatForms() map[string]bool {
 			// Feminine suffixes drop the final -а and take a case ending.
 			r := []rune(suf)
 			base := string(r[:len(r)-1])
-			for _, e := range []string{"ы", "е", "у", "ой", "ою", "ам", sufAmi, "ах"} {
+			for _, e := range []string{"ы", "е", "у", sufOy, "ою", "ам", sufAmi, sufAh} {
 				forms[base+e] = true
 			}
 		} else {
 			// Masculine suffixes append a case ending.
-			for _, e := range []string{"а", "у", "ы", "е", "ем", "ом", "и", "ей", "ам", sufAmi, "ах"} {
+			for _, e := range []string{"а", "у", "ы", "е", sufEm, sufOm, "и", sufEy, "ам", sufAmi, sufAh} {
 				forms[suf+e] = true
 			}
 		}
@@ -874,22 +926,30 @@ func (d *namesDetector) seq3InitialsSurname(seq []nameToken) (bool, float64) {
 
 // validSeq2 validates a two-token name sequence.
 func (d *namesDetector) validSeq2(seq []nameToken, t pii.Text) (bool, float64) {
-	if seq[0].isName && (seq[1].isSurname || seq[1].isSurnameGuess) {
-		if d.hasDictOrPatr(seq) {
-			return true, 0.85
-		}
+	if d.seq2NameSurname(seq) || d.seq2SurnameName(seq) {
+		return true, 0.85
 	}
-	if (seq[0].isSurname || seq[0].isSurnameGuess) && seq[1].isName {
-		if d.hasDictOrPatr(seq) {
-			return true, 0.85
-		}
-	}
-	if seq[0].isName && seq[1].isPatr {
-		if d.hasDictOrPatr(seq) && hasLeftContext(t, seq[0].start, nameContext, 30) {
-			return true, 0.85
-		}
+	if d.seq2NamePatr(seq, t) {
+		return true, 0.85
 	}
 	return false, 0
+}
+
+// seq2NameSurname reports whether the sequence is "name surname".
+func (d *namesDetector) seq2NameSurname(seq []nameToken) bool {
+	return seq[0].isName && (seq[1].isSurname || seq[1].isSurnameGuess) && d.hasDictOrPatr(seq)
+}
+
+// seq2SurnameName reports whether the sequence is "surname name".
+func (d *namesDetector) seq2SurnameName(seq []nameToken) bool {
+	return (seq[0].isSurname || seq[0].isSurnameGuess) && seq[1].isName && d.hasDictOrPatr(seq)
+}
+
+// seq2NamePatr reports whether the sequence is "name patronymic" with a name
+// context keyword to the left.
+func (d *namesDetector) seq2NamePatr(seq []nameToken, t pii.Text) bool {
+	return seq[0].isName && seq[1].isPatr && d.hasDictOrPatr(seq) &&
+		hasLeftContext(t, seq[0].start, nameContext, 30)
 }
 
 func (d *namesDetector) hasDictOrPatr(seq []nameToken) bool {
@@ -969,7 +1029,7 @@ func singleNameGap(nt []nameToken, a, b int) (int, bool) {
 	}
 	mid := a + 1
 	t := nt[mid]
-	if t.isName || t.isSurname || t.isSurnameGuess || t.isPatr || t.isInitial {
+	if t.isNameLikeNoMarker() {
 		return 0, false
 	}
 	if stopWords[t.lower] {
@@ -993,7 +1053,7 @@ func twoNameGap(nt []nameToken, a, b int) (int, int, bool) {
 	mid1, mid2 := a+1, a+2
 	for _, mid := range []int{mid1, mid2} {
 		t := nt[mid]
-		if t.isName || t.isSurname || t.isSurnameGuess || t.isPatr || t.isInitial || t.isPatrMarker {
+		if t.isNameLike() {
 			return 0, 0, false
 		}
 		if stopWords[t.lower] {
@@ -1018,7 +1078,7 @@ func lowercaseNameGap(nt []nameToken, a, b int, t pii.Text) (int, bool) {
 	}
 	mid := a + 1
 	tok := nt[mid]
-	if tok.isName || tok.isSurname || tok.isSurnameGuess || tok.isPatr || tok.isInitial || tok.isPatrMarker {
+	if tok.isNameLike() {
 		return 0, false
 	}
 	if stopWords[tok.lower] {
@@ -1039,7 +1099,7 @@ func unknownNameBefore(nt []nameToken, b int) (int, bool) {
 	}
 	mid := b - 1
 	t := nt[mid]
-	if t.isName || t.isSurname || t.isSurnameGuess || t.isPatr || t.isInitial || t.isPatrMarker {
+	if t.isNameLike() {
 		return 0, false
 	}
 	if stopWords[t.lower] {

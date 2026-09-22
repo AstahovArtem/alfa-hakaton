@@ -197,26 +197,29 @@ func TestNoPIIInLogs(t *testing.T) {
 	doJSON(t, ts, "POST", "/unmask", checkerHeaders(), map[string]string{"id": mres.ID, "text": mres.Masked})
 
 	logs := buf.String()
+	assertNoPIILeak(t, logs)
+	assertLogContains(t, logs, `"payload_id":"`+mres.ID+`"`, "log missing payload_id %q:\n%s", mres.ID)
+	assertLogContains(t, logs, `"direction":"mask"`, "log missing mask direction:\n%s")
+	assertLogContains(t, logs, `"direction":"unmask"`, "log missing unmask direction:\n%s")
+	for _, cat := range []string{"full_name", "passport", "phone"} {
+		assertLogContains(t, logs, `"`+cat+`":1`, "log missing found category %q:\n%s", cat)
+	}
+}
+
+// assertNoPIILeak fails when any known PII value appears in the log buffer.
+func assertNoPIILeak(t *testing.T, logs string) {
+	t.Helper()
 	for _, piiVal := range []string{"Иванов", "4509", "123-45-67"} {
 		if strings.Contains(logs, piiVal) {
 			t.Errorf("log leaked PII value %q:\n%s", piiVal, logs)
 		}
 	}
+}
 
-	// The request log must carry the payload id, the found categories and the
-	// real direction for both the mask and the unmask request.
-	if !strings.Contains(logs, `"payload_id":"`+mres.ID+`"`) {
-		t.Errorf("log missing payload_id %q:\n%s", mres.ID, logs)
-	}
-	if !strings.Contains(logs, `"direction":"mask"`) {
-		t.Errorf("log missing mask direction:\n%s", logs)
-	}
-	if !strings.Contains(logs, `"direction":"unmask"`) {
-		t.Errorf("log missing unmask direction:\n%s", logs)
-	}
-	for _, cat := range []string{"full_name", "passport", "phone"} {
-		if !strings.Contains(logs, `"`+cat+`":1`) {
-			t.Errorf("log missing found category %q:\n%s", cat, logs)
-		}
+// assertLogContains fails when the log buffer does not contain the substring.
+func assertLogContains(t *testing.T, logs, substr, format string, args ...any) {
+	t.Helper()
+	if !strings.Contains(logs, substr) {
+		t.Errorf(format+"\n%s", append(args, logs)...)
 	}
 }

@@ -13,6 +13,9 @@ import (
 // value, and an optional separator (":", "—", "-").
 var birthContextRe = regexp.MustCompile(`(?i)(?:место рождения|место рожд\.|родился|родилась|родился в|родилась в|рожден в|рождён в|уроженец|уроженка)`)
 
+// settlementPrefixGorod is the "г." settlement prefix.
+const settlementPrefixGorod = "г."
+
 var birthContextLowerRe = regexp.MustCompile(`(?:место рождения|место рожд\.|родился|родилась|родился в|родилась в|рожден в|рождён в|уроженец|уроженка)`)
 
 // birthValueRe matches the value after a birth-place context keyword. It
@@ -166,7 +169,7 @@ func (d *birthplaceDetector) validStart(t pii.Text, start int, value string) boo
 // "г.", "пос.", "село" or "деревня".
 func hasSettlementPrefix(s string) bool {
 	for _, p := range []string{
-		"г.", "гор.", "пос.", "с.", "ст.", "дер.", "д.", "пгт", "аул", "х.",
+		settlementPrefixGorod, "гор.", "пос.", "с.", "ст.", "дер.", "д.", "пгт", "аул", "х.",
 		"хутор", "п.", "рп", "город", "посёлок", "поселок", "село", "деревня", "станица",
 	} {
 		if strings.HasPrefix(s, p) {
@@ -196,7 +199,7 @@ func isRegionTail(s string) bool {
 	}
 	// A capitalised adjective ending in -ский/-ская/-ой/-ая (e.g. "Краснодарский").
 	if strings.HasSuffix(lower, "ский") || strings.HasSuffix(lower, "ская") ||
-		strings.HasSuffix(lower, "ой") || strings.HasSuffix(lower, "ая") {
+		strings.HasSuffix(lower, sufOy) || strings.HasSuffix(lower, "ая") {
 		return true
 	}
 	return false

@@ -9,13 +9,32 @@ import (
 
 // isLetterRune reports whether r is a Latin or Cyrillic letter.
 func isLetterRune(r rune) bool {
-	return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') ||
-		(r >= 'а' && r <= 'я') || (r >= 'А' && r <= 'Я') || r == 'ё' || r == 'Ё'
+	return isLatinLetter(r) || isCyrillicRune(r)
+}
+
+// isCyrillicRune reports whether r is a Cyrillic letter (including ё/Ё).
+func isCyrillicRune(r rune) bool {
+	return isLowerCyrillicRune(r) || isUpperCyrillicRune(r)
+}
+
+// isLowerCyrillicRune reports whether r is a lowercase Cyrillic letter.
+func isLowerCyrillicRune(r rune) bool {
+	return (r >= 'а' && r <= 'я') || r == 'ё'
+}
+
+// isUpperCyrillicRune reports whether r is an uppercase Cyrillic letter.
+func isUpperCyrillicRune(r rune) bool {
+	return (r >= 'А' && r <= 'Я') || r == 'Ё'
 }
 
 // isUpperRune reports whether r is an uppercase Latin or Cyrillic letter.
 func isUpperRune(r rune) bool {
-	return (r >= 'A' && r <= 'Z') || (r >= 'А' && r <= 'Я') || r == 'Ё'
+	return isUpperLatin(r) || isUpperCyrillicRune(r)
+}
+
+// isUpperLatin reports whether r is an uppercase ASCII Latin letter.
+func isUpperLatin(r rune) bool {
+	return r >= 'A' && r <= 'Z'
 }
 
 // runeBefore returns the rune that ends at byte position pos in s.

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"pdn-shield/internal/engine"
 	"pdn-shield/internal/pii"
 )
 
@@ -43,23 +44,12 @@ func (s *Server) handleProcess(w http.ResponseWriter, r *http.Request) {
 
 	res, err := s.engine.Process(r.Context(), req.PayloadID, req.Payload, opt)
 	if err != nil {
-		if isStoreError(err) {
-			s.storeUnavailable(w, opLoad, err)
-			return
-		}
-		writeError(w, http.StatusInternalServerError, "processing failed")
+		s.handleProcessError(w, err)
 		return
 	}
 
 	if info != nil {
-		info.stages = res.Stages
-		if res.Unmasked {
-			info.direction = dirUnmask
-			info.misses = res.Misses
-		} else {
-			info.direction = dirMask
-			info.found = res.Found
-		}
+		recordProcessInfo(info, res)
 	}
 
 	if res.Unmasked && res.Misses > 0 {
@@ -69,6 +59,27 @@ func (s *Server) handleProcess(w http.ResponseWriter, r *http.Request) {
 		s.recordFound(res.Found)
 	}
 	writeJSON(w, http.StatusOK, processResponse{Result: res.Result})
+}
+
+// handleProcessError writes the appropriate error response for a Process failure.
+func (s *Server) handleProcessError(w http.ResponseWriter, err error) {
+	if isStoreError(err) {
+		s.storeUnavailable(w, opLoad, err)
+		return
+	}
+	writeError(w, http.StatusInternalServerError, "processing failed")
+}
+
+// recordProcessInfo fills the request info with the process result details.
+func recordProcessInfo(info *reqInfo, res engine.ProcessResult) {
+	info.stages = res.Stages
+	if res.Unmasked {
+		info.direction = dirUnmask
+		info.misses = res.Misses
+		return
+	}
+	info.direction = dirMask
+	info.found = res.Found
 }
 
 // maskRequest is the /mask body.
@@ -97,24 +108,15 @@ func (s *Server) handleMask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "text is required")
 		return
 	}
-	id := req.ID
-	if id == "" {
-		var err error
-		id, err = newUUID()
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "id generation failed")
-			return
-		}
+	id, ok := resolveMaskID(w, req.ID)
+	if !ok {
+		return
 	}
 
 	sys := s.systemFrom(r)
 	strategy, status := s.strategyOverride(sys, req.Strategy)
 	if status != 0 {
-		if status == http.StatusForbidden {
-			writeError(w, status, "strategy override not allowed")
-		} else {
-			writeError(w, status, "unknown strategy")
-		}
+		writeStrategyError(w, status)
 		return
 	}
 	opt := s.optionsFor(sys)
@@ -122,11 +124,7 @@ func (s *Server) handleMask(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	mres, err := s.engine.MaskEx(r.Context(), id, req.Text, opt)
 	if err != nil {
-		if isStoreError(err) {
-			s.storeUnavailable(w, "save", err)
-			return
-		}
-		writeError(w, http.StatusInternalServerError, "masking failed")
+		s.handleMaskError(w, err)
 		return
 	}
 	masked := mres.Masked
@@ -149,6 +147,37 @@ func (s *Server) handleMask(w http.ResponseWriter, r *http.Request) {
 		Strategy:  strategy,
 		LatencyMs: latency,
 	})
+}
+
+// resolveMaskID returns the request id, generating a new one when absent.
+func resolveMaskID(w http.ResponseWriter, id string) (string, bool) {
+	if id != "" {
+		return id, true
+	}
+	generated, err := newUUID()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "id generation failed")
+		return "", false
+	}
+	return generated, true
+}
+
+// writeStrategyError writes the error response for a failed strategy override.
+func writeStrategyError(w http.ResponseWriter, status int) {
+	if status == http.StatusForbidden {
+		writeError(w, status, "strategy override not allowed")
+		return
+	}
+	writeError(w, status, "unknown strategy")
+}
+
+// handleMaskError writes the appropriate error response for a MaskEx failure.
+func (s *Server) handleMaskError(w http.ResponseWriter, err error) {
+	if isStoreError(err) {
+		s.storeUnavailable(w, "save", err)
+		return
+	}
+	writeError(w, http.StatusInternalServerError, "masking failed")
 }
 
 // unmaskRequest is the /unmask body.

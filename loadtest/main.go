@@ -9,7 +9,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -79,7 +78,6 @@ func main() {
 		system     = flag.String("system", "", "X-System-Id header; empty means the default checker system")
 		apiKey     = flag.String("api-key", "", "X-API-Key header; empty means no key")
 		reportPath = flag.String("report", "", "path to write the report; default ./loadtest-report-<ts>.md")
-		insecure   = flag.Bool("insecure", false, "skip TLS certificate verification")
 	)
 	flag.Parse()
 
@@ -101,7 +99,6 @@ func main() {
 		TLSHandshakeTimeout: 10 * time.Second,
 		ForceAttemptHTTP2:   false,
 		DisableCompression:  true,
-		TLSClientConfig:     &tls.Config{InsecureSkipVerify: *insecure},
 	}
 	client := &http.Client{Timeout: *timeout, Transport: transport}
 

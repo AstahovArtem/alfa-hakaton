@@ -302,31 +302,43 @@ func accumulateRecord(p *pii.Pipeline, rec datasetRecord, byCat map[pii.Category
 	res := p.Run(rec.Text)
 	matched := make([]bool, len(rec.Spans))
 	for _, det := range res.Spans {
-		cat := det.Category
-		if byCat[cat] == nil {
-			byCat[cat] = &stats{}
-		}
-		best := bestMatch(rec.Spans, det)
-		if best >= 0 && match(datasetSpan{Start: det.Start, End: det.End}, rec.Spans[best]) {
-			if !matched[best] {
-				matched[best] = true
-				byCat[cat].tp++
-				*totalTP++
-			}
-		} else {
-			byCat[cat].fp++
-			*totalFP++
-		}
+		recordDetected(det, rec, byCat, match, matched, totalTP, totalFP)
 	}
 	for i, exp := range rec.Spans {
-		if matched[i] {
-			continue
-		}
-		cat := pii.Category(exp.Category)
-		if byCat[cat] == nil {
-			byCat[cat] = &stats{}
-		}
-		byCat[cat].fn++
-		*totalFN++
+		recordMissed(i, exp, byCat, matched, totalFN)
 	}
+}
+
+// recordDetected updates the counters for one detected span.
+func recordDetected(det pii.Span, rec datasetRecord, byCat map[pii.Category]*stats, match matchFunc, matched []bool, totalTP, totalFP *int) {
+	cat := det.Category
+	st := ensureStats(byCat, cat)
+	best := bestMatch(rec.Spans, det)
+	if best >= 0 && match(datasetSpan{Start: det.Start, End: det.End}, rec.Spans[best]) {
+		if !matched[best] {
+			matched[best] = true
+			st.tp++
+			*totalTP++
+		}
+		return
+	}
+	st.fp++
+	*totalFP++
+}
+
+// recordMissed updates the false-negative counters for an unmatched expected span.
+func recordMissed(i int, exp datasetSpan, byCat map[pii.Category]*stats, matched []bool, totalFN *int) {
+	if matched[i] {
+		return
+	}
+	ensureStats(byCat, pii.Category(exp.Category)).fn++
+	*totalFN++
+}
+
+// ensureStats returns the stats for a category, creating it when absent.
+func ensureStats(byCat map[pii.Category]*stats, cat pii.Category) *stats {
+	if byCat[cat] == nil {
+		byCat[cat] = &stats{}
+	}
+	return byCat[cat]
 }

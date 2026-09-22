@@ -117,16 +117,7 @@ func (e *Engine) MaskBatch(ctx context.Context, id string, texts []string, opt O
 // MaskBatchEx is MaskBatch with stage timings in the result.
 func (e *Engine) MaskBatchEx(ctx context.Context, id string, texts []string, opt Options) (MaskBatchResult, error) {
 	doc := mask.NewDocState()
-	strategy := e.strategies[opt.Strategy]
-	if strategy == nil {
-		strategy = e.strategies["partial"]
-	}
-	if strategy == nil {
-		for _, s := range e.strategies {
-			strategy = s
-			break
-		}
-	}
+	strategy := e.resolveStrategy(opt.Strategy)
 	if strategy == nil {
 		return MaskBatchResult{}, errors.New("engine: no strategy available")
 	}
@@ -215,6 +206,22 @@ func (e *Engine) maskEx(ctx context.Context, id, text string, opt Options, doc *
 	return e.maskWithRecord(ctx, id, text, opt, doc, nil)
 }
 
+// resolveStrategy returns the strategy for name, falling back to "partial" and
+// then to any registered strategy. It returns nil when no strategy is known.
+func (e *Engine) resolveStrategy(name string) mask.Strategy {
+	strategy := e.strategies[name]
+	if strategy == nil {
+		strategy = e.strategies["partial"]
+	}
+	if strategy == nil {
+		for _, s := range e.strategies {
+			strategy = s
+			break
+		}
+	}
+	return strategy
+}
+
 // maskWithRecord masks text and saves the mapping under id. existing, when
 // non-nil, is a record already loaded by the caller so the store is not hit a
 // second time.
@@ -234,16 +241,7 @@ func (e *Engine) maskWithRecord(ctx context.Context, id, text string, opt Option
 		}
 	}
 
-	strategy := e.strategies[opt.Strategy]
-	if strategy == nil {
-		strategy = e.strategies["partial"]
-	}
-	if strategy == nil {
-		for _, s := range e.strategies {
-			strategy = s
-			break
-		}
-	}
+	strategy := e.resolveStrategy(opt.Strategy)
 	if strategy == nil {
 		return MaskResult{}, errors.New("engine: no strategy available")
 	}
@@ -342,29 +340,56 @@ func chunkText(text string) []string {
 // findBoundary returns the best split point in text[start:end], preferring a
 // newline, then a sentence end, then a space. It never splits a word.
 func findBoundary(text string, start, end int) int {
-	// Prefer a newline.
+	if cut := findNewline(text, start, end); cut > 0 {
+		return cut
+	}
+	if cut := findSentenceEnd(text, start, end); cut > 0 {
+		return cut
+	}
+	if cut := findSpace(text, start, end); cut > 0 {
+		return cut
+	}
+	// Fall back to the hard limit.
+	return end
+}
+
+// findNewline returns the last newline position in text[start:end], or 0.
+func findNewline(text string, start, end int) int {
 	for i := end; i > start; i-- {
 		if text[i-1] == '\n' {
 			return i
 		}
 	}
-	// Then a sentence end followed by a space.
+	return 0
+}
+
+// findSentenceEnd returns the last sentence-end position in text[start:end],
+// consuming a following space, or 0.
+func findSentenceEnd(text string, start, end int) int {
 	for i := end; i > start; i-- {
-		if text[i-1] == '.' || text[i-1] == '!' || text[i-1] == '?' {
+		if isSentenceEnd(text[i-1]) {
 			if i < len(text) && text[i] == ' ' {
 				return i + 1
 			}
 			return i
 		}
 	}
-	// Then a space.
+	return 0
+}
+
+// findSpace returns the last space position in text[start:end], or 0.
+func findSpace(text string, start, end int) int {
 	for i := end; i > start; i-- {
 		if text[i-1] == ' ' {
 			return i
 		}
 	}
-	// Fall back to the hard limit.
-	return end
+	return 0
+}
+
+// isSentenceEnd reports whether b terminates a sentence.
+func isSentenceEnd(b byte) bool {
+	return b == '.' || b == '!' || b == '?'
 }
 
 // Unmask loads the mapping by id and restores the original text.
@@ -416,40 +441,43 @@ func (e *Engine) Process(ctx context.Context, id, payload string, opt Options) (
 	}
 
 	if exists {
-		// Payload equals the stored mask: unmask.
-		if rec.MaskedText == payload {
-			restored, misses := mask.Restore(payload, rec.Replacements)
-			return ProcessResult{Result: restored, Unmasked: true, Misses: misses}, nil
-		}
-		// Payload equals the original text: return the stored mask (idempotent).
-		if rec.Hash == hashText(payload) {
-			return ProcessResult{Result: rec.MaskedText}, nil
-		}
-		// Payload differs from both: try to unmask; the mask may have changed.
-		restored, misses := mask.Restore(payload, rec.Replacements)
-		if misses == 0 {
-			return ProcessResult{Result: restored, Unmasked: true}, nil
-		}
-		// Partial restore: at least one replacement was applied, so return the
-		// restored text rather than the payload as-is.
-		if misses < len(rec.Replacements) {
-			return ProcessResult{Result: restored, Unmasked: true, Misses: misses}, nil
-		}
-		// Zero matches: return the payload as-is.
-		return ProcessResult{Result: payload, Misses: misses}, nil
+		return processExisting(rec, payload)
 	}
 
 	// Unknown id: mask normally, reusing the already-loaded record so the store
 	// is hit exactly once (1 GET + 1 SET).
-	var existing *store.Record
-	if exists {
-		existing = &rec
-	}
-	mres, err := e.maskWithRecord(ctx, id, payload, opt, mask.NewDocState(), existing)
+	mres, err := e.maskWithRecord(ctx, id, payload, opt, mask.NewDocState(), nil)
 	if err != nil {
 		return ProcessResult{}, err
 	}
 	return ProcessResult{Result: mres.Masked, Found: mres.Found, Stages: mres.Stages}, nil
+}
+
+// processExisting resolves a Process call for a known id against the stored
+// record: unmask when the payload equals the mask, return the stored mask when
+// the payload equals the original text, otherwise attempt a partial restore.
+func processExisting(rec store.Record, payload string) (ProcessResult, error) {
+	// Payload equals the stored mask: unmask.
+	if rec.MaskedText == payload {
+		restored, misses := mask.Restore(payload, rec.Replacements)
+		return ProcessResult{Result: restored, Unmasked: true, Misses: misses}, nil
+	}
+	// Payload equals the original text: return the stored mask (idempotent).
+	if rec.Hash == hashText(payload) {
+		return ProcessResult{Result: rec.MaskedText}, nil
+	}
+	// Payload differs from both: try to unmask; the mask may have changed.
+	restored, misses := mask.Restore(payload, rec.Replacements)
+	if misses == 0 {
+		return ProcessResult{Result: restored, Unmasked: true}, nil
+	}
+	// Partial restore: at least one replacement was applied, so return the
+	// restored text rather than the payload as-is.
+	if misses < len(rec.Replacements) {
+		return ProcessResult{Result: restored, Unmasked: true, Misses: misses}, nil
+	}
+	// Zero matches: return the payload as-is.
+	return ProcessResult{Result: payload, Misses: misses}, nil
 }
 
 // filterSpans drops spans whose category is not in categories and applies the

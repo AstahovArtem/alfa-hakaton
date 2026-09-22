@@ -71,19 +71,7 @@ func TestAddressSpanValue(t *testing.T) {
 		{"живёт в Казани, Кремлёвская 5", "Казани, Кремлёвская 5"},
 	}
 	for _, c := range cases {
-		res := runPipeline(t, c.in)
-		found := false
-		for _, s := range res.Spans {
-			if s.Category == pii.CatAddress {
-				found = true
-				if got := c.in[s.Start:s.End]; got != c.want {
-					t.Errorf("address value for %q = %q, want %q", c.in, got, c.want)
-				}
-			}
-		}
-		if !found {
-			t.Errorf("no address span for %q", c.in)
-		}
+		assertSpanValue(t, runPipeline(t, c.in), pii.CatAddress, c.in, c.want)
 	}
 }
 
@@ -114,19 +102,7 @@ func TestAddressBareStreetHousingContext(t *testing.T) {
 		{"Реальный адрес доставки: Пушкина, 15, кв. 2", "Пушкина, 15, кв. 2"},
 	}
 	for _, c := range cases {
-		res := runPipeline(t, c.in)
-		found := false
-		for _, s := range res.Spans {
-			if s.Category == pii.CatAddress {
-				found = true
-				if got := c.in[s.Start:s.End]; got != c.want {
-					t.Errorf("address value for %q = %q, want %q", c.in, got, c.want)
-				}
-			}
-		}
-		if !found {
-			t.Errorf("no address span for %q", c.in)
-		}
+		assertSpanValue(t, runPipeline(t, c.in), pii.CatAddress, c.in, c.want)
 	}
 }
 

@@ -35,11 +35,7 @@ func (s *Server) handleChat(w http.ResponseWriter, r *http.Request) {
 
 	strategy, status := s.strategyOverride(sys, req.Strategy)
 	if status != 0 {
-		if status == http.StatusForbidden {
-			writeError(w, status, "strategy override not allowed")
-		} else {
-			writeError(w, status, "unknown strategy")
-		}
+		writeStrategyError(w, status)
 		return
 	}
 	opt := s.optionsFor(sys)
@@ -61,10 +57,7 @@ func (s *Server) handleChat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Estimate tokens for the masked request.
-	reqTokens := 0
-	for _, m := range maskedMessages {
-		reqTokens += metrics.EstimateTokens(m.Content)
-	}
+	reqTokens := estimateTokens(maskedMessages)
 	s.metrics.Tokens.WithLabelValues(dirMask).Add(float64(reqTokens))
 
 	start := time.Now()
@@ -74,11 +67,7 @@ func (s *Server) handleChat(w http.ResponseWriter, r *http.Request) {
 		Stream:   req.Stream,
 	})
 	if err != nil {
-		s.logger.Error("llm unavailable", "err", err)
-		writeJSON(w, http.StatusBadGateway, map[string]string{
-			"error":  "llm unavailable",
-			"detail": "upstream model gateway error",
-		})
+		s.handleLLMError(w, err)
 		return
 	}
 	latency := time.Since(start).Milliseconds()
@@ -101,6 +90,24 @@ func (s *Server) handleChat(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-PDN-Masked-Count", strconv.Itoa(countFound(totalFound)))
 	w.Header().Set("X-PDN-Latency-Ms", strconv.Itoa(int(latency)))
 	writeJSON(w, http.StatusOK, resp)
+}
+
+// estimateTokens sums the estimated token count of the masked messages.
+func estimateTokens(messages []chatMessage) int {
+	n := 0
+	for _, m := range messages {
+		n += metrics.EstimateTokens(m.Content)
+	}
+	return n
+}
+
+// handleLLMError writes the error response when the LLM call fails.
+func (s *Server) handleLLMError(w http.ResponseWriter, err error) {
+	s.logger.Error("llm unavailable", "err", err)
+	writeJSON(w, http.StatusBadGateway, map[string]string{
+		"error":  "llm unavailable",
+		"detail": "upstream model gateway error",
+	})
 }
 
 // maskMessages masks all message contents under one id with a shared DocState

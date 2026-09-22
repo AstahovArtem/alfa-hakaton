@@ -72,19 +72,7 @@ func TestBirthplaceSpanValue(t *testing.T) {
 		{"Место рождения: д. Малиновка Брянской области", "д. Малиновка Брянской области"},
 	}
 	for _, c := range cases {
-		res := runPipeline(t, c.in)
-		found := false
-		for _, s := range res.Spans {
-			if s.Category == pii.CatBirthPlace {
-				found = true
-				if got := c.in[s.Start:s.End]; got != c.want {
-					t.Errorf("birth_place value for %q = %q, want %q", c.in, got, c.want)
-				}
-			}
-		}
-		if !found {
-			t.Errorf("no birth_place span for %q", c.in)
-		}
+		assertSpanValue(t, runPipeline(t, c.in), pii.CatBirthPlace, c.in, c.want)
 	}
 }
 
@@ -149,19 +137,7 @@ func TestBirthplaceDashAndPronoun(t *testing.T) {
 		{"Родился в с. Верхние Киги, Башкирия", "с. Верхние Киги"},
 	}
 	for _, c := range cases {
-		res := runPipeline(t, c.in)
-		found := false
-		for _, s := range res.Spans {
-			if s.Category == pii.CatBirthPlace {
-				found = true
-				if got := c.in[s.Start:s.End]; got != c.want {
-					t.Errorf("birth_place value for %q = %q, want %q", c.in, got, c.want)
-				}
-			}
-		}
-		if !found {
-			t.Errorf("no birth_place span for %q", c.in)
-		}
+		assertSpanValue(t, runPipeline(t, c.in), pii.CatBirthPlace, c.in, c.want)
 	}
 }
 

@@ -82,19 +82,7 @@ func TestFullNameSpanValue(t *testing.T) {
 		{"Заявитель: Ахметов Руслан Маратович", "Ахметов Руслан Маратович"},
 	}
 	for _, c := range cases {
-		res := runPipeline(t, c.in)
-		found := false
-		for _, s := range res.Spans {
-			if s.Category == pii.CatFullName {
-				found = true
-				if got := c.in[s.Start:s.End]; got != c.want {
-					t.Errorf("full_name value for %q = %q, want %q", c.in, got, c.want)
-				}
-			}
-		}
-		if !found {
-			t.Errorf("no full_name span for %q", c.in)
-		}
+		assertSpanValue(t, runPipeline(t, c.in), pii.CatFullName, c.in, c.want)
 	}
 }
 
@@ -108,19 +96,7 @@ func TestFullNameConfidence(t *testing.T) {
 		{"клиент Иван", 0.8},
 	}
 	for _, c := range cases {
-		res := runPipeline(t, c.in)
-		found := false
-		for _, s := range res.Spans {
-			if s.Category == pii.CatFullName {
-				found = true
-				if s.Confidence != c.want {
-					t.Errorf("confidence for %q = %v, want %v", c.in, s.Confidence, c.want)
-				}
-			}
-		}
-		if !found {
-			t.Errorf("no full_name span for %q", c.in)
-		}
+		assertSpanConfidence(t, runPipeline(t, c.in), pii.CatFullName, c.in, c.want)
 	}
 }
 
@@ -134,19 +110,7 @@ func TestFullNameUnknownGivenNameWithPatronymic(t *testing.T) {
 		{"Мамедова Севиль Рустамовна", "Мамедова Севиль Рустамовна"},
 	}
 	for _, c := range cases {
-		res := runPipeline(t, c.in)
-		found := false
-		for _, s := range res.Spans {
-			if s.Category == pii.CatFullName {
-				found = true
-				if got := c.in[s.Start:s.End]; got != c.want {
-					t.Errorf("full_name value for %q = %q, want %q", c.in, got, c.want)
-				}
-			}
-		}
-		if !found {
-			t.Errorf("no full_name span for %q", c.in)
-		}
+		assertSpanValue(t, runPipeline(t, c.in), pii.CatFullName, c.in, c.want)
 	}
 }
 
@@ -190,19 +154,7 @@ func TestFullNameLowercaseAfterContext(t *testing.T) {
 		{"клиент представился как васильев-петренко артём", "васильев-петренко артём"},
 	}
 	for _, c := range cases {
-		res := runPipeline(t, c.in)
-		found := false
-		for _, s := range res.Spans {
-			if s.Category == pii.CatFullName {
-				found = true
-				if got := c.in[s.Start:s.End]; got != c.want {
-					t.Errorf("full_name value for %q = %q, want %q", c.in, got, c.want)
-				}
-			}
-		}
-		if !found {
-			t.Errorf("no full_name span for %q", c.in)
-		}
+		assertSpanValue(t, runPipeline(t, c.in), pii.CatFullName, c.in, c.want)
 	}
 }
 
@@ -216,19 +168,7 @@ func TestFullNameTurkicFourToken(t *testing.T) {
 		{"Алиев Али Ахмед оглы", "Алиев Али Ахмед оглы"},
 	}
 	for _, c := range cases {
-		res := runPipeline(t, c.in)
-		found := false
-		for _, s := range res.Spans {
-			if s.Category == pii.CatFullName {
-				found = true
-				if got := c.in[s.Start:s.End]; got != c.want {
-					t.Errorf("full_name value for %q = %q, want %q", c.in, got, c.want)
-				}
-			}
-		}
-		if !found {
-			t.Errorf("no full_name span for %q", c.in)
-		}
+		assertSpanValue(t, runPipeline(t, c.in), pii.CatFullName, c.in, c.want)
 	}
 }
 
@@ -242,19 +182,7 @@ func TestFullNameDativeUnknownName(t *testing.T) {
 		{"Претензия от Айгуль Маратовны Сафиной", "Айгуль Маратовны Сафиной"},
 	}
 	for _, c := range cases {
-		res := runPipeline(t, c.in)
-		found := false
-		for _, s := range res.Spans {
-			if s.Category == pii.CatFullName {
-				found = true
-				if got := c.in[s.Start:s.End]; got != c.want {
-					t.Errorf("full_name value for %q = %q, want %q", c.in, got, c.want)
-				}
-			}
-		}
-		if !found {
-			t.Errorf("no full_name span for %q", c.in)
-		}
+		assertSpanValue(t, runPipeline(t, c.in), pii.CatFullName, c.in, c.want)
 	}
 }
 
@@ -270,19 +198,7 @@ func TestFullNameLatinWithContext(t *testing.T) {
 		{"Клиент Ivanov Ivan", "Ivanov Ivan"},
 	}
 	for _, c := range cases {
-		res := runPipeline(t, c.in)
-		found := false
-		for _, s := range res.Spans {
-			if s.Category == pii.CatFullName {
-				found = true
-				if got := c.in[s.Start:s.End]; got != c.want {
-					t.Errorf("full_name value for %q = %q, want %q", c.in, got, c.want)
-				}
-			}
-		}
-		if !found {
-			t.Errorf("no full_name span for %q", c.in)
-		}
+		assertSpanValue(t, runPipeline(t, c.in), pii.CatFullName, c.in, c.want)
 	}
 }
 
@@ -310,19 +226,7 @@ func TestFullNameForeignDialogue(t *testing.T) {
 		{"Данные для пропуска: ЛИ ЧЖИ ХУН", "ЛИ ЧЖИ ХУН"},
 	}
 	for _, c := range cases {
-		res := runPipeline(t, c.in)
-		found := false
-		for _, s := range res.Spans {
-			if s.Category == pii.CatFullName {
-				found = true
-				if got := c.in[s.Start:s.End]; got != c.want {
-					t.Errorf("full_name value for %q = %q, want %q", c.in, got, c.want)
-				}
-			}
-		}
-		if !found {
-			t.Errorf("no full_name span for %q", c.in)
-		}
+		assertSpanValue(t, runPipeline(t, c.in), pii.CatFullName, c.in, c.want)
 	}
 }
 
@@ -350,18 +254,6 @@ func TestFullNameMaidenSurnameInParens(t *testing.T) {
 		{"Сафина (Ганиева) Гульнара Ильдаровна", "Сафина (Ганиева) Гульнара Ильдаровна"},
 	}
 	for _, c := range cases {
-		res := runPipeline(t, c.in)
-		found := false
-		for _, s := range res.Spans {
-			if s.Category == pii.CatFullName {
-				found = true
-				if got := c.in[s.Start:s.End]; got != c.want {
-					t.Errorf("full_name value for %q = %q, want %q", c.in, got, c.want)
-				}
-			}
-		}
-		if !found {
-			t.Errorf("no full_name span for %q", c.in)
-		}
+		assertSpanValue(t, runPipeline(t, c.in), pii.CatFullName, c.in, c.want)
 	}
 }

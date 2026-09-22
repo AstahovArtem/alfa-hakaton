@@ -58,19 +58,7 @@ func TestIssuerSpanValue(t *testing.T) {
 		{"кем выдан: ОВД района Хамовники", "ОВД района Хамовники"},
 	}
 	for _, c := range cases {
-		res := runPipeline(t, c.in)
-		found := false
-		for _, s := range res.Spans {
-			if s.Category == pii.CatPassportIssuer {
-				found = true
-				if got := c.in[s.Start:s.End]; got != c.want {
-					t.Errorf("passport_issuer value for %q = %q, want %q", c.in, got, c.want)
-				}
-			}
-		}
-		if !found {
-			t.Errorf("no passport_issuer span for %q", c.in)
-		}
+		assertSpanValue(t, runPipeline(t, c.in), pii.CatPassportIssuer, c.in, c.want)
 	}
 }
 
@@ -84,18 +72,6 @@ func TestIssuerStopsBeforeNonContinuation(t *testing.T) {
 		{"Паспорт выдан УФМС России по Московской области в г. Балашиха, копия страницы приложена к делу.", "УФМС России по Московской области в г. Балашиха"},
 	}
 	for _, c := range cases {
-		res := runPipeline(t, c.in)
-		found := false
-		for _, s := range res.Spans {
-			if s.Category == pii.CatPassportIssuer {
-				found = true
-				if got := c.in[s.Start:s.End]; got != c.want {
-					t.Errorf("passport_issuer value for %q = %q, want %q", c.in, got, c.want)
-				}
-			}
-		}
-		if !found {
-			t.Errorf("no passport_issuer span for %q", c.in)
-		}
+		assertSpanValue(t, runPipeline(t, c.in), pii.CatPassportIssuer, c.in, c.want)
 	}
 }

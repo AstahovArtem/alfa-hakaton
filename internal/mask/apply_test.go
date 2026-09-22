@@ -90,20 +90,28 @@ func loadDatasetFileForMask(t *testing.T, path string) []datasetRecord {
 		if err := json.Unmarshal([]byte(raw), &rec); err != nil {
 			t.Fatalf("invalid JSON: %v", err)
 		}
-		for i := range rec.Spans {
-			sp := &rec.Spans[i]
-			if sp.Value != "" {
-				idx := strings.Index(rec.Text, sp.Value)
-				if idx < 0 {
-					t.Fatalf("%s: value %q not found", rec.ID, sp.Value)
-				}
-				sp.Start = idx
-				sp.End = idx + len(sp.Value)
-			}
-		}
+		resolveSpanOffsets(t, &rec)
 		records = append(records, rec)
 	}
 	return records
+}
+
+// resolveSpanOffsets fills in the start/end offsets of spans whose value is
+// present, locating the value within the record text.
+func resolveSpanOffsets(t *testing.T, rec *datasetRecord) {
+	t.Helper()
+	for i := range rec.Spans {
+		sp := &rec.Spans[i]
+		if sp.Value == "" {
+			continue
+		}
+		idx := strings.Index(rec.Text, sp.Value)
+		if idx < 0 {
+			t.Fatalf("%s: value %q not found", rec.ID, sp.Value)
+		}
+		sp.Start = idx
+		sp.End = idx + len(sp.Value)
+	}
 }
 
 func TestRestoreRoundTripDataset(t *testing.T) {

@@ -122,6 +122,27 @@ func Load(path string) (*Config, error) {
 // Validate checks the config for unknown strategies, categories and missing
 // required fields.
 func (c *Config) Validate() error {
+	if err := c.validateBasics(); err != nil {
+		return err
+	}
+	seen := make(map[string]bool)
+	for _, s := range c.Systems {
+		if s.ID == "" {
+			return fmt.Errorf("config: system id is required")
+		}
+		if seen[s.ID] {
+			return fmt.Errorf("config: duplicate system id %q", s.ID)
+		}
+		seen[s.ID] = true
+		if err := validateSystem(s); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validateBasics checks the server, store and LLM sections.
+func (c *Config) validateBasics() error {
 	if c.Server.Addr == "" {
 		return fmt.Errorf("config: server.addr is required")
 	}
@@ -140,19 +161,6 @@ func (c *Config) Validate() error {
 	if c.LLM.Model == "" {
 		return fmt.Errorf("config: llm.model is required")
 	}
-	seen := make(map[string]bool)
-	for _, s := range c.Systems {
-		if s.ID == "" {
-			return fmt.Errorf("config: system id is required")
-		}
-		if seen[s.ID] {
-			return fmt.Errorf("config: duplicate system id %q", s.ID)
-		}
-		seen[s.ID] = true
-		if err := validateSystem(s); err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
@@ -168,13 +176,21 @@ func validateSystem(s System) error {
 		}
 	}
 	for _, r := range s.ComboRules {
-		if !validCategories[r.Category] {
-			return fmt.Errorf("config: system %q combo rule has unknown category %q", s.ID, r.Category)
+		if err := validateComboRule(s.ID, r); err != nil {
+			return err
 		}
-		for _, req := range r.RequiresAny {
-			if !validCategories[req] {
-				return fmt.Errorf("config: system %q combo rule requires unknown category %q", s.ID, req)
-			}
+	}
+	return nil
+}
+
+// validateComboRule checks one combo rule's category and requirement references.
+func validateComboRule(id string, r ComboRule) error {
+	if !validCategories[r.Category] {
+		return fmt.Errorf("config: system %q combo rule has unknown category %q", id, r.Category)
+	}
+	for _, req := range r.RequiresAny {
+		if !validCategories[req] {
+			return fmt.Errorf("config: system %q combo rule requires unknown category %q", id, req)
 		}
 	}
 	return nil

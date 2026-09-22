@@ -98,38 +98,50 @@ func TestSyntheticFallbackToken(t *testing.T) {
 func TestSyntheticDate(t *testing.T) {
 	s := NewSynthetic()
 	doc := NewDocState()
-	wordCases := []string{
+	for _, value := range []string{
 		"12 мая 1990 года",
 		"1 января 2000 года",
 		"31 декабря 1985 года",
 		"15 сентября 2005 года",
+	} {
+		checkWordDate(t, s, doc, value)
 	}
-	for _, value := range wordCases {
-		got := s.Mask(value, pii.CatBirthDate, doc)
-		if !isWordDate(got) {
-			t.Errorf("word date %q -> %q: missing month word", value, got)
-		}
-		words := strings.Fields(got)
-		if len(words) != 4 || words[3] != "года" {
-			t.Errorf("word date %q -> %q: want 4 words ending in года", value, got)
-		}
-		if len(words[2]) != 4 {
-			t.Errorf("word date %q -> %q: year %q not 4 digits", value, got, words[2])
-		}
-	}
-	numericCases := []string{
+	for _, value := range []string{
 		"12.05.1990",
 		"01.01.2000",
 		"31.12.1985",
 		"15.09.2005",
+	} {
+		checkNumericDate(t, s, doc, value)
 	}
-	for _, value := range numericCases {
-		got := s.Mask(value, pii.CatBirthDate, doc)
-		if isWordDate(got) {
-			t.Errorf("numeric date %q -> %q: unexpected month word", value, got)
-		}
-		if len(digitsOnly(got)) != 8 {
-			t.Errorf("numeric date %q -> %q: want 8 digits", value, got)
-		}
+}
+
+// checkWordDate verifies a word-form date masks to a month word and a 4-digit
+// year.
+func checkWordDate(t *testing.T, s Strategy, doc *DocState, value string) {
+	t.Helper()
+	got := s.Mask(value, pii.CatBirthDate, doc)
+	if !isWordDate(got) {
+		t.Errorf("word date %q -> %q: missing month word", value, got)
+	}
+	words := strings.Fields(got)
+	if len(words) != 4 || words[3] != "года" {
+		t.Errorf("word date %q -> %q: want 4 words ending in года", value, got)
+	}
+	if len(words[2]) != 4 {
+		t.Errorf("word date %q -> %q: year %q not 4 digits", value, got, words[2])
+	}
+}
+
+// checkNumericDate verifies a numeric date masks to exactly 8 digits with no
+// month word.
+func checkNumericDate(t *testing.T, s Strategy, doc *DocState, value string) {
+	t.Helper()
+	got := s.Mask(value, pii.CatBirthDate, doc)
+	if isWordDate(got) {
+		t.Errorf("numeric date %q -> %q: unexpected month word", value, got)
+	}
+	if len(digitsOnly(got)) != 8 {
+		t.Errorf("numeric date %q -> %q: want 8 digits", value, got)
 	}
 }

@@ -22,6 +22,38 @@ func hasCategory(t *testing.T, res pii.Result, cat pii.Category) bool {
 	return false
 }
 
+// assertSpanValue checks that the first span of category cat in res covers the
+// substring want of in.
+func assertSpanValue(t *testing.T, res pii.Result, cat pii.Category, in, want string) {
+	t.Helper()
+	for _, s := range res.Spans {
+		if s.Category != cat {
+			continue
+		}
+		if got := in[s.Start:s.End]; got != want {
+			t.Errorf("%s value for %q = %q, want %q", cat, in, got, want)
+		}
+		return
+	}
+	t.Errorf("no %s span for %q", cat, in)
+}
+
+// assertSpanConfidence checks that the first span of category cat in res has
+// confidence want.
+func assertSpanConfidence(t *testing.T, res pii.Result, cat pii.Category, in string, want float64) {
+	t.Helper()
+	for _, s := range res.Spans {
+		if s.Category != cat {
+			continue
+		}
+		if s.Confidence != want {
+			t.Errorf("confidence for %q = %v, want %v", in, s.Confidence, want)
+		}
+		return
+	}
+	t.Errorf("no %s span for %q", cat, in)
+}
+
 func TestPhoneDetect(t *testing.T) {
 	cases := []struct {
 		name string
@@ -389,19 +421,7 @@ func TestPassportSeriesTwoPairs(t *testing.T) {
 		{"серия: 45 75, номер: 841641", "45 75, номер: 841641"},
 	}
 	for _, c := range cases {
-		res := runPipeline(t, c.in)
-		found := false
-		for _, s := range res.Spans {
-			if s.Category == pii.CatPassport {
-				found = true
-				if got := c.in[s.Start:s.End]; got != c.want {
-					t.Errorf("passport value for %q = %q, want %q", c.in, got, c.want)
-				}
-			}
-		}
-		if !found {
-			t.Errorf("no passport span for %q", c.in)
-		}
+		assertSpanValue(t, runPipeline(t, c.in), pii.CatPassport, c.in, c.want)
 	}
 }
 

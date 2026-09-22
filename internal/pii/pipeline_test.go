@@ -44,31 +44,48 @@ func TestPipelineComposite(t *testing.T) {
 	p := pii.NewPipeline(detectors.Default()...)
 	res := p.Run(text)
 
-	// Spans must be sorted by Start.
-	for i := 1; i < len(res.Spans); i++ {
-		if res.Spans[i].Start < res.Spans[i-1].Start {
-			t.Fatalf("spans not sorted: %+v", res.Spans)
+	assertSorted(t, res.Spans)
+	assertNonOverlapping(t, res.Spans)
+	assertCovered(t, text, res.Spans, expected)
+}
+
+// assertSorted fails when spans are not sorted by Start.
+func assertSorted(t *testing.T, spans []pii.Span) {
+	t.Helper()
+	for i := 1; i < len(spans); i++ {
+		if spans[i].Start < spans[i-1].Start {
+			t.Fatalf("spans not sorted: %+v", spans)
 		}
 	}
+}
 
-	// Spans must not overlap.
-	for i := 1; i < len(res.Spans); i++ {
-		if res.Spans[i].Start < res.Spans[i-1].End {
-			t.Fatalf("overlapping spans: %+v and %+v", res.Spans[i-1], res.Spans[i])
+// assertNonOverlapping fails when any two spans overlap.
+func assertNonOverlapping(t *testing.T, spans []pii.Span) {
+	t.Helper()
+	for i := 1; i < len(spans); i++ {
+		if spans[i].Start < spans[i-1].End {
+			t.Fatalf("overlapping spans: %+v and %+v", spans[i-1], spans[i])
 		}
 	}
+}
 
-	// Every expected value must be covered by a span of the right category.
+// assertCovered fails when an expected value is not covered by a span of the
+// right category.
+func assertCovered(t *testing.T, text string, spans []pii.Span, expected []struct {
+	value    string
+	category pii.Category
+}) {
+	t.Helper()
 	for _, exp := range expected {
 		found := false
-		for _, s := range res.Spans {
+		for _, s := range spans {
 			if s.Category == exp.category && text[s.Start:s.End] == exp.value {
 				found = true
 				break
 			}
 		}
 		if !found {
-			t.Errorf("value %q (category %s) not covered by a matching span; spans: %+v", exp.value, exp.category, res.Spans)
+			t.Errorf("value %q (category %s) not covered by a matching span; spans: %+v", exp.value, exp.category, spans)
 		}
 	}
 }

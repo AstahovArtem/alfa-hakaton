@@ -53,13 +53,18 @@ func (m *Memory) cleanupLoop() {
 		case now := <-ticker.C:
 			m.mu.Lock()
 			for id, e := range m.items {
-				if !e.expiry.IsZero() && now.After(e.expiry) {
+				if expired(e, now) {
 					delete(m.items, id)
 				}
 			}
 			m.mu.Unlock()
 		}
 	}
+}
+
+// expired reports whether an entry has a non-zero expiry that has passed.
+func expired(e memoryEntry, now time.Time) bool {
+	return !e.expiry.IsZero() && now.After(e.expiry)
 }
 
 // Close stops the background cleanup goroutine.

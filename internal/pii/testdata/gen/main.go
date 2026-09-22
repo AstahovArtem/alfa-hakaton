@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	// math/rand: deterministic fake values seeded by the input, not used for security.
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -120,6 +121,22 @@ const (
 	sufOvich   = "ович"
 	sufEvich   = "евич"
 )
+
+// Short Russian inflectional suffixes used to build name forms.
+const (
+	sufOv  = "ов"
+	sufEv  = "ев"
+	sufYov = "ёв"
+	sufIn  = "ин"
+	sufYn  = "ын"
+	sufIya = "ия"
+	sufYa  = "ья"
+	sufEy  = "ей"
+	sufIch = "ич"
+)
+
+// fmtVerb is the "%s" verb used in format strings.
+const fmtVerb = "%s"
 
 // Month names in the genitive case.
 const (
@@ -488,7 +505,7 @@ func (g *gen) birthPlace() string {
 	city := g.city()
 	formats := []string{
 		"г. %s",
-		"%s",
+		fmtVerb,
 		"города %s",
 	}
 	f := formats[g.rng.Intn(len(formats))]
@@ -507,14 +524,14 @@ func (g *gen) card() string {
 	d := synthCardDigits(g.rng)
 	formats := []string{
 		cardFmtSpaces,
-		"%s",
+		fmtVerb,
 		"%s-%s-%s-%s",
 	}
 	f := formats[g.rng.Intn(len(formats))]
 	switch f {
 	case cardFmtSpaces:
 		return fmt.Sprintf(cardFmtSpaces, d[0:4], d[4:8], d[8:12], d[12:16])
-	case "%s":
+	case fmtVerb:
 		return d
 	default:
 		return fmt.Sprintf("%s-%s-%s-%s", d[0:4], d[4:8], d[8:12], d[12:16])
@@ -558,7 +575,7 @@ func (g *gen) issuer() string {
 		"ОВД района Хамовники",
 	}
 	o := orgs[g.rng.Intn(len(orgs))]
-	if strings.Contains(o, "%s") {
+	if strings.Contains(o, fmtVerb) {
 		return fmt.Sprintf(o, city)
 	}
 	return o
@@ -774,7 +791,7 @@ func isFemaleName(name string) bool {
 	if maleNamesEndingInVowel[lower] {
 		return false
 	}
-	for _, suf := range []string{"а", "я", "ия", "ья"} {
+	for _, suf := range []string{"а", "я", sufIya, sufYa} {
 		if strings.HasSuffix(lower, suf) {
 			return true
 		}
@@ -784,7 +801,7 @@ func isFemaleName(name string) bool {
 
 func feminize(s string) string {
 	lower := strings.ToLower(s)
-	for _, suf := range []string{"ов", "ев", "ёв", "ин", "ын"} {
+	for _, suf := range []string{sufOv, sufEv, sufYov, sufIn, sufYn} {
 		if strings.HasSuffix(lower, suf) {
 			return s[:len(s)-len(suf)] + suf + "а"
 		}
@@ -802,7 +819,7 @@ func genitiveSurname(s string, female bool) string {
 		}
 		return s
 	}
-	for _, suf := range []string{"ов", "ев", "ёв", "ин", "ын"} {
+	for _, suf := range []string{sufOv, sufEv, sufYov, sufIn, sufYn} {
 		if strings.HasSuffix(lower, suf) {
 			return s + "а"
 		}
@@ -813,7 +830,7 @@ func genitiveSurname(s string, female bool) string {
 func genitiveName(s string, female bool) string {
 	lower := strings.ToLower(s)
 	if female {
-		if out, ok := replaceSuffixRunes(s, lower, []string{"ия", "ья"}, "и", 1); ok {
+		if out, ok := replaceSuffixRunes(s, lower, []string{sufIya, sufYa}, "и", 1); ok {
 			return out
 		}
 		if out, ok := replaceSuffixRunes(s, lower, []string{"а", "я"}, "ы", 1); ok {
@@ -821,7 +838,7 @@ func genitiveName(s string, female bool) string {
 		}
 		return s
 	}
-	if out, ok := replaceSuffixRunes(s, lower, []string{"ий", "ей"}, "я", 2); ok {
+	if out, ok := replaceSuffixRunes(s, lower, []string{"ий", sufEy}, "я", 2); ok {
 		return out
 	}
 	if out, ok := replaceSuffixRunes(s, lower, []string{"й"}, "я", 1); ok {
@@ -851,7 +868,7 @@ func genitivePatr(p string) string {
 			return p + "ы"
 		}
 	}
-	for _, suf := range []string{sufOvich, sufEvich, "ич"} {
+	for _, suf := range []string{sufOvich, sufEvich, sufIch} {
 		if strings.HasSuffix(lower, suf) {
 			return p + "а"
 		}

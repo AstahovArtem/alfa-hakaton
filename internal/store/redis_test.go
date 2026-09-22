@@ -46,16 +46,28 @@ func TestRedisStore(t *testing.T) {
 	if !ok {
 		t.Fatalf("record not found")
 	}
+	assertRedisRecord(t, got, rec)
+	if err := rs.Delete(ctx, "redis-test-id"); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+	assertRedisDeleted(t, rs, ctx)
+}
+
+// assertRedisRecord verifies the loaded record matches the saved one.
+func assertRedisRecord(t *testing.T, got, rec Record) {
+	t.Helper()
 	if got.MaskedText != rec.MaskedText {
 		t.Errorf("MaskedText = %q, want %q", got.MaskedText, rec.MaskedText)
 	}
 	if len(got.Replacements) != 1 || got.Replacements[0].Original != rec.Replacements[0].Original {
 		t.Errorf("replacements mismatch: %+v", got.Replacements)
 	}
-	if err := rs.Delete(ctx, "redis-test-id"); err != nil {
-		t.Fatalf("Delete: %v", err)
-	}
-	_, ok, err = rs.Load(ctx, "redis-test-id")
+}
+
+// assertRedisDeleted verifies the record is gone after deletion.
+func assertRedisDeleted(t *testing.T, rs *Redis, ctx context.Context) {
+	t.Helper()
+	_, ok, err := rs.Load(ctx, "redis-test-id")
 	if err != nil {
 		t.Fatalf("Load after delete: %v", err)
 	}

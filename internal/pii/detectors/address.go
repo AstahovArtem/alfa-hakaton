@@ -62,27 +62,38 @@ func loadCities() *citiesDict {
 			citiesData = &citiesDict{}
 			return
 		}
-		var list []string
-		for _, line := range strings.Split(string(data), "\n") {
-			line = strings.TrimSpace(line)
-			if line != "" {
-				list = append(list, line)
-			}
-		}
+		list := cityList(data)
 		sort.Slice(list, func(i, j int) bool {
 			return len([]rune(list[i])) > len([]rune(list[j]))
 		})
-		oblique := make(map[string][]string, len(list))
-		byPrefix := make(map[string][]string)
-		for _, c := range list {
-			oblique[c] = obliqueForms(c)
-			if p := firstTwoRunes(c); p != "" {
-				byPrefix[p] = append(byPrefix[p], c)
-			}
-		}
-		citiesData = &citiesDict{cities: list, oblique: oblique, byPrefix: byPrefix}
+		citiesData = buildCitiesDict(list)
 	})
 	return citiesData
+}
+
+// cityList returns the non-empty, trimmed lines of data.
+func cityList(data []byte) []string {
+	var list []string
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			list = append(list, line)
+		}
+	}
+	return list
+}
+
+// buildCitiesDict builds the oblique forms and prefix index for a city list.
+func buildCitiesDict(list []string) *citiesDict {
+	oblique := make(map[string][]string, len(list))
+	byPrefix := make(map[string][]string)
+	for _, c := range list {
+		oblique[c] = obliqueForms(c)
+		if p := firstTwoRunes(c); p != "" {
+			byPrefix[p] = append(byPrefix[p], c)
+		}
+	}
+	return &citiesDict{cities: list, oblique: oblique, byPrefix: byPrefix}
 }
 
 // firstTwoRunes returns the first two runes of s as a string, or "" if s has
@@ -143,7 +154,7 @@ var (
 )
 
 // obliqueEndings are the non-nominative case endings appended to a city stem.
-var obliqueEndings = []string{"е", "и", "у", "ой", "ом", "а", "ы"}
+var obliqueEndings = []string{"е", "и", "у", sufOy, sufOm, "а", "ы"}
 
 // obliqueForms returns candidate oblique (non-nominative) forms of a city name
 // built from its stem plus the oblique endings.
@@ -229,10 +240,7 @@ func (d *addressDetector) DetectLower(t pii.Text) []pii.Span {
 	var spans []pii.Span
 	i := 0
 	for i < len(kept) {
-		j := i
-		for j+1 < len(kept) && gapRunes(t.Raw, kept[j].end, kept[j+1].start) <= 3 {
-			j++
-		}
+		j := groupEnd(t.Raw, kept, i)
 		group := kept[i : j+1]
 		if d.validGroup(t, group) {
 			spans = append(spans, pii.Span{
@@ -246,6 +254,16 @@ func (d *addressDetector) DetectLower(t pii.Text) []pii.Span {
 		i = j + 1
 	}
 	return spans
+}
+
+// groupEnd returns the index of the last component in the group starting at i,
+// where adjacent components are separated by at most 3 runes.
+func groupEnd(text string, kept []addrComponent, i int) int {
+	j := i
+	for j+1 < len(kept) && gapRunes(text, kept[j].end, kept[j+1].start) <= 3 {
+		j++
+	}
+	return j
 }
 
 func (d *addressDetector) findComponents(t pii.Text) []addrComponent {
@@ -270,30 +288,9 @@ func (d *addressDetector) findComponents(t pii.Text) []addrComponent {
 	add(countryRe, "country")
 	add(regionRe, "region")
 	add(districtRe, "district")
-	// Locality regexes must not match a settlement prefix that is part of a
-	// longer word (e.g. "адрес. Реальный" must not match "с. Реальный").
-	for _, loc := range localityRe.FindAllStringIndex(search, -1) {
-		if loc[0] > 0 && isLetterRune(runeBefore(text, loc[0])) {
-			continue
-		}
-		comps = append(comps, addrComponent{start: loc[0], end: loc[1], kind: kindLocality})
-	}
-	// The street regexes are always matched against the raw text so the
-	// word-before-marker form can require an uppercase street name.
-	for _, loc := range addrStreetMarkerRe.FindAllStringIndex(text, -1) {
-		comps = append(comps, addrComponent{start: loc[0], end: loc[1], kind: kindStreet})
-	}
-	for _, loc := range addrStreetNameRe.FindAllStringIndex(text, -1) {
-		comps = append(comps, addrComponent{start: loc[0], end: loc[1], kind: kindStreet})
-	}
-	// Trim trailing house/apartment markers from street components so a house
-	// number is not swallowed (e.g. "ул можайское шоссе д 112").
-	for i := range comps {
-		if comps[i].kind != kindStreet {
-			continue
-		}
-		comps[i].end = trimStreetMarker(text, comps[i].start, comps[i].end)
-	}
+	comps = append(comps, findLocalities(search, text, localityRe)...)
+	comps = append(comps, findStreets(text)...)
+	trimStreetMarkers(text, comps)
 	add(houseRe, kindHouse)
 	add(aptRe, "apartment")
 	add(aptWordRe, "apartment")
@@ -312,6 +309,44 @@ func (d *addressDetector) findComponents(t pii.Text) []addrComponent {
 		}
 	}
 	return comps
+}
+
+// findLocalities appends locality components, skipping a settlement prefix that
+// is part of a longer word (e.g. "адрес. Реальный" must not match "с. Реальный").
+func findLocalities(search, text string, localityRe *regexp.Regexp) []addrComponent {
+	var comps []addrComponent
+	for _, loc := range localityRe.FindAllStringIndex(search, -1) {
+		if loc[0] > 0 && isLetterRune(runeBefore(text, loc[0])) {
+			continue
+		}
+		comps = append(comps, addrComponent{start: loc[0], end: loc[1], kind: kindLocality})
+	}
+	return comps
+}
+
+// findStreets appends street components. The street regexes are always matched
+// against the raw text so the word-before-marker form can require an uppercase
+// street name.
+func findStreets(text string) []addrComponent {
+	var comps []addrComponent
+	for _, loc := range addrStreetMarkerRe.FindAllStringIndex(text, -1) {
+		comps = append(comps, addrComponent{start: loc[0], end: loc[1], kind: kindStreet})
+	}
+	for _, loc := range addrStreetNameRe.FindAllStringIndex(text, -1) {
+		comps = append(comps, addrComponent{start: loc[0], end: loc[1], kind: kindStreet})
+	}
+	return comps
+}
+
+// trimStreetMarkers trims trailing house/apartment markers from street
+// components so a house number is not swallowed (e.g. "ул можайское шоссе д 112").
+func trimStreetMarkers(text string, comps []addrComponent) {
+	for i := range comps {
+		if comps[i].kind != kindStreet {
+			continue
+		}
+		comps[i].end = trimStreetMarker(text, comps[i].start, comps[i].end)
+	}
 }
 
 // bareHousesAfterStreet finds bare house numbers following a street component
@@ -364,6 +399,7 @@ func findDictLocalities(t pii.Text, text string) []addrComponent {
 // city name itself is also checked.
 func scanLocalities(lower, text string, cd *citiesDict, includeCity, needCtx bool, t pii.Text) []addrComponent {
 	var comps []addrComponent
+	sc := cityScan{lower: lower, text: text, cd: cd, t: t}
 	i := 0
 	for i < len(lower) {
 		p := firstTwoRunes(lower[i:])
@@ -371,7 +407,7 @@ func scanLocalities(lower, text string, cd *citiesDict, includeCity, needCtx boo
 			break
 		}
 		for _, city := range cd.byPrefix[p] {
-			comps = append(comps, matchCity(lower, text, cd, i, city, includeCity, needCtx, t)...)
+			comps = append(comps, matchCity(sc, i, city, includeCity, needCtx)...)
 		}
 		_, size := utf8.DecodeRuneInString(lower[i:])
 		i += size
@@ -379,18 +415,26 @@ func scanLocalities(lower, text string, cd *citiesDict, includeCity, needCtx boo
 	return comps
 }
 
+// cityScan bundles the shared state passed to matchCity.
+type cityScan struct {
+	lower string
+	text  string
+	cd    *citiesDict
+	t     pii.Text
+}
+
 // matchCity checks a city and its oblique forms at position i in lower, appending
 // any locality components that are not part of a longer word.
-func matchCity(lower, text string, cd *citiesDict, i int, city string, includeCity, needCtx bool, t pii.Text) []addrComponent {
+func matchCity(sc cityScan, i int, city string, includeCity, needCtx bool) []addrComponent {
 	var comps []addrComponent
-	if includeCity && strings.HasPrefix(lower[i:], city) {
-		comps = append(comps, localityComponent(text, i, i+len(city), false, t)...)
+	if includeCity && strings.HasPrefix(sc.lower[i:], city) {
+		comps = append(comps, localityComponent(sc.text, i, i+len(city), false, sc.t)...)
 	}
-	for _, form := range cd.oblique[city] {
-		if !strings.HasPrefix(lower[i:], form) {
+	for _, form := range sc.cd.oblique[city] {
+		if !strings.HasPrefix(sc.lower[i:], form) {
 			continue
 		}
-		comps = append(comps, localityComponent(text, i, i+len(form), needCtx, t)...)
+		comps = append(comps, localityComponent(sc.text, i, i+len(form), needCtx, sc.t)...)
 	}
 	return comps
 }

@@ -163,7 +163,15 @@ func TestEngineProcessContract(t *testing.T) {
 	ctx := context.Background()
 	opt := Options{Strategy: "partial", TTL: time.Minute}
 
-	// Unknown id: mask.
+	masked := processMask(t, e, ctx, opt)
+	processIdempotent(t, e, ctx, opt, masked)
+	processUnmask(t, e, ctx, opt, masked)
+	processDiffers(t, e, ctx, opt)
+}
+
+// processMask masks testText under id "p1" and returns the masked result.
+func processMask(t *testing.T, e *Engine, ctx context.Context, opt Options) string {
+	t.Helper()
 	res, err := e.Process(ctx, "p1", testText, opt)
 	if err != nil {
 		t.Fatalf("Process mask: %v", err)
@@ -171,9 +179,13 @@ func TestEngineProcessContract(t *testing.T) {
 	if res.Unmasked || res.Found[pii.CatFullName] != 1 {
 		t.Errorf("mask result: %+v", res)
 	}
-	masked := res.Result
+	return res.Result
+}
 
-	// Same id, same payload: idempotent, returns stored mask.
+// processIdempotent verifies that re-masking the same payload returns the stored
+// mask.
+func processIdempotent(t *testing.T, e *Engine, ctx context.Context, opt Options, masked string) {
+	t.Helper()
 	res2, err := e.Process(ctx, "p1", testText, opt)
 	if err != nil {
 		t.Fatalf("Process idempotent: %v", err)
@@ -181,8 +193,12 @@ func TestEngineProcessContract(t *testing.T) {
 	if res2.Result != masked {
 		t.Errorf("idempotent result = %q, want %q", res2.Result, masked)
 	}
+}
 
-	// Payload equals the mask: unmask.
+// processUnmask verifies that passing the stored mask restores the original
+// text.
+func processUnmask(t *testing.T, e *Engine, ctx context.Context, opt Options, masked string) {
+	t.Helper()
 	res3, err := e.Process(ctx, "p1", masked, opt)
 	if err != nil {
 		t.Fatalf("Process unmask: %v", err)
@@ -190,8 +206,12 @@ func TestEngineProcessContract(t *testing.T) {
 	if !res3.Unmasked || res3.Result != testText {
 		t.Errorf("unmask result: %+v", res3)
 	}
+}
 
-	// Payload differs from both: returns payload as-is with misses.
+// processDiffers verifies that a payload differing from both the mask and the
+// original text is returned as-is with misses.
+func processDiffers(t *testing.T, e *Engine, ctx context.Context, opt Options) {
+	t.Helper()
 	res4, err := e.Process(ctx, "p1", "совсем другой текст", opt)
 	if err != nil {
 		t.Fatalf("Process differs: %v", err)

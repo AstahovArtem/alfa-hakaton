@@ -175,19 +175,23 @@ func issuerEnd(raw, text string, start int, termRe *regexp.Regexp) int {
 // scans within [start, end).
 func issuerEndAtPeriod(raw, text string, start, end int) int {
 	for i := start; i < end; i++ {
-		if text[i] != '.' {
+		if text[i] != '.' || isAbbrevPeriod(text, i) {
 			continue
 		}
-		if isAbbrevPeriod(text, i) {
-			continue
-		}
-		if i+1 == len(text) || (text[i+1] == ' ' && i+2 < len(text) && isUpperRune(decodedRune(raw, i+2))) {
-			if i < end {
-				end = i
-			}
+		if sentenceEnd(raw, text, i) && i < end {
+			end = i
 		}
 	}
 	return end
+}
+
+// sentenceEnd reports whether the period at pos ends a sentence: it is the last
+// byte of the text or is followed by whitespace and an uppercase letter.
+func sentenceEnd(raw, text string, pos int) bool {
+	if pos+1 == len(text) {
+		return true
+	}
+	return text[pos+1] == ' ' && pos+2 < len(text) && isUpperRune(decodedRune(raw, pos+2))
 }
 
 // issuerEndAtComma trims the value at a comma when the following word is not a
@@ -197,18 +201,22 @@ func issuerEndAtComma(text string, start, end int) int {
 		if text[i] != ',' {
 			continue
 		}
-		next := nextWord(text, i+1)
-		if next == "" {
-			continue
-		}
-		lower := strings.ToLower(next)
-		if issuerAlwaysEnd[lower] || !issuerContinuations[lower] {
-			if i < end {
-				end = i
-			}
+		if commaEndsValue(text, i) && i < end {
+			end = i
 		}
 	}
 	return end
+}
+
+// commaEndsValue reports whether the comma at pos terminates the value, i.e.
+// the following word is not a continuation of the issuing authority.
+func commaEndsValue(text string, pos int) bool {
+	next := nextWord(text, pos+1)
+	if next == "" {
+		return false
+	}
+	lower := strings.ToLower(next)
+	return issuerAlwaysEnd[lower] || !issuerContinuations[lower]
 }
 
 // isAbbrevPeriod reports whether the period at pos is part of an abbreviation.
@@ -229,8 +237,13 @@ func nextWord(text string, pos int) string {
 		pos++
 	}
 	start := pos
-	for pos < len(text) && text[pos] != ' ' && text[pos] != '\t' && text[pos] != '\n' && text[pos] != ',' {
+	for pos < len(text) && !isWordBoundary(text[pos]) {
 		pos++
 	}
 	return text[start:pos]
+}
+
+// isWordBoundary reports whether b terminates a word.
+func isWordBoundary(b byte) bool {
+	return b == ' ' || b == '\t' || b == '\n' || b == ','
 }

@@ -180,24 +180,12 @@ func date(match string) bool {
 	// Word form: "12 мая 1990" or "12 мая 1990 г." / "12 мая 1990 года",
 	// "5-го марта 1985", "05 мар 1985".
 	if m := wordDateRe.FindStringSubmatch(lower); m != nil {
-		day, _ := strconv.Atoi(m[1])
-		month, ok := monthNames[strings.TrimSuffix(m[2], ".")]
-		if !ok {
-			return false
-		}
-		year, _ := strconv.Atoi(m[3])
-		return validYMD(year, month, day)
+		return wordDate(m)
 	}
 
 	// Year-first word form: "1985 г., 5 марта".
 	if m := yearFirstDateRe.FindStringSubmatch(lower); m != nil {
-		year, _ := strconv.Atoi(m[1])
-		day, _ := strconv.Atoi(m[2])
-		month, ok := monthNames[strings.TrimSuffix(m[3], ".")]
-		if !ok {
-			return false
-		}
-		return validYMD(year, month, day)
+		return yearFirstDate(m)
 	}
 
 	// Numeric form: split on separators.
@@ -215,21 +203,29 @@ func date(match string) bool {
 	}
 
 	// Try all interpretations where one part is a plausible year (1900-2100).
-	ok := false
-	if validYMD(a, b, c) {
-		ok = true
+	return validYMD(a, b, c) || validYMD(c, a, b) || validYMD(c, b, a) || validYMD(a, c, b)
+}
+
+// wordDate validates a "day month year" word-form date match.
+func wordDate(m []string) bool {
+	day, _ := strconv.Atoi(m[1])
+	month, ok := monthNames[strings.TrimSuffix(m[2], ".")]
+	if !ok {
+		return false
 	}
-	if validYMD(c, a, b) {
-		ok = true
+	year, _ := strconv.Atoi(m[3])
+	return validYMD(year, month, day)
+}
+
+// yearFirstDate validates a "year, day month" word-form date match.
+func yearFirstDate(m []string) bool {
+	year, _ := strconv.Atoi(m[1])
+	day, _ := strconv.Atoi(m[2])
+	month, ok := monthNames[strings.TrimSuffix(m[3], ".")]
+	if !ok {
+		return false
 	}
-	if validYMD(c, b, a) {
-		ok = true
-	}
-	// Y-D-M: year, day, month (e.g. 2020.15.03).
-	if validYMD(a, c, b) {
-		ok = true
-	}
-	return ok
+	return validYMD(year, month, day)
 }
 
 // dateShortYear validates a numeric date with a two-digit year (e.g. 05.03.85).
@@ -249,27 +245,31 @@ func dateShortYear(match string) bool {
 		return false
 	}
 	// One part must be a plausible two-digit year (00-99).
-	ok := false
-	if c >= 0 && c <= 99 {
-		year := 1900 + c
-		if validYMD(year, a, b) {
-			ok = true
-		}
-		if validYMD(year, b, a) {
-			ok = true
-		}
+	return shortYearAsLast(a, b, c) || shortYearAsFirst(a, b, c)
+}
+
+// shortYearAsLast interprets c as a two-digit year and checks the remaining
+// day/month orderings.
+func shortYearAsLast(a, b, c int) bool {
+	if c < 0 || c > 99 {
+		return false
 	}
-	if a >= 0 && a <= 99 {
-		year := 1900 + a
-		if validYMD(year, b, c) {
-			ok = true
-		}
+	year := 1900 + c
+	return validYMD(year, a, b) || validYMD(year, b, a)
+}
+
+// shortYearAsFirst interprets a as a two-digit year and checks the remaining
+// day/month ordering.
+func shortYearAsFirst(a, b, c int) bool {
+	if a < 0 || a > 99 {
+		return false
 	}
-	return ok
+	year := 1900 + a
+	return validYMD(year, b, c)
 }
 
 func validYMD(year, month, day int) bool {
-	if year < 1900 || year > 2100 || month < 1 || month > 12 || day < 1 {
+	if !inRange(year, 1900, 2100) || !inRange(month, 1, 12) || day < 1 {
 		return false
 	}
 	daysInMonth := []int{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
@@ -277,6 +277,10 @@ func validYMD(year, month, day int) bool {
 		daysInMonth[1] = 29
 	}
 	return day <= daysInMonth[month-1]
+}
+
+func inRange(v, lo, hi int) bool {
+	return v >= lo && v <= hi
 }
 
 func isLeap(y int) bool {

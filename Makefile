@@ -16,14 +16,15 @@ lint:
 	gofmt -l .
 
 # Full static analysis: gofmt, vet, staticcheck, cyclomatic complexity,
-# cognitive complexity and duplicated string literals.
+# cognitive complexity, nested-if depth and duplicated string literals.
 lint-full:
 	gofmt -l .
 	go vet ./...
 	$(GOBIN)/staticcheck ./...
 	$(GOBIN)/gocyclo -over 15 .
-	go run github.com/uudashr/gocognit/cmd/gocognit@latest -over 15 .
-	go run github.com/jgautheron/goconst/cmd/goconst@latest -min-occurrences 3 ./...
+	go run github.com/uudashr/gocognit/cmd/gocognit@latest -over 10 .
+	go run github.com/jgautheron/goconst/cmd/goconst@latest -min-length 2 -min-occurrences 3 ./...
+	$(GOBIN)/nestif --min 4 .
 
 run:
 	go run ./cmd/pdn-shield

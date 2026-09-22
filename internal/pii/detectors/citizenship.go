@@ -15,11 +15,14 @@ var citizenshipContext = []string{
 // citizenshipKeyword is the English citizenship keyword.
 const citizenshipKeyword = "citizenship"
 
+// countryRF is the "рф" (Russian Federation) abbreviation.
+const countryRF = "рф"
+
 // countryForms maps a canonical country name to its inflected forms (lowercase).
 // The forms are matched against the lowercased text.
 var countryForms = map[string][]string{
 	"россия": {"россия", "россии", "россию", "россией", "российская"},
-	"рф":     {"рф"},
+	"рф":     {countryRF},
 	"российская федерация":  {"российская федерация", "российской федерации", "российской федерацией"},
 	"казахстан":             {"казахстан", "казахстана", "казахстане", "казахстаном"},
 	"беларусь":              {"беларусь", "беларуси", "беларусью"},
@@ -141,16 +144,23 @@ func (d *citizenshipDetector) scanKeyword(t pii.Text, lower, kw string) []pii.Sp
 			idx = start + len(kw)
 			continue
 		}
-		if span, ok := d.matchValue(t, lower, start+len(kw)); ok {
+		spans = append(spans, d.matchAtKeyword(t, lower, start, kw)...)
+		idx = start + len(kw)
+	}
+	return spans
+}
+
+// matchAtKeyword emits the spans for a single keyword occurrence at start.
+func (d *citizenshipDetector) matchAtKeyword(t pii.Text, lower string, start int, kw string) []pii.Span {
+	var spans []pii.Span
+	if span, ok := d.matchValue(t, lower, start+len(kw)); ok {
+		spans = append(spans, span)
+	}
+	// English "X citizenship": the country precedes the keyword.
+	if kw == citizenshipKeyword {
+		if span, ok := d.matchBefore(t, lower, start); ok {
 			spans = append(spans, span)
 		}
-		// English "X citizenship": the country precedes the keyword.
-		if kw == citizenshipKeyword {
-			if span, ok := d.matchBefore(t, lower, start); ok {
-				spans = append(spans, span)
-			}
-		}
-		idx = start + len(kw)
 	}
 	return spans
 }
@@ -176,21 +186,7 @@ func (d *citizenshipDetector) matchValue(t pii.Text, lower string, after int) (p
 		skipped = m[1]
 		rest = rest[m[1]:]
 	}
-	// Match the longest country form.
-	bestLen := 0
-	for _, form := range countryFormList {
-		if strings.HasPrefix(rest, form) {
-			if len(form) > bestLen {
-				bestLen = len(form)
-			}
-		}
-	}
-	// Match "республика <word>" generically.
-	if loc := republicRe.FindStringIndex(rest); loc != nil && loc[0] == 0 {
-		if loc[1] > bestLen {
-			bestLen = loc[1]
-		}
-	}
+	bestLen := longestCountryPrefix(rest)
 	if bestLen == 0 {
 		return pii.Span{}, false
 	}
@@ -204,6 +200,22 @@ func (d *citizenshipDetector) matchValue(t pii.Text, lower string, after int) (p
 		Detector:   d.Name(),
 		Confidence: 0.9,
 	}, true
+}
+
+// longestCountryPrefix returns the length of the longest country form (or
+// generic "республика <word>") that prefixes rest.
+func longestCountryPrefix(rest string) int {
+	bestLen := 0
+	for _, form := range countryFormList {
+		if strings.HasPrefix(rest, form) && len(form) > bestLen {
+			bestLen = len(form)
+		}
+	}
+	// Match "республика <word>" generically.
+	if loc := republicRe.FindStringIndex(rest); loc != nil && loc[0] == 0 && loc[1] > bestLen {
+		bestLen = loc[1]
+	}
+	return bestLen
 }
 
 // matchBefore extracts a country value that precedes a context keyword, as in

@@ -3,6 +3,7 @@ package mask
 import (
 	"embed"
 	"hash/fnv"
+	// math/rand: deterministic fake values seeded by the input, not used for security.
 	"math/rand"
 	"strings"
 	"sync"
@@ -17,6 +18,21 @@ var synthFS embed.FS
 
 // Strategy name.
 const strategySynthetic = "synthetic"
+
+// Russian surname suffixes used to build feminine forms.
+const (
+	sufOv  = "ов"
+	sufEv  = "ев"
+	sufYov = "ёв"
+	sufIn  = "ин"
+	sufYn  = "ын"
+)
+
+// Date tail abbreviations.
+const (
+	dateTailGoda = "года"
+	dateTailG    = "г."
+)
 
 // Patronymic names (masculine).
 const (
@@ -253,7 +269,7 @@ func isFemaleName(value string) bool {
 // feminize turns a masculine surname into its feminine form.
 func feminize(s string) string {
 	lower := strings.ToLower(s)
-	for _, suf := range []string{"ов", "ев", "ёв", "ин", "ын"} {
+	for _, suf := range []string{sufOv, sufEv, sufYov, sufIn, sufYn} {
 		if strings.HasSuffix(lower, suf) {
 			return s[:len(s)-len(suf)] + suf + "а"
 		}
@@ -347,9 +363,9 @@ func synthDateWord(value string, rng *rand.Rand) string {
 	year := 1950 + rng.Intn(56)
 	month := 1 + rng.Intn(12)
 	day := 1 + rng.Intn(daysInMonth(year, month))
-	tail := "года"
-	if strings.HasSuffix(strings.ToLower(value), "г.") {
-		tail = "г."
+	tail := dateTailGoda
+	if strings.HasSuffix(strings.ToLower(value), dateTailG) {
+		tail = dateTailG
 	}
 	return itoa(day) + " " + monthWords[month-1] + " " + itoa(year) + " " + tail
 }
