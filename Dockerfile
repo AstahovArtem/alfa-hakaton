@@ -19,6 +19,7 @@ FROM gcr.io/distroless/static-debian12:nonroot
 WORKDIR /
 COPY --from=build /out/pdn-shield /pdn-shield
 COPY --from=build /src/configs/config.yaml /etc/pdn-shield/config.yaml
+COPY deploy/certs/russian_trusted_ca.pem /etc/ssl/certs/russian_trusted_ca.pem
 
 USER nonroot
 EXPOSE 8080
