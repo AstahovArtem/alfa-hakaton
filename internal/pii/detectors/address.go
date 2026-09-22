@@ -108,20 +108,32 @@ func firstTwoRunes(s string) string {
 }
 
 var (
-	addrIndexRe    = regexp.MustCompile(`\b[1-6]\d{5}\b`)
-	addrCountryRe  = regexp.MustCompile(`(?i)(?:российская федерация|республика беларусь|россия|рф|казахстан|беларусь|армения|узбекистан)`)
-	addrRegionRe   = regexp.MustCompile(`(?i)(?:\S+\s+(?:область|обл\.|край|республика|респ\.|автономный округ|ао)|(?:республика|респ\.)\s+\S+)`)
+	addrIndexRe   = regexp.MustCompile(`\b[1-6]\d{5}\b`)
+	addrCountryRe = regexp.MustCompile(
+		`(?i)(?:российская федерация|республика беларусь|россия|рф|казахстан|беларусь|армения|узбекистан)`,
+	)
+	addrRegionRe = regexp.MustCompile(
+		`(?i)(?:\S+\s+(?:область|обл\.|край|республика|респ\.|автономный округ|ао)|(?:республика|респ\.)\s+\S+)`,
+	)
 	addrDistrictRe = regexp.MustCompile(`(?i)\S+\s+(?:район|р-н)`)
-	addrLocalityRe = regexp.MustCompile(`(?i)(?:г\.|город|гор\.|пос\.|посёлок|поселок|с\.|село|дер\.|деревня|ст\.|станица|пгт)\s+[А-Яа-яЁё-]+(?:\s+[А-Яа-яЁё-]+){0,2}`)
+	addrLocalityRe = regexp.MustCompile(
+		`(?i)(?:г\.|город|гор\.|пос\.|посёлок|поселок|с\.|село|дер\.|деревня|ст\.|станица|пгт)\s+[А-Яа-яЁё-]+(?:\s+[А-Яа-яЁё-]+){0,2}`,
+	)
 	// addrStreetMarkerRe matches a street marker followed by the street name,
 	// e.g. "улица Гагарина". It is case-insensitive for the marker.
-	addrStreetMarkerRe = regexp.MustCompile(`(?i)(?:ул\.|ул|улица|улице|улицу|пр-т|пр\.|проспект|проспекте|пер\.|переулок|б-р|бульвар|ш\.|шоссе|наб\.|набережная|пл\.|площадь|проезд|пр-д|тупик|аллея|линия)\s+[А-Яа-яЁё-]+\.?(?:\s+[А-Яа-яЁё-]+\.?){0,2}`)
+	addrStreetMarkerRe = regexp.MustCompile(
+		`(?i)(?:ул\.|ул|улица|улице|улицу|пр-т|пр\.|проспект|проспекте|пер\.|переулок|б-р|бульвар|ш\.|шоссе|наб\.|набережная|пл\.|площадь|проезд|пр-д|тупик|аллея|линия)\s+[А-Яа-яЁё-]+\.?(?:\s+[А-Яа-яЁё-]+\.?){0,2}`,
+	)
 	// addrStreetNameRe matches a capitalised street name followed by a marker,
 	// e.g. "Ленинский проспект". It is case-sensitive so that prepositions like
 	// "на" are not captured as street names. It is matched against the raw text.
-	addrStreetNameRe = regexp.MustCompile(`[А-ЯЁ][а-яё-]+\s+(?:улица|ул\.|проспект|пр-т|пр\.|переулок|пер\.|бульвар|б-р|шоссе|ш\.|набережная|наб\.|площадь|пл\.|проезд|тупик|аллея|линия)`)
-	addrHouseRe      = regexp.MustCompile(`(?i)(?:д\.|дом|д)\s*\d+[а-яa-z]?(?:\s*/\s*\d+)?(?:\s*-\s*\d+)?(?:\s*(?:к\.|корп\.|корпус|к)\s*\d+)?(?:\s*(?:стр\.|строение|с)\s*\d+)?`)
-	addrAptRe        = regexp.MustCompile(`(?i)(?:кв\.|кв|квартира|оф\.|офис|пом\.|помещение|комн\.)\s*\d+[а-я]?`)
+	addrStreetNameRe = regexp.MustCompile(
+		`[А-ЯЁ][а-яё-]+\s+(?:улица|ул\.|проспект|пр-т|пр\.|переулок|пер\.|бульвар|б-р|шоссе|ш\.|набережная|наб\.|площадь|пл\.|проезд|тупик|аллея|линия)`,
+	)
+	addrHouseRe = regexp.MustCompile(
+		`(?i)(?:д\.|дом|д)\s*\d+[а-яa-z]?(?:\s*/\s*\d+)?(?:\s*-\s*\d+)?(?:\s*(?:к\.|корп\.|корпус|к)\s*\d+)?(?:\s*(?:стр\.|строение|с)\s*\d+)?`,
+	)
+	addrAptRe = regexp.MustCompile(`(?i)(?:кв\.|кв|квартира|оф\.|офис|пом\.|помещение|комн\.)\s*\d+[а-я]?`)
 	// addrAptWordRe matches an apartment whose number is written in words, e.g.
 	// "квартира сорок два". The span runs to the end of the phrase.
 	addrAptWordRe = regexp.MustCompile(`(?i)(?:кв\.|квартира)\s+[а-яё]+(?:\s+[а-яё]+)?`)
@@ -131,8 +143,10 @@ var (
 	// house number and optional корпус/квартира, e.g. "Профсоюзной 96 корпус 2,
 	// квартира 15" or "Пушкина, 15, кв. 2". It is only accepted when a housing
 	// context keyword appears to the left.
-	addrBareStreetCtxRe = regexp.MustCompile(`[А-ЯЁ][а-яё-]+(?:\s+[А-ЯЁ][а-яё-]+){0,2}\s*,?\s*\d+[а-яa-z]?(?:\s+(?:корп\.|корпус|к)\s*\d+)?(?:\s*,\s*(?:кв\.|квартира)\s*\d+[а-я]?)?`)
-	addrBareHouseRe     = regexp.MustCompile(`,\s*\d+[а-яa-z]?(?:\s*-\s*\d+)?`)
+	addrBareStreetCtxRe = regexp.MustCompile(
+		`[А-ЯЁ][а-яё-]+(?:\s+[А-ЯЁ][а-яё-]+){0,2}\s*,?\s*\d+[а-яa-z]?(?:\s+(?:корп\.|корпус|к)\s*\d+)?(?:\s*,\s*(?:кв\.|квартира)\s*\d+[а-я]?)?`,
+	)
+	addrBareHouseRe = regexp.MustCompile(`,\s*\d+[а-яa-z]?(?:\s*-\s*\d+)?`)
 	// addrBareStreetHouseRe matches a bare street name (no marker) followed by a
 	// house number, e.g. "Кремлёвская 5". The street name must start with an
 	// uppercase letter so common nouns like "паспорт" or "код" are not captured.
@@ -141,14 +155,22 @@ var (
 	addrBareStreetHouseRe = regexp.MustCompile(`[А-ЯЁ][а-яё-]+(?:\s+[А-ЯЁ][а-яё-]+){0,2}\s+\d+[а-яa-z]?`)
 	// Lowercase-only variants of the (?i) regexes, matched against the
 	// lowercased text to avoid case-folding cost.
-	addrCountryLowerRe  = regexp.MustCompile(`(?:российская федерация|республика беларусь|россия|рф|казахстан|беларусь|армения|узбекистан)`)
-	addrRegionLowerRe   = regexp.MustCompile(`(?:\S+\s+(?:область|обл\.|край|республика|респ\.|автономный округ|ао)|(?:республика|респ\.)\s+\S+)`)
+	addrCountryLowerRe = regexp.MustCompile(
+		`(?:российская федерация|республика беларусь|россия|рф|казахстан|беларусь|армения|узбекистан)`,
+	)
+	addrRegionLowerRe = regexp.MustCompile(
+		`(?:\S+\s+(?:область|обл\.|край|республика|респ\.|автономный округ|ао)|(?:республика|респ\.)\s+\S+)`,
+	)
 	addrDistrictLowerRe = regexp.MustCompile(`\S+\s+(?:район|р-н)`)
-	addrLocalityLowerRe = regexp.MustCompile(`(?:г\.|город|гор\.|пос\.|посёлок|поселок|с\.|село|дер\.|деревня|ст\.|станица|пгт)\s+[а-яё-]+(?:\s+[а-яё-]+){0,2}`)
-	addrHouseLowerRe    = regexp.MustCompile(`(?:д\.|дом|д)\s*\d+[а-яa-z]?(?:\s*/\s*\d+)?(?:\s*-\s*\d+)?(?:\s*(?:к\.|корп\.|корпус|к)\s*\d+)?(?:\s*(?:стр\.|строение|с)\s*\d+)?`)
-	addrAptLowerRe      = regexp.MustCompile(`(?:кв\.|кв|квартира|оф\.|офис|пом\.|помещение|комн\.)\s*\d+[а-я]?`)
-	addrAptWordLowerRe  = regexp.MustCompile(`(?:кв\.|квартира)\s+[а-яё]+(?:\s+[а-яё]+)?`)
-	addrPOBoxLowerRe    = regexp.MustCompile(`а/я\s*\d+`)
+	addrLocalityLowerRe = regexp.MustCompile(
+		`(?:г\.|город|гор\.|пос\.|посёлок|поселок|с\.|село|дер\.|деревня|ст\.|станица|пгт)\s+[а-яё-]+(?:\s+[а-яё-]+){0,2}`,
+	)
+	addrHouseLowerRe = regexp.MustCompile(
+		`(?:д\.|дом|д)\s*\d+[а-яa-z]?(?:\s*/\s*\d+)?(?:\s*-\s*\d+)?(?:\s*(?:к\.|корп\.|корпус|к)\s*\d+)?(?:\s*(?:стр\.|строение|с)\s*\d+)?`,
+	)
+	addrAptLowerRe     = regexp.MustCompile(`(?:кв\.|кв|квартира|оф\.|офис|пом\.|помещение|комн\.)\s*\d+[а-я]?`)
+	addrAptWordLowerRe = regexp.MustCompile(`(?:кв\.|квартира)\s+[а-яё]+(?:\s+[а-яё]+)?`)
+	addrPOBoxLowerRe   = regexp.MustCompile(`а/я\s*\d+`)
 	// addrParenLocalityRe matches a locality in parentheses, e.g. "(Уфа)".
 	addrParenLocalityRe = regexp.MustCompile(`\([А-ЯЁ][а-яё-]+\)`)
 )

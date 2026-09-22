@@ -609,7 +609,9 @@ func keywordAtBoundary(s string, start, end int) bool {
 
 // dateBetweenRe matches a date-like fragment (numeric or word form) used to
 // detect whether a context keyword jumps over another date.
-var dateBetweenRe = regexp.MustCompile(`\d{1,2}[./-]\d{1,2}[./-]\d{2,4}|\d{4}[./-]\d{1,2}[./-]\d{1,2}|\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря|янв|фев|мар|апр|май|июн|июл|авг|сен|сент|окт|ноя|дек)\.?\s+\d{2,4}`)
+var dateBetweenRe = regexp.MustCompile(
+	`\d{1,2}[./-]\d{1,2}[./-]\d{2,4}|\d{4}[./-]\d{1,2}[./-]\d{1,2}|\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря|янв|фев|мар|апр|май|июн|июл|авг|сен|сент|окт|ноя|дек)\.?\s+\d{2,4}`,
+)
 
 // containsDate reports whether s contains a date-like fragment.
 func containsDate(s string) bool {

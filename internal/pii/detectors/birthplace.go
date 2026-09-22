@@ -11,12 +11,16 @@ import (
 // birthContextRe matches the keywords that introduce a birth place. It allows
 // an optional pronoun ("я") and preposition ("в") between the keyword and the
 // value, and an optional separator (":", "—", "-").
-var birthContextRe = regexp.MustCompile(`(?i)(?:место рождения|место рожд\.|родился|родилась|родился в|родилась в|рожден в|рождён в|уроженец|уроженка)`)
+var birthContextRe = regexp.MustCompile(
+	`(?i)(?:место рождения|место рожд\.|родился|родилась|родился в|родилась в|рожден в|рождён в|уроженец|уроженка)`,
+)
 
 // settlementPrefixGorod is the "г." settlement prefix.
 const settlementPrefixGorod = "г."
 
-var birthContextLowerRe = regexp.MustCompile(`(?:место рождения|место рожд\.|родился|родилась|родился в|родилась в|рожден в|рождён в|уроженец|уроженка)`)
+var birthContextLowerRe = regexp.MustCompile(
+	`(?:место рождения|место рожд\.|родился|родилась|родился в|родилась в|рожден в|рождён в|уроженец|уроженка)`,
+)
 
 // birthValueRe matches the value after a birth-place context keyword. It
 // captures the place, skipping an optional date, pronoun and separators.

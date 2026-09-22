@@ -40,7 +40,14 @@ func testConfig() *config.Config {
 		LLM:   config.LLM{BaseURL: "http://unused", Model: "test-model", Timeout: 5 * time.Second},
 		Systems: []config.System{
 			{ID: "checker", Enabled: true, Strategy: "partial", Unmask: true},
-			{ID: "demo", Enabled: true, APIKeyEnv: "PDN_DEMO_KEY", Strategy: "partial", AllowStrategyOverride: true, Unmask: true},
+			{
+				ID:                    "demo",
+				Enabled:               true,
+				APIKeyEnv:             "PDN_DEMO_KEY",
+				Strategy:              "partial",
+				AllowStrategyOverride: true,
+				Unmask:                true,
+			},
 			{ID: "chatbot", Enabled: true, APIKeyEnv: "PDN_CHATBOT_KEY", Strategy: "token", Unmask: false},
 			{ID: "legacy_crm", Enabled: false, APIKeyEnv: "PDN_LEGACY_KEY"},
 		},
@@ -93,7 +100,13 @@ func newServerWithLogger(cfg *config.Config, st store.Store, logger *slog.Logger
 	return New(cfg, eng, st, m, logger)
 }
 
-func doJSON(t *testing.T, ts *httptest.Server, method, path string, headers map[string]string, body interface{}) (*http.Response, []byte) {
+func doJSON(
+	t *testing.T,
+	ts *httptest.Server,
+	method, path string,
+	headers map[string]string,
+	body interface{},
+) (*http.Response, []byte) {
 	t.Helper()
 	var rdr io.Reader
 	if body != nil {
@@ -273,7 +286,14 @@ func TestAuthForbidden(t *testing.T) {
 		t.Errorf("unknown system status = %d, want 403", resp.StatusCode)
 	}
 	// Disabled system.
-	resp, _ = doJSON(t, ts, "POST", "/mask", map[string]string{"X-System-Id": "legacy_crm"}, map[string]string{"text": "x"})
+	resp, _ = doJSON(
+		t,
+		ts,
+		"POST",
+		"/mask",
+		map[string]string{"X-System-Id": "legacy_crm"},
+		map[string]string{"text": "x"},
+	)
 	if resp.StatusCode != 403 {
 		t.Errorf("disabled system status = %d, want 403", resp.StatusCode)
 	}
@@ -340,7 +360,14 @@ func TestUnmaskRoundTrip(t *testing.T) {
 	if err := json.Unmarshal(data, &mres); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	resp, data := doJSON(t, ts, "POST", "/unmask", checkerHeaders(), map[string]string{"id": mres.ID, "text": mres.Masked})
+	resp, data := doJSON(
+		t,
+		ts,
+		"POST",
+		"/unmask",
+		checkerHeaders(),
+		map[string]string{"id": mres.ID, "text": mres.Masked},
+	)
 	if resp.StatusCode != 200 {
 		t.Fatalf("unmask status = %d, body %s", resp.StatusCode, data)
 	}

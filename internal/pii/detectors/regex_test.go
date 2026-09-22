@@ -349,7 +349,10 @@ func TestPassportDateReclassify(t *testing.T) {
 }
 
 func TestPassportDateReclassifyLongIssuer(t *testing.T) {
-	res := runPipeline(t, "Паспорт 4509 123456 выдан ОУФМС России по г. Москве по району Хамовники 12.05.2010, код подразделения 770-001")
+	res := runPipeline(
+		t,
+		"Паспорт 4509 123456 выдан ОУФМС России по г. Москве по району Хамовники 12.05.2010, код подразделения 770-001",
+	)
 	if !hasCategory(t, res, pii.CatPassportDate) {
 		t.Errorf("expected passport_date for date after long issuer, got %+v", res.Spans)
 	}

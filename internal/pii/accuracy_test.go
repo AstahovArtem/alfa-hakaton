@@ -195,7 +195,13 @@ func TestAccuracyExternal(t *testing.T) {
 	}
 	records := loadDatasetFile(t, path)
 	runAccuracy(t, "external (strict)", records, 0.0, strictMatch)
-	runAccuracy(t, "external (soft, с поправкой на конвенцию разметки: контекстные слова вне спана)", records, 0.0, softMatch)
+	runAccuracy(
+		t,
+		"external (soft, с поправкой на конвенцию разметки: контекстные слова вне спана)",
+		records,
+		0.0,
+		softMatch,
+	)
 }
 
 // matchFunc decides whether a detected span matches an expected span.
@@ -298,7 +304,13 @@ func bestMatch(expected []datasetSpan, det pii.Span) int {
 
 // accumulateRecord runs the pipeline over one record and updates the per-category
 // and total true-positive/false-positive/false-negative counters.
-func accumulateRecord(p *pii.Pipeline, rec datasetRecord, byCat map[pii.Category]*stats, match matchFunc, totalTP, totalFP, totalFN *int) {
+func accumulateRecord(
+	p *pii.Pipeline,
+	rec datasetRecord,
+	byCat map[pii.Category]*stats,
+	match matchFunc,
+	totalTP, totalFP, totalFN *int,
+) {
 	res := p.Run(rec.Text)
 	matched := make([]bool, len(rec.Spans))
 	for _, det := range res.Spans {
@@ -310,7 +322,14 @@ func accumulateRecord(p *pii.Pipeline, rec datasetRecord, byCat map[pii.Category
 }
 
 // recordDetected updates the counters for one detected span.
-func recordDetected(det pii.Span, rec datasetRecord, byCat map[pii.Category]*stats, match matchFunc, matched []bool, totalTP, totalFP *int) {
+func recordDetected(
+	det pii.Span,
+	rec datasetRecord,
+	byCat map[pii.Category]*stats,
+	match matchFunc,
+	matched []bool,
+	totalTP, totalFP *int,
+) {
 	cat := det.Category
 	st := ensureStats(byCat, cat)
 	best := bestMatch(rec.Spans, det)

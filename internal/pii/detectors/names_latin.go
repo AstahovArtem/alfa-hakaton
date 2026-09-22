@@ -78,7 +78,10 @@ func (d *namesDetector) emitLatinSpans(t pii.Text, toks []token, capIdx []int, c
 			covered[capIdx[k+2]] = true
 			k++
 		}
-		spans = append(spans, pii.Span{Start: toks[a].start, End: end, Category: pii.CatFullName, Detector: d.Name(), Confidence: 0.9})
+		spans = append(
+			spans,
+			pii.Span{Start: toks[a].start, End: end, Category: pii.CatFullName, Detector: d.Name(), Confidence: 0.9},
+		)
 	}
 	return spans
 }
@@ -117,7 +120,16 @@ func (d *namesDetector) detectForeignNames(t pii.Text, nt []nameToken, covered [
 		if runLen >= 2 && runLen <= 4 &&
 			hasLeftContext(t, nt[i].start, foreignNameContext, 40) &&
 			endsPhrase(text, nt[j].end) {
-			spans = append(spans, pii.Span{Start: nt[i].start, End: nt[j].end, Category: pii.CatFullName, Detector: d.Name(), Confidence: 0.9})
+			spans = append(
+				spans,
+				pii.Span{
+					Start:      nt[i].start,
+					End:        nt[j].end,
+					Category:   pii.CatFullName,
+					Detector:   d.Name(),
+					Confidence: 0.9,
+				},
+			)
 			for k := i; k <= j; k++ {
 				covered[k] = true
 			}

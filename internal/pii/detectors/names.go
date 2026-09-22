@@ -130,7 +130,15 @@ func (d *namesDetector) DetectLower(t pii.Text) []pii.Span {
 
 // processCandidate tries to emit a span starting at candidate index i. It
 // returns the number of candidate indices to advance.
-func (d *namesDetector) processCandidate(text string, nt []nameToken, cands []int, i int, t pii.Text, covered []bool, spans *[]pii.Span) int {
+func (d *namesDetector) processCandidate(
+	text string,
+	nt []nameToken,
+	cands []int,
+	i int,
+	t pii.Text,
+	covered []bool,
+	spans *[]pii.Span,
+) int {
 	ci := cands[i]
 	if covered[ci] {
 		return 1
@@ -158,12 +166,22 @@ func (d *namesDetector) processCandidate(text string, nt []nameToken, cands []in
 
 // singleNameWithContext emits a single given name when a name context keyword
 // appears to the left.
-func (d *namesDetector) singleNameWithContext(nt []nameToken, cands []int, i int, t pii.Text, covered []bool, spans *[]pii.Span) (bool, int) {
+func (d *namesDetector) singleNameWithContext(
+	nt []nameToken,
+	cands []int,
+	i int,
+	t pii.Text,
+	covered []bool,
+	spans *[]pii.Span,
+) (bool, int) {
 	tok := nt[cands[i]]
 	if !tok.isName || !hasLeftContext(t, tok.start, nameContext, 30) {
 		return false, 0
 	}
-	*spans = append(*spans, pii.Span{Start: tok.start, End: tok.end, Category: pii.CatFullName, Detector: d.Name(), Confidence: 0.8})
+	*spans = append(
+		*spans,
+		pii.Span{Start: tok.start, End: tok.end, Category: pii.CatFullName, Detector: d.Name(), Confidence: 0.8},
+	)
 	covered[cands[i]] = true
 	return true, 1
 }
@@ -171,7 +189,14 @@ func (d *namesDetector) singleNameWithContext(nt []nameToken, cands []int, i int
 // turkicPatronymic handles a 4-token Turkic patronymic: surname + name + name +
 // кызы/оглы/улы. It returns whether it handled the case and how many candidate
 // indices to advance.
-func (d *namesDetector) turkicPatronymic(text string, nt []nameToken, cands []int, i int, covered []bool, spans *[]pii.Span) (bool, int) {
+func (d *namesDetector) turkicPatronymic(
+	text string,
+	nt []nameToken,
+	cands []int,
+	i int,
+	covered []bool,
+	spans *[]pii.Span,
+) (bool, int) {
 	if i+1 >= len(cands) || !(nt[cands[i]].isSurname || nt[cands[i]].isSurnameGuess) || !nt[cands[i+1]].isPatrMarker {
 		return false, 0
 	}
@@ -183,7 +208,10 @@ func (d *namesDetector) turkicPatronymic(text string, nt []nameToken, cands []in
 	if d.isFamous(seq) {
 		return false, 0
 	}
-	*spans = append(*spans, pii.Span{Start: seq[0].start, End: seq[3].end, Category: pii.CatFullName, Detector: d.Name(), Confidence: 0.95})
+	*spans = append(
+		*spans,
+		pii.Span{Start: seq[0].start, End: seq[3].end, Category: pii.CatFullName, Detector: d.Name(), Confidence: 0.95},
+	)
 	covered[cands[i]] = true
 	covered[mid1] = true
 	covered[mid2] = true
@@ -193,7 +221,15 @@ func (d *namesDetector) turkicPatronymic(text string, nt []nameToken, cands []in
 
 // threeTokenName handles a three-token name sequence, optionally extending the
 // span to a maiden surname in parentheses.
-func (d *namesDetector) threeTokenName(text string, nt []nameToken, cands []int, i int, t pii.Text, covered []bool, spans *[]pii.Span) (bool, int) {
+func (d *namesDetector) threeTokenName(
+	text string,
+	nt []nameToken,
+	cands []int,
+	i int,
+	t pii.Text,
+	covered []bool,
+	spans *[]pii.Span,
+) (bool, int) {
 	if i+2 >= len(cands) ||
 		!onlyWhitespace(text, nt[cands[i]].end, nt[cands[i+1]].start) ||
 		!onlyWhitespace(text, nt[cands[i+1]].end, nt[cands[i+2]].start) {
@@ -211,7 +247,10 @@ func (d *namesDetector) threeTokenName(text string, nt []nameToken, cands []int,
 		start = nt[cands[i-1]].start
 		covered[cands[i-1]] = true
 	}
-	*spans = append(*spans, pii.Span{Start: start, End: seq[2].end, Category: pii.CatFullName, Detector: d.Name(), Confidence: conf})
+	*spans = append(
+		*spans,
+		pii.Span{Start: start, End: seq[2].end, Category: pii.CatFullName, Detector: d.Name(), Confidence: conf},
+	)
 	covered[cands[i]] = true
 	covered[cands[i+1]] = true
 	covered[cands[i+2]] = true
@@ -219,7 +258,15 @@ func (d *namesDetector) threeTokenName(text string, nt []nameToken, cands []int,
 }
 
 // twoTokenName handles a two-token name sequence.
-func (d *namesDetector) twoTokenName(text string, nt []nameToken, cands []int, i int, t pii.Text, covered []bool, spans *[]pii.Span) (bool, int) {
+func (d *namesDetector) twoTokenName(
+	text string,
+	nt []nameToken,
+	cands []int,
+	i int,
+	t pii.Text,
+	covered []bool,
+	spans *[]pii.Span,
+) (bool, int) {
 	if i+1 >= len(cands) || !onlyWhitespace(text, nt[cands[i]].end, nt[cands[i+1]].start) {
 		return false, 0
 	}
@@ -228,7 +275,10 @@ func (d *namesDetector) twoTokenName(text string, nt []nameToken, cands []int, i
 	if !ok {
 		return false, 0
 	}
-	*spans = append(*spans, pii.Span{Start: seq[0].start, End: seq[1].end, Category: pii.CatFullName, Detector: d.Name(), Confidence: conf})
+	*spans = append(
+		*spans,
+		pii.Span{Start: seq[0].start, End: seq[1].end, Category: pii.CatFullName, Detector: d.Name(), Confidence: conf},
+	)
 	covered[cands[i]] = true
 	covered[cands[i+1]] = true
 	return true, 2
@@ -237,7 +287,15 @@ func (d *namesDetector) twoTokenName(text string, nt []nameToken, cands []int, i
 // surnameGapName handles a surname + unknown given name + patronymic sequence,
 // where the patronymic makes the sequence unambiguous even when the given name
 // is not in the dictionary.
-func (d *namesDetector) surnameGapName(text string, nt []nameToken, cands []int, i int, t pii.Text, covered []bool, spans *[]pii.Span) (bool, int) {
+func (d *namesDetector) surnameGapName(
+	text string,
+	nt []nameToken,
+	cands []int,
+	i int,
+	t pii.Text,
+	covered []bool,
+	spans *[]pii.Span,
+) (bool, int) {
 	if i+1 >= len(cands) || !(nt[cands[i]].isSurname || nt[cands[i]].isSurnameGuess) || !nt[cands[i+1]].isPatr {
 		return false, 0
 	}
@@ -266,7 +324,10 @@ func (d *namesDetector) emitGapName(ctx nameMatchCtx, i, mid int, conf float64) 
 		start = nt[cands[i-1]].start
 		covered[cands[i-1]] = true
 	}
-	*spans = append(*spans, pii.Span{Start: start, End: seq[2].end, Category: pii.CatFullName, Detector: d.Name(), Confidence: conf})
+	*spans = append(
+		*spans,
+		pii.Span{Start: start, End: seq[2].end, Category: pii.CatFullName, Detector: d.Name(), Confidence: conf},
+	)
 	covered[cands[i]] = true
 	covered[mid] = true
 	covered[cands[i+1]] = true
@@ -275,7 +336,15 @@ func (d *namesDetector) emitGapName(ctx nameMatchCtx, i, mid int, conf float64) 
 
 // patrSurnameName handles a name + patronymic + surname sequence where the given
 // name is unknown but capitalised.
-func (d *namesDetector) patrSurnameName(text string, nt []nameToken, cands []int, i int, t pii.Text, covered []bool, spans *[]pii.Span) (bool, int) {
+func (d *namesDetector) patrSurnameName(
+	text string,
+	nt []nameToken,
+	cands []int,
+	i int,
+	t pii.Text,
+	covered []bool,
+	spans *[]pii.Span,
+) (bool, int) {
 	if i+1 >= len(cands) || !nt[cands[i]].isPatr || !(nt[cands[i+1]].isSurname || nt[cands[i+1]].isSurnameGuess) {
 		return false, 0
 	}
@@ -287,7 +356,10 @@ func (d *namesDetector) patrSurnameName(text string, nt []nameToken, cands []int
 	if d.isFamous(seq) {
 		return false, 0
 	}
-	*spans = append(*spans, pii.Span{Start: seq[0].start, End: seq[2].end, Category: pii.CatFullName, Detector: d.Name(), Confidence: 0.9})
+	*spans = append(
+		*spans,
+		pii.Span{Start: seq[0].start, End: seq[2].end, Category: pii.CatFullName, Detector: d.Name(), Confidence: 0.9},
+	)
 	covered[mid] = true
 	covered[cands[i]] = true
 	covered[cands[i+1]] = true

@@ -85,7 +85,12 @@ func assertCovered(t *testing.T, text string, spans []pii.Span, expected []struc
 			}
 		}
 		if !found {
-			t.Errorf("value %q (category %s) not covered by a matching span; spans: %+v", exp.value, exp.category, spans)
+			t.Errorf(
+				"value %q (category %s) not covered by a matching span; spans: %+v",
+				exp.value,
+				exp.category,
+				spans,
+			)
 		}
 	}
 }

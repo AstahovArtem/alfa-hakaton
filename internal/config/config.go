@@ -86,7 +86,12 @@ type Config struct {
 }
 
 // validStrategies are the strategies the engine knows.
-var validStrategies = map[string]bool{StrategyPartial: true, StrategyFull: true, StrategyToken: true, StrategySynthetic: true}
+var validStrategies = map[string]bool{
+	StrategyPartial:   true,
+	StrategyFull:      true,
+	StrategyToken:     true,
+	StrategySynthetic: true,
+}
 
 // ValidStrategy reports whether name is a known masking strategy.
 func ValidStrategy(name string) bool {

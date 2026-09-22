@@ -211,7 +211,15 @@ func FullNameGenitive(rng *rand.Rand) string {
 		surname = feminize(surname)
 		patr = d.patrF[rng.Intn(len(d.patrF))]
 	}
-	return genitiveSurname(capitalize(surname), female) + " " + genitiveName(capitalize(first), female) + " " + genitivePatr(patr)
+	return genitiveSurname(
+		capitalize(surname),
+		female,
+	) + " " + genitiveName(
+		capitalize(first),
+		female,
+	) + " " + genitivePatr(
+		patr,
+	)
 }
 
 // isFemaleName guesses gender from the first name ending.

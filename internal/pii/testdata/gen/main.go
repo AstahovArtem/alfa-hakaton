@@ -652,7 +652,15 @@ func synthFullNameGenitive(rng *rand.Rand, names, surnames []string) string {
 		surname = feminize(surname)
 		patr = patrF[rng.Intn(len(patrF))]
 	}
-	return genitiveSurname(capitalize(surname), female) + " " + genitiveName(capitalize(first), female) + " " + genitivePatr(patr)
+	return genitiveSurname(
+		capitalize(surname),
+		female,
+	) + " " + genitiveName(
+		capitalize(first),
+		female,
+	) + " " + genitivePatr(
+		patr,
+	)
 }
 
 var patrM = []string{patrAlexandrovich, patrAndreevich, patrBorisovich, patrVasilievich, patrViktorovich,

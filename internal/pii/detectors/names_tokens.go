@@ -252,7 +252,9 @@ var patrMarkers = map[string]bool{
 	"кызы": true, "оглы": true, "улы": true,
 }
 
-func (d *namesDetector) classify(lower string) (isName, isSurname, isSurnameGuess, isPatr, isInitial, isPatrMarker bool) {
+func (d *namesDetector) classify(
+	lower string,
+) (isName, isSurname, isSurnameGuess, isPatr, isInitial, isPatrMarker bool) {
 	if stopWords[lower] {
 		return
 	}

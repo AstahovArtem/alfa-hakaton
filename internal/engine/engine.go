@@ -106,7 +106,12 @@ func (e *Engine) MaskEx(ctx context.Context, id, text string, opt Options) (Mask
 // values across texts get the same replacement. All replacements are saved in
 // a single record, so the LLM response can be unmasked with one id. It returns
 // the masked texts and the combined counts.
-func (e *Engine) MaskBatch(ctx context.Context, id string, texts []string, opt Options) ([]string, map[pii.Category]int, error) {
+func (e *Engine) MaskBatch(
+	ctx context.Context,
+	id string,
+	texts []string,
+	opt Options,
+) ([]string, map[pii.Category]int, error) {
 	res, err := e.MaskBatchEx(ctx, id, texts, opt)
 	if err != nil {
 		return nil, nil, err
@@ -225,7 +230,13 @@ func (e *Engine) resolveStrategy(name string) mask.Strategy {
 // maskWithRecord masks text and saves the mapping under id. existing, when
 // non-nil, is a record already loaded by the caller so the store is not hit a
 // second time.
-func (e *Engine) maskWithRecord(ctx context.Context, id, text string, opt Options, doc *mask.DocState, existing *store.Record) (MaskResult, error) {
+func (e *Engine) maskWithRecord(
+	ctx context.Context,
+	id, text string,
+	opt Options,
+	doc *mask.DocState,
+	existing *store.Record,
+) (MaskResult, error) {
 	hash := hashText(text)
 
 	// Idempotency: if the caller already loaded a record with a matching hash,
@@ -285,7 +296,12 @@ func (e *Engine) maskWithRecord(ctx context.Context, id, text string, opt Option
 // maskChunked splits text into chunks, masks each chunk independently and
 // concatenates the results. Replacement offsets are shifted by the chunk
 // offset so they refer to the full masked text.
-func (e *Engine) maskChunked(text string, opt Options, strategy mask.Strategy, doc *mask.DocState) (string, []mask.Replacement, map[pii.Category]int, Stages) {
+func (e *Engine) maskChunked(
+	text string,
+	opt Options,
+	strategy mask.Strategy,
+	doc *mask.DocState,
+) (string, []mask.Replacement, map[pii.Category]int, Stages) {
 	var b strings.Builder
 	var reps []mask.Replacement
 	found := make(map[pii.Category]int)

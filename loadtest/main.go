@@ -119,7 +119,13 @@ func main() {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			worker(ctx, jobs, items, workerConfig{url: *url, runPrefix: runPrefix, system: *system, apiKey: *apiKey, client: client}, &c)
+			worker(
+				ctx,
+				jobs,
+				items,
+				workerConfig{url: *url, runPrefix: runPrefix, system: *system, apiKey: *apiKey, client: client},
+				&c,
+			)
 		}()
 	}
 

@@ -114,7 +114,12 @@ func (s *Server) handleLLMError(w http.ResponseWriter, err error) {
 // so equal values across messages get the same replacement. It returns the id,
 // the masked messages, the total found counts, the stage timings, the total
 // input length and whether the handler should continue.
-func (s *Server) maskMessages(w http.ResponseWriter, r *http.Request, req chatRequestIn, opt engine.Options) (string, []chatMessage, map[string]int, engine.Stages, int, bool) {
+func (s *Server) maskMessages(
+	w http.ResponseWriter,
+	r *http.Request,
+	req chatRequestIn,
+	opt engine.Options,
+) (string, []chatMessage, map[string]int, engine.Stages, int, bool) {
 	id, err := newUUID()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "id generation failed")
@@ -148,7 +153,13 @@ func (s *Server) maskMessages(w http.ResponseWriter, r *http.Request, req chatRe
 // unmaskAnswer restores the assistant response when the system allows it. It
 // returns the answer to send to the client and whether the handler should
 // continue. When the store is unavailable it writes a 503 and returns false.
-func (s *Server) unmaskAnswer(w http.ResponseWriter, r *http.Request, sys *configSystem, id, content string, info *reqInfo) (string, bool) {
+func (s *Server) unmaskAnswer(
+	w http.ResponseWriter,
+	r *http.Request,
+	sys *configSystem,
+	id, content string,
+	info *reqInfo,
+) (string, bool) {
 	if !sys.Unmask {
 		return content, true
 	}
