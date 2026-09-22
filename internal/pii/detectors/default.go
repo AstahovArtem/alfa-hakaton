@@ -9,5 +9,9 @@ func Default() []pii.Detector {
 		// Embedded rules must always load; a failure is a programming error.
 		panic(err)
 	}
-	return []pii.Detector{NewRegexDetector(rules)}
+	return []pii.Detector{
+		NewRegexDetector(rules),
+		NewNamesDetector(),
+		NewCardholderDetector(),
+	}
 }

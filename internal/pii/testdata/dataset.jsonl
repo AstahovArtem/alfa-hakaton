@@ -140,3 +140,33 @@
 {"id":"cvv-009","text":"Код безопасности карты 123, 4321 это пин-код","spans":[{"value":"123","category":"cvv"},{"value":"4321","category":"pin"}]}
 {"id":"cvv-010","text":"карта 5536 9138 1234 5678 cvv 123","spans":[{"start":35,"end":38,"category":"cvv"}]}
 {"id":"date-009","text":"событие 2020.15.03","spans":[{"value":"2020.15.03","category":"date"}]}
+{"id":"name-001","text":"ИВАНОВ ИВАН ИВАНОВИЧ","spans":[{"value":"ИВАНОВ ИВАН ИВАНОВИЧ","category":"full_name"}]}
+{"id":"name-002","text":"иванов иван иванович","spans":[{"value":"иванов иван иванович","category":"full_name"}]}
+{"id":"name-003","text":"Иван Петров","spans":[{"value":"Иван Петров","category":"full_name"}]}
+{"id":"name-004","text":"Петров Иван","spans":[{"value":"Петров Иван","category":"full_name"}]}
+{"id":"name-005","text":"Иванов И. О.","spans":[{"value":"Иванов И. О.","category":"full_name"}]}
+{"id":"name-006","text":"И. О. Иванов","spans":[{"value":"И. О. Иванов","category":"full_name"}]}
+{"id":"name-007","text":"паспорт Иванова Ивана Ивановича","spans":[{"value":"Иванова Ивана Ивановича","category":"full_name"}]}
+{"id":"name-008","text":"клиент Иван","spans":[{"value":"Иван","category":"full_name"}]}
+{"id":"name-009","text":"клиент Иван Иванович","spans":[{"value":"Иван Иванович","category":"full_name"}]}
+{"id":"name-010","text":"Иван Иванович Иванов","spans":[{"value":"Иван Иванович Иванов","category":"full_name"}]}
+{"id":"name-011","text":"Иванов И.О.","spans":[{"value":"Иванов И.О.","category":"full_name"}]}
+{"id":"name-012","text":"И.О. Иванов","spans":[{"value":"И.О. Иванов","category":"full_name"}]}
+{"id":"holder-001","text":"держатель карты IVAN IVANOV","spans":[{"value":"IVAN IVANOV","category":"card_holder"}]}
+{"id":"holder-002","text":"IVAN IVANOV 4111 1111 1111 1111","spans":[{"value":"IVAN IVANOV","category":"card_holder"},{"value":"4111 1111 1111 1111","category":"card_number"}]}
+{"id":"holder-003","text":"IVAN I IVANOV 4111 1111 1111 1111","spans":[{"value":"IVAN I IVANOV","category":"card_holder"},{"value":"4111 1111 1111 1111","category":"card_number"}]}
+{"id":"holder-004","text":"cardholder IVAN IVANOV","spans":[{"value":"IVAN IVANOV","category":"card_holder"}]}
+{"id":"holder-005","text":"name on card IVAN IVANOV","spans":[{"value":"IVAN IVANOV","category":"card_holder"}]}
+{"id":"holder-006","text":"держатель карты Ivan Ivanov","spans":[{"value":"Ivan Ivanov","category":"card_holder"}]}
+{"id":"holder-007","text":"IVAN IVANOV держатель карты","spans":[{"value":"IVAN IVANOV","category":"card_holder"}]}
+{"id":"holder-008","text":"имя на карте IVAN IVANOV","spans":[{"value":"IVAN IVANOV","category":"card_holder"}]}
+{"id":"negname-001","text":"поэт Александр Пушкин родился в 1799 году","spans":[]}
+{"id":"negname-002","text":"стихи Александра Пушкина","spans":[]}
+{"id":"negname-003","text":"улица Иванова","spans":[]}
+{"id":"negname-004","text":"Москва — столица","spans":[]}
+{"id":"negholder-001","text":"IVAN IVANOV","spans":[]}
+{"id":"negholder-002","text":"держатель карты VISA MASTERCARD","spans":[]}
+{"id":"complex-001","text":"Иванов Иван Иванович, паспорт 4509 123456, телефон +7 (916) 123-45-67, дата рождения 12.05.1990","spans":[{"value":"Иванов Иван Иванович","category":"full_name"},{"value":"4509 123456","category":"passport"},{"value":"+7 (916) 123-45-67","category":"phone"},{"value":"12.05.1990","category":"birth_date"}]}
+{"id":"complex-002","text":"держатель карты IVAN IVANOV, карта 4111 1111 1111 1111, CVV 123","spans":[{"value":"IVAN IVANOV","category":"card_holder"},{"value":"4111 1111 1111 1111","category":"card_number"},{"value":"123","category":"cvv"}]}
+{"id":"complex-003","text":"клиент Петров Пётр Петрович, паспорт 4509 123456, дата рождения 05.12.1990","spans":[{"value":"Петров Пётр Петрович","category":"full_name"},{"value":"4509 123456","category":"passport"},{"value":"05.12.1990","category":"birth_date"}]}
+{"id":"complex-004","text":"IVAN IVANOV 4111 1111 1111 1111, телефон +7 916 123 45 67","spans":[{"value":"IVAN IVANOV","category":"card_holder"},{"value":"4111 1111 1111 1111","category":"card_number"},{"value":"+7 916 123 45 67","category":"phone"}]}
