@@ -22,6 +22,8 @@ func TestAddressDetect(t *testing.T) {
 		{"cityNoPrefix", "Москва, ул. Ленина, д. 5", true},
 		{"region", "адрес: г. Краснодар, Краснодарский край, ул. Красная, д. 1", true},
 		{"caseInsensitive", "АДРЕС: Г. МОСКВА, УЛ. ЛЕНИНА, Д. 5", true},
+		{"obliqueCityBareStreet", "живёт в Казани, Кремлёвская 5", true},
+		{"obliqueCityGenitive", "проживает в Москве, Тверская 10", true},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -66,6 +68,7 @@ func TestAddressSpanValue(t *testing.T) {
 		{"ул. Ленина, д. 5, кв. 12", "ул. Ленина, д. 5, кв. 12"},
 		{"Ленинский проспект, 10", "Ленинский проспект, 10"},
 		{"адрес: г. Москва, ул. Ленина, д. 5", "г. Москва, ул. Ленина, д. 5"},
+		{"живёт в Казани, Кремлёвская 5", "Казани, Кремлёвская 5"},
 	}
 	for _, c := range cases {
 		res := runPipeline(t, c.in)

@@ -16,10 +16,13 @@ import (
 var rulesFS embed.FS
 
 // ReclassifyRule reclassifies a matched span to another category when a context
-// keyword appears within a window to the left of the match.
+// keyword appears within a window to the left or right of the match.
 type ReclassifyRule struct {
-	Context  []string     `yaml:"context"`
-	Category pii.Category `yaml:"category"`
+	Context            []string     `yaml:"context"`
+	ContextAfter       []string     `yaml:"context_after"`
+	ContextWindow      int          `yaml:"context_window"`
+	ContextAfterWindow int          `yaml:"context_after_window"`
+	Category           pii.Category `yaml:"category"`
 }
 
 // Rule is a single regex-based detection rule.
@@ -218,7 +221,19 @@ func (d *regexDetector) detectRule(text string, r Rule) []pii.Span {
 		cat := r.Category
 		// Reclassification based on context.
 		for _, rc := range r.Reclassify {
-			if ok, _ := leftContext(text, start, r.contextWindow, rc.Context); ok {
+			win := rc.ContextWindow
+			if win == 0 {
+				win = r.contextWindow
+			}
+			if ok, _ := leftContext(text, start, win, rc.Context); ok {
+				cat = rc.Category
+				break
+			}
+			afterWin := rc.ContextAfterWindow
+			if afterWin == 0 {
+				afterWin = r.contextAfterWindow
+			}
+			if ok, _ := rightContext(text, end, afterWin, rc.ContextAfter); ok {
 				cat = rc.Category
 				break
 			}

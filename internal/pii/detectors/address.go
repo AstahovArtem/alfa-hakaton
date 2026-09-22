@@ -54,7 +54,46 @@ var (
 	addrHouseRe     = regexp.MustCompile(`(?i)(?:д\.|дом|д)\s*\d+[а-яa-z]?(?:\s*/\s*\d+)?(?:\s*(?:к\.|корп\.|корпус|к)\s*\d+)?(?:\s*(?:стр\.|строение|с)\s*\d+)?`)
 	addrAptRe       = regexp.MustCompile(`(?i)(?:кв\.|квартира|оф\.|офис|пом\.|помещение|комн\.)\s*\d+[а-я]?`)
 	addrBareHouseRe = regexp.MustCompile(`,\s*\d+[а-яa-z]?`)
+	// addrBareStreetHouseRe matches a bare street name (no marker) followed by a
+	// house number, e.g. "Кремлёвская 5". The street name must start with an
+	// uppercase letter so common nouns like "паспорт" or "код" are not captured.
+	// It is only accepted when attached to a locality, so a bare street never
+	// stands alone.
+	addrBareStreetHouseRe = regexp.MustCompile(`[А-ЯЁ][а-яё-]+(?:\s+[А-ЯЁ][а-яё-]+){0,2}\s+\d+[а-яa-z]?`)
 )
+
+// obliqueEndings are the non-nominative case endings appended to a city stem.
+var obliqueEndings = []string{"е", "и", "у", "ой", "ом", "а", "ы"}
+
+// obliqueForms returns candidate oblique (non-nominative) forms of a city name
+// built from its stem plus the oblique endings.
+func obliqueForms(city string) []string {
+	r := []rune(city)
+	if len(r) == 0 {
+		return nil
+	}
+	last := r[len(r)-1]
+	var stems []string
+	switch last {
+	case 'а', 'я', 'ь', 'й':
+		stems = append(stems, string(r[:len(r)-1]))
+	case 'о', 'е':
+		stems = append(stems, string(r))
+	default:
+		stems = append(stems, string(r))
+	}
+	var forms []string
+	for _, stem := range stems {
+		for _, e := range obliqueEndings {
+			f := stem + e
+			// Skip the nominative form itself; only true oblique forms are wanted.
+			if f != city {
+				forms = append(forms, f)
+			}
+		}
+	}
+	return forms
+}
 
 var addrContext = []string{
 	"адрес", "проживает", "прописан", "зарегистрирован", "проживающий",
@@ -173,6 +212,46 @@ func (d *addressDetector) findComponents(text string) []addrComponent {
 			idx = start + len(city)
 		}
 	}
+
+	// Oblique-case localities (e.g. "Казани") are accepted only when an address
+	// context keyword appears to the left.
+	for _, city := range loadCities() {
+		for _, form := range obliqueForms(city) {
+			lower := strings.ToLower(text)
+			fl := strings.ToLower(form)
+			idx := 0
+			for {
+				pos := strings.Index(lower[idx:], fl)
+				if pos < 0 {
+					break
+				}
+				start := idx + pos
+				end := start + len(form)
+				if (start == 0 || !isLetterRune(rune(text[start-1]))) &&
+					(end == len(text) || !isLetterRune(rune(text[end]))) &&
+					hasLeftContext(text, start, addrContext, 30) {
+					comps = append(comps, addrComponent{start: start, end: end, kind: "locality"})
+				}
+				idx = start + len(form)
+			}
+		}
+	}
+
+	// Bare street + house number following a locality (e.g. "Казани, Кремлёвская 5").
+	// A bare street is only accepted inside an already-valid address, so it must
+	// attach to a locality component.
+	for _, s := range comps {
+		if s.kind != "locality" {
+			continue
+		}
+		for _, loc := range addrBareStreetHouseRe.FindAllStringIndex(text[s.end:], -1) {
+			start := s.end + loc[0]
+			end := s.end + loc[1]
+			if gapRunes(text, s.end, start) <= 3 {
+				comps = append(comps, addrComponent{start: start, end: end, kind: "street_house"})
+			}
+		}
+	}
 	return comps
 }
 
@@ -186,6 +265,9 @@ func (d *addressDetector) validGroup(text string, group []addrComponent) bool {
 		case "street":
 			hasStreet = true
 		case "house":
+			hasHouse = true
+		case "street_house":
+			hasStreet = true
 			hasHouse = true
 		case "locality":
 			hasLocality = true

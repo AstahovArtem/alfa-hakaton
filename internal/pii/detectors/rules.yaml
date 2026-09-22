@@ -169,8 +169,14 @@ rules:
     confidence: 0.85
     reclassify:
       - context: [родил, рожден, рождён, дата рождения, д.р., др]
+        context_after: [место рождения, уроженец, уроженка]
+        context_window: 120
+        context_after_window: 40
         category: birth_date
       - context: [выдан, дата выдачи]
+        context_after: [код подразделения, к/п, код подр]
+        context_window: 120
+        context_after_window: 40
         category: passport_date
 
   - name: citizenship

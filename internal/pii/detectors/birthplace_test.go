@@ -21,6 +21,10 @@ func TestBirthplaceDetect(t *testing.T) {
 		{"nativeF", "уроженка города Москвы", true},
 		{"regionTail", "родился в г. Краснодар, Краснодарский край", true},
 		{"caseInsensitive", "МЕСТО РОЖДЕНИЯ: Г. МОСКВА", true},
+		{"ruralVillage", "Место рождения: с. Ивановка Рязанской области", true},
+		{"ruralVillageNoComma", "родился в с. Ивановка Рязанской области", true},
+		{"ruralStation", "место рождения: ст. Ивановка Рязанской области", true},
+		{"ruralPoselok", "место рождения: пос. Ивановка Рязанской области", true},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -59,6 +63,7 @@ func TestBirthplaceSpanValue(t *testing.T) {
 		{"родился в Москве", "Москве"},
 		{"родился 12.05.1990 в Москве", "Москве"},
 		{"уроженец города Казани", "города Казани"},
+		{"Место рождения: с. Ивановка Рязанской области", "с. Ивановка Рязанской области"},
 	}
 	for _, c := range cases {
 		res := runPipeline(t, c.in)

@@ -280,6 +280,30 @@ func TestPassportDateReclassify(t *testing.T) {
 	}
 }
 
+func TestPassportDateReclassifyLongIssuer(t *testing.T) {
+	res := runPipeline(t, "Паспорт 4509 123456 выдан ОУФМС России по г. Москве по району Хамовники 12.05.2010, код подразделения 770-001")
+	if !hasCategory(t, res, pii.CatPassportDate) {
+		t.Errorf("expected passport_date for date after long issuer, got %+v", res.Spans)
+	}
+	if hasCategory(t, res, pii.CatDate) {
+		t.Errorf("date should be reclassified to passport_date, got %+v", res.Spans)
+	}
+}
+
+func TestPassportDateReclassifyRightContext(t *testing.T) {
+	res := runPipeline(t, "паспорт 4509 123456 выдан 12.05.2010, код подразделения 770-001")
+	if !hasCategory(t, res, pii.CatPassportDate) {
+		t.Errorf("expected passport_date via right context 'код подразделения', got %+v", res.Spans)
+	}
+}
+
+func TestBirthDateReclassifyRightContext(t *testing.T) {
+	res := runPipeline(t, "родился 12.05.1990, место рождения: г. Москва")
+	if !hasCategory(t, res, pii.CatBirthDate) {
+		t.Errorf("expected birth_date via right context 'место рождения', got %+v", res.Spans)
+	}
+}
+
 func TestCitizenshipDetect(t *testing.T) {
 	cases := []struct {
 		name string
