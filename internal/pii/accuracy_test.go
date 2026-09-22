@@ -31,8 +31,14 @@ type datasetSpan struct {
 // loadDataset reads and parses dataset.jsonl, resolving Value-based spans into
 // byte offsets.
 func loadDataset(t *testing.T) []datasetRecord {
+	return loadDatasetFile(t, "testdata/dataset.jsonl")
+}
+
+// loadDatasetFile reads and parses a JSONL dataset file, resolving Value-based
+// spans into byte offsets.
+func loadDatasetFile(t *testing.T, path string) []datasetRecord {
 	t.Helper()
-	f, err := os.Open("testdata/dataset.jsonl")
+	f, err := os.Open(path)
 	if err != nil {
 		t.Fatalf("open dataset: %v", err)
 	}
@@ -123,6 +129,34 @@ func overlapRatio(det, exp datasetSpan) float64 {
 // per category.
 func TestAccuracy(t *testing.T) {
 	records := loadDataset(t)
+	runAccuracy(t, "dataset", records, 0.95)
+}
+
+// TestAccuracyBlind runs the pipeline over the blind dataset, which the
+// detectors have not been tuned on, and enforces the same precision/recall
+// threshold.
+func TestAccuracyBlind(t *testing.T) {
+	records := loadDatasetFile(t, "testdata/blind.jsonl")
+	runAccuracy(t, "blind", records, 0.95)
+}
+
+// TestAccuracyExternal runs the pipeline over a dataset given by the
+// PDN_EVAL_DATASET environment variable. It is skipped when the variable is
+// empty and only reports metrics without enforcing a threshold.
+func TestAccuracyExternal(t *testing.T) {
+	path := os.Getenv("PDN_EVAL_DATASET")
+	if path == "" {
+		t.Skip("PDN_EVAL_DATASET not set")
+	}
+	records := loadDatasetFile(t, path)
+	runAccuracy(t, "external", records, 0.0)
+}
+
+// runAccuracy runs the pipeline over records, prints a per-category table and
+// enforces an overall precision/recall threshold. A threshold of 0 disables the
+// check.
+func runAccuracy(t *testing.T, name string, records []datasetRecord, threshold float64) {
+	t.Helper()
 	p := pii.NewPipeline(detectors.Default()...)
 
 	type stats struct {
@@ -175,7 +209,8 @@ func TestAccuracy(t *testing.T) {
 		}
 	}
 
-	fmt.Println("\n=== Accuracy by category ===")
+	fmt.Printf("\n=== Accuracy by category (%s) ===", name)
+	fmt.Println()
 	fmt.Printf("%-18s %6s %6s %6s %8s %8s %8s\n", "category", "tp", "fp", "fn", "precision", "recall", "f1")
 	for _, cat := range []pii.Category{
 		pii.CatPhone, pii.CatEmail, pii.CatINN, pii.CatCardNumber, pii.CatCVV, pii.CatPIN, pii.CatPassport,
@@ -216,10 +251,12 @@ func TestAccuracy(t *testing.T) {
 	}
 	fmt.Printf("\n%-18s %6d %6d %6d %8.3f %8.3f %8.3f\n", "TOTAL", totalTP, totalFP, totalFN, precision, recall, f1)
 
-	if recall < 0.95 {
-		t.Errorf("overall recall %.3f < 0.95", recall)
-	}
-	if precision < 0.95 {
-		t.Errorf("overall precision %.3f < 0.95", precision)
+	if threshold > 0 {
+		if recall < threshold {
+			t.Errorf("overall recall %.3f < %.3f", recall, threshold)
+		}
+		if precision < threshold {
+			t.Errorf("overall precision %.3f < %.3f", precision, threshold)
+		}
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"pdn-shield/internal/pii"
+	"pdn-shield/internal/synth"
 )
 
 //go:embed dict/*.txt
@@ -189,7 +190,7 @@ func feminize(s string) string {
 	lower := strings.ToLower(s)
 	for _, suf := range []string{"ов", "ев", "ёв", "ин", "ын"} {
 		if strings.HasSuffix(lower, suf) {
-			return s[:len(s)-len(suf)] + "а"
+			return s[:len(s)-len(suf)] + suf + "а"
 		}
 	}
 	return s
@@ -209,9 +210,7 @@ func synthPhone(value string, rng *rand.Rand) string {
 	if len(digits) != 11 {
 		return value
 	}
-	// Build a fake 11-digit number starting with 7.
-	fake := "7" + "9" + randDigits(rng, 9)
-	return applyDigits(value, fake)
+	return applyDigits(value, synth.Phone(rng))
 }
 
 // synthCard builds a 16-digit card with a valid Luhn and a 4xxx/5xxx BIN,
@@ -221,16 +220,7 @@ func synthCard(value string, rng *rand.Rand) string {
 	if len(digits) < 13 || len(digits) > 19 {
 		return value
 	}
-	n := len(digits)
-	bin := "4"
-	if rng.Intn(2) == 0 {
-		bin = "5"
-	}
-	bin += randDigits(rng, 2)
-	body := bin + randDigits(rng, n-4)
-	check := luhnCheckDigit(body)
-	fake := body + string(check)
-	return applyDigits(value, fake)
+	return applyDigits(value, synth.Card(rng))
 }
 
 // synthINN builds a 12-digit INN with valid control sums.
@@ -239,19 +229,7 @@ func synthINN(value string, rng *rand.Rand) string {
 	if len(digits) != 12 {
 		return value
 	}
-	base := randDigits(rng, 10)
-	n11 := innControl(base, []int{7, 2, 4, 10, 3, 5, 9, 4, 6, 8})
-	n12 := innControl(base+string(n11), []int{3, 7, 2, 4, 10, 3, 5, 9, 4, 6, 8})
-	fake := base + string(n11) + string(n12)
-	return applyDigits(value, fake)
-}
-
-func innControl(d string, weights []int) byte {
-	sum := 0
-	for i, w := range weights {
-		sum += int(d[i]-'0') * w
-	}
-	return byte('0' + sum%11%10)
+	return applyDigits(value, synth.INN(rng))
 }
 
 // synthSNILS builds an 11-digit SNILS with a valid control number.
@@ -260,24 +238,7 @@ func synthSNILS(value string, rng *rand.Rand) string {
 	if len(digits) != 11 {
 		return value
 	}
-	base := randDigits(rng, 9)
-	sum := 0
-	for i := 0; i < 9; i++ {
-		sum += int(base[i]-'0') * (9 - i)
-	}
-	var control int
-	if sum < 100 {
-		control = sum
-	} else if sum == 100 || sum == 101 {
-		control = 0
-	} else {
-		control = sum % 101
-		if control == 100 {
-			control = 0
-		}
-	}
-	fake := base + twoDigits(control)
-	return applyDigits(value, fake)
+	return applyDigits(value, synth.SNILS(rng))
 }
 
 // synthPassport builds a 4+6 digit passport with series 4[0-9]{3}.
@@ -286,29 +247,20 @@ func synthPassport(value string, rng *rand.Rand) string {
 	if len(digits) != 10 {
 		return value
 	}
-	series := "4" + randDigits(rng, 3)
-	number := randDigits(rng, 6)
-	fake := series + number
-	return applyDigits(value, fake)
+	return applyDigits(value, synth.Passport(rng))
 }
 
 // synthDate builds a random valid date in 1950-2005 in the same format.
 func synthDate(value string, rng *rand.Rand) string {
-	year := 1950 + rng.Intn(56)
-	month := 1 + rng.Intn(12)
-	day := 1 + rng.Intn(daysInMonth(year, month))
 	// Word form: "12 мая 1990 года".
 	if strings.ContainsAny(value, "аяеёиюя") && !strings.ContainsAny(value, "0123456789./-") {
-		// Heuristic: if it looks like a word date, keep the month word.
 		words := strings.Fields(value)
 		if len(words) >= 3 {
-			monthWord := monthGenitive(month)
-			return itoa(day) + " " + monthWord + " " + itoa(year) + " " + trailingWord(value)
+			return synth.DateWord(rng) + " " + trailingWord(value)
 		}
 	}
 	// Numeric form: replace digits keeping separators.
-	fake := twoDigits(day) + "." + twoDigits(month) + "." + itoa(year)
-	return applyDigits(value, fake)
+	return applyDigits(value, synth.Date(rng))
 }
 
 func trailingWord(value string) string {
@@ -323,44 +275,9 @@ func trailingWord(value string) string {
 	return last
 }
 
-func daysInMonth(year, month int) int {
-	dm := []int{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
-	if month == 2 && isLeapYear(year) {
-		return 29
-	}
-	return dm[month-1]
-}
-
-func isLeapYear(y int) bool {
-	return y%4 == 0 && (y%100 != 0 || y%400 == 0)
-}
-
-var monthGenitiveList = []string{"января", "февраля", "марта", "апреля", "мая", "июня",
-	"июля", "августа", "сентября", "октября", "ноября", "декабря"}
-
-func monthGenitive(m int) string {
-	if m < 1 || m > 12 {
-		return ""
-	}
-	return monthGenitiveList[m-1]
-}
-
 // synthEmail builds user<hash6>@example.com.
 func synthEmail(value string, rng *rand.Rand) string {
-	h := fnv.New64a()
-	h.Write([]byte(value))
-	hash := h.Sum64()
-	return "user" + hex6(hash) + "@example.com"
-}
-
-func hex6(h uint64) string {
-	const hexdigits = "0123456789abcdef"
-	var b [6]byte
-	for i := 0; i < 6; i++ {
-		b[i] = hexdigits[h&0xf]
-		h >>= 4
-	}
-	return string(b[:])
+	return synth.HashEmail(value)
 }
 
 // applyDigits replaces the digits of value with the digits of fake, preserving
@@ -393,35 +310,13 @@ func digitsOnly(s string) string {
 	return b.String()
 }
 
-func randDigits(rng *rand.Rand, n int) string {
-	var b strings.Builder
-	for i := 0; i < n; i++ {
-		b.WriteByte(byte('0' + rng.Intn(10)))
+// hex6 returns the low 24 bits of h as six hex digits.
+func hex6(h uint64) string {
+	const hexdigits = "0123456789abcdef"
+	var b [6]byte
+	for i := 0; i < 6; i++ {
+		b[i] = hexdigits[h&0xf]
+		h >>= 4
 	}
-	return b.String()
-}
-
-func twoDigits(n int) string {
-	if n < 10 {
-		return "0" + itoa(n)
-	}
-	return itoa(n)
-}
-
-// luhnCheckDigit returns the check digit that makes d+check pass Luhn.
-func luhnCheckDigit(d string) byte {
-	sum := 0
-	double := true
-	for i := len(d) - 1; i >= 0; i-- {
-		n := int(d[i] - '0')
-		if double {
-			n *= 2
-			if n > 9 {
-				n -= 9
-			}
-		}
-		sum += n
-		double = !double
-	}
-	return byte('0' + (10-sum%10)%10)
+	return string(b[:])
 }

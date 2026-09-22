@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -72,6 +73,7 @@ func main() {
 		system     = flag.String("system", "", "X-System-Id header; empty means the default checker system")
 		apiKey     = flag.String("api-key", "", "X-API-Key header; empty means no key")
 		reportPath = flag.String("report", "", "path to write the report; default ./loadtest-report-<ts>.md")
+		insecure   = flag.Bool("insecure", false, "skip TLS certificate verification")
 	)
 	flag.Parse()
 
@@ -85,7 +87,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	client := &http.Client{Timeout: *timeout}
+	transport := &http.Transport{
+		MaxIdleConns:        *workers * 2,
+		MaxIdleConnsPerHost: *workers,
+		MaxConnsPerHost:     *workers,
+		IdleConnTimeout:     90 * time.Second,
+		TLSHandshakeTimeout: 10 * time.Second,
+		ForceAttemptHTTP2:   false,
+		DisableCompression:  true,
+		TLSClientConfig:     &tls.Config{InsecureSkipVerify: *insecure},
+	}
+	client := &http.Client{Timeout: *timeout, Transport: transport}
 
 	// Run prefix makes payload ids unique across runs.
 	runPrefix := fmt.Sprintf("lt-%d", time.Now().UnixNano())
@@ -148,7 +160,7 @@ func main() {
 	c.done = time.Now()
 	c.reportedRPS = float64(c.total.Load()) / c.done.Sub(c.start).Seconds()
 
-	report(&c, *rps, *duration, *url, *dataset, *reportPath)
+	report(&c, *rps, *duration, *url, *dataset, *workers, *reportPath)
 }
 
 // worker pulls job indices, runs a mask+unmask round-trip per job and records
@@ -255,7 +267,7 @@ func loadDataset(path string) ([]datasetItem, error) {
 
 // report prints the summary to stdout and writes the report to the given path
 // (or a default location when path is empty).
-func report(c *counters, targetRPS int, duration time.Duration, url, dataset, reportPath string) {
+func report(c *counters, targetRPS int, duration time.Duration, url, dataset string, workers int, reportPath string) {
 	c.mu.Lock()
 	samples := c.latencies
 	c.mu.Unlock()
@@ -277,6 +289,7 @@ func report(c *counters, targetRPS int, duration time.Duration, url, dataset, re
 	fmt.Fprintf(&b, "- Всего запросов: %d\n", c.total.Load())
 	fmt.Fprintf(&b, "- Всего пар: %d\n", c.pairs.Load())
 	fmt.Fprintf(&b, "- Длительность прогона: %s\n", c.done.Sub(c.start).Round(time.Millisecond))
+	fmt.Fprintf(&b, "- keep-alive: MaxIdleConnsPerHost=%d\n", workers)
 	fmt.Fprintf(&b, "\n## Ошибки по кодам\n\n")
 	fmt.Fprintf(&b, "| Код | Кол-во |\n|---|---|\n")
 	c.byCode.Range(func(k, v interface{}) bool {
