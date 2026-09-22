@@ -8,7 +8,7 @@ import (
 )
 
 var issuerContextRe = regexp.MustCompile(
-	`(?i)(?:кем выдан|выдавший орган|орган выдачи|орган, выдавший|дата выдачи|выдано|выдана|выдан|выдали|выдачи|получал|получала|получил|получила|получен|получена|кем|орган)`,
+	`(?i)(?:^|[^\p{L}])(кем выдан|выдавший орган|орган выдачи|орган, выдавший|дата выдачи|выдано|выдана|выдан|выдали|выдачи|получал|получала|получил|получила|получен|получена|кем|орган)(?:[^\p{L}]|$)`,
 )
 
 // issuerStartWordRe matches the first word of an issuing authority value. It is
@@ -30,7 +30,7 @@ var issuerTermRe = regexp.MustCompile(
 // Lowercase-only variants matched against the lowercased text to avoid
 // case-folding cost.
 var issuerContextLowerRe = regexp.MustCompile(
-	`(?:кем выдан|выдавший орган|орган выдачи|орган, выдавший|дата выдачи|выдано|выдана|выдан|выдали|выдачи|получал|получала|получил|получила|получен|получена|кем|орган)`,
+	`(?:^|[^\p{L}])(кем выдан|выдавший орган|орган выдачи|орган, выдавший|дата выдачи|выдано|выдана|выдан|выдали|выдачи|получал|получала|получил|получила|получен|получена|кем|орган)(?:[^\p{L}]|$)`,
 )
 
 var issuerStartWordLowerRe = regexp.MustCompile(
@@ -38,6 +38,23 @@ var issuerStartWordLowerRe = regexp.MustCompile(
 )
 
 var issuerGapLowerRe = regexp.MustCompile(`^(?:[^а-яёА-ЯЁ]+|клиент\s*:\s*|оператор\s*:\s*)*`)
+
+// issuerGapWordRe matches the Cyrillic words and dates-in-words that may sit
+// between a context keyword and the issuing authority value: the filler words
+// "в", "г.", "гор.", "мне", "был", "была", "паспорт", dialogue labels and full
+// dates written in words. Any other Cyrillic text in the gap is rejected. The
+// filler words are matched as whole words so "г" does not match inside "ГУ".
+var issuerGapWordRe = regexp.MustCompile(
+	`(?i)(?:в|г\.?|гор\.?|мне|был|была|паспорт)(?:[^\p{L}]|$)|клиент\s*:\s*|оператор\s*:\s*|` + dateWordsRe.String(),
+)
+
+// issuerOrganKeywordRe matches the keywords that confirm an "отделение/отдел"
+// start word is an issuing authority rather than a bank/post/medical branch.
+// Each keyword is matched as a whole word so "по" does not match inside
+// "почты" or "полиции".
+var issuerOrganKeywordRe = regexp.MustCompile(
+	`(?i)(?:^|[^\p{L}])(?:уфмс|мвд|овд|увд|омвд|умвд|милиции|полиции|россии|района|р-на|города|г\.|по|№)(?:[^\p{L}]|$)`,
+)
 
 var issuerTermLowerRe = regexp.MustCompile(
 	`(?:\n|;|\d{1,2}[./-]\d{1,2}[./-]\d{4}|\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+\d{4}|\d{1,2}\s+(?:янв|фев|мар|апр|мая|май|июн|июл|авг|сен|сент|окт|ноя|дек)\.?\s+\d{4}|код подразделения|к/п|дата выдачи|выдан|гражданство)`,
@@ -92,8 +109,8 @@ func (d *issuerDetector) DetectLower(t pii.Text) []pii.Span {
 		ctxRe, startRe, gapRe, termRe = issuerContextLowerRe, issuerStartWordLowerRe, issuerGapLowerRe, issuerTermLowerRe
 	}
 	var spans []pii.Span
-	for _, loc := range ctxRe.FindAllStringIndex(search, -1) {
-		ctxEnd := loc[1]
+	for _, loc := range ctxRe.FindAllStringSubmatchIndex(search, -1) {
+		ctxEnd := loc[3]
 		start := findIssuerStart(search, ctxEnd, startRe, gapRe)
 		if start < 0 {
 			continue
@@ -118,32 +135,62 @@ func (d *issuerDetector) DetectLower(t pii.Text) []pii.Span {
 
 // findIssuerStart returns the byte offset where the issuing authority value
 // begins, scanning forward from from for the first start word. A gap of
-// non-letter text (whitespace, digits, dates, punctuation) and dialogue labels
-// may sit between the context keyword and the value. It returns -1 when no
-// start word is found within a window of 300 runes, so the cost stays linear in
-// the number of context matches rather than quadratic in the text length.
+// non-letter text (whitespace, digits, dates, punctuation), dialogue labels,
+// filler words and dates-in-words may sit between the context keyword and the
+// value. It returns -1 when no start word is found within a window of 300
+// runes, when the gap contains other Cyrillic text, or when an "отделение/отдел"
+// start word is not followed by an organ keyword.
 func findIssuerStart(search string, from int, startRe, gapRe *regexp.Regexp) int {
 	windowEnd := runeOffsetAfter(search, from, 300)
 	pos := from
 	for pos < windowEnd {
-		if loc := gapRe.FindStringIndex(search[pos:windowEnd]); loc != nil && loc[1] > 0 {
-			pos += loc[1]
+		next := consumeIssuerGap(search, pos, windowEnd, gapRe)
+		if next > pos {
+			pos = next
 			continue
 		}
 		m := startRe.FindStringIndex(search[pos:windowEnd])
-		if m == nil {
+		if m == nil || m[0] > 0 {
+			// No start word, or a start word not at the current position means
+			// the gap contains text that is neither allowed gap content nor a
+			// start word: reject it.
 			return -1
 		}
-		if m[0] > 0 && isCyrillicLetter(search[pos+m[0]-1]) {
-			pos++
-			continue
-		}
 		start := pos + m[0]
+		if !issuerStartValid(search, start) {
+			return -1
+		}
 		// Include a leading number that is part of the issuing authority value
 		// (e.g. "16 о/м Центрального р-на" keeps the "16").
 		return issuerStartWithNumber(search, start)
 	}
 	return -1
+}
+
+// consumeIssuerGap advances pos over allowed gap content (non-letter runs,
+// dialogue labels, filler words and dates-in-words) and returns the new
+// position. It returns pos unchanged when no allowed gap content starts at pos.
+func consumeIssuerGap(search string, pos, windowEnd int, gapRe *regexp.Regexp) int {
+	if loc := gapRe.FindStringIndex(search[pos:windowEnd]); loc != nil && loc[1] > 0 {
+		return pos + loc[1]
+	}
+	if loc := issuerGapWordRe.FindStringIndex(search[pos:windowEnd]); loc != nil && loc[0] == 0 && loc[1] > 0 {
+		return pos + loc[1]
+	}
+	return pos
+}
+
+// issuerStartValid reports whether the start word at start is an acceptable
+// issuing authority. An "отделение/отдел" start word is only accepted when an
+// organ keyword (уфмс, мвд, овд, ...) appears within 40 runes ahead; otherwise
+// it is a bank/post/medical branch, not an issuing authority.
+func issuerStartValid(search string, start int) bool {
+	word := strings.ToLower(nextWord(search, start))
+	if !strings.HasPrefix(word, "отдел") {
+		return true
+	}
+	windowEnd := runeOffsetAfter(search, start, 40)
+	return issuerOrganKeywordRe.MatchString(search[start:windowEnd])
 }
 
 // issuerStartWithNumber extends start backward to include a number that
@@ -162,12 +209,6 @@ func issuerStartWithNumber(search string, start int) int {
 		return start
 	}
 	return j
-}
-
-// isCyrillicLetter reports whether b is the leading byte of a Cyrillic UTF-8
-// sequence (U+0400–U+04FF, encoded as 0xD0–0xD1).
-func isCyrillicLetter(b byte) bool {
-	return b >= 0xD0 && b <= 0xD1
 }
 
 // issuerEnd returns the byte offset where the issuer value ends, scanning from
