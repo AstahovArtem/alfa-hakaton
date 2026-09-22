@@ -82,6 +82,15 @@ func (s *Server) handleChat(w http.ResponseWriter, r *http.Request) {
 	}
 	resp.Choices[0].Message.Content = answer
 
+	// Attach masking metadata so the demo can show the three stages: what was
+	// sent to the LLM, the raw answer and the unmasked answer.
+	resp.PDN = &pdnInfo{
+		MaskedRequest: lastUserContent(maskedMessages),
+		RawAnswer:     content,
+		MaskedCount:   countFound(totalFound),
+		Unmasked:      sys.Unmask,
+	}
+
 	// Token accounting from the LLM usage when available.
 	if resp.Usage.TotalTokens > 0 {
 		s.metrics.Tokens.WithLabelValues("proxy").Add(float64(resp.Usage.TotalTokens))
@@ -188,4 +197,15 @@ func countFound(m map[string]int) int {
 		n += v
 	}
 	return n
+}
+
+// lastUserContent returns the content of the last user message, or "" when
+// there is none.
+func lastUserContent(messages []chatMessage) string {
+	for i := len(messages) - 1; i >= 0; i-- {
+		if messages[i].Role == "user" {
+			return messages[i].Content
+		}
+	}
+	return ""
 }

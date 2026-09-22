@@ -69,12 +69,38 @@ func TestChatProxyMasksAndUnmasks(t *testing.T) {
 		t.Errorf("unmasked response = %q, want %q", got, testText)
 	}
 
+	assertPDNBlock(t, cresp.PDN)
+
 	// Headers.
 	if resp.Header.Get("X-PDN-Masked-Count") == "" {
 		t.Errorf("missing X-PDN-Masked-Count header")
 	}
 	if resp.Header.Get("X-PDN-Latency-Ms") == "" {
 		t.Errorf("missing X-PDN-Latency-Ms header")
+	}
+}
+
+// assertPDNBlock verifies the pdn metadata exposes the raw masked answer and
+// the masked request alongside the unmasked content.
+func assertPDNBlock(t *testing.T, pdn *pdnInfo) {
+	t.Helper()
+	if pdn == nil {
+		t.Fatalf("missing pdn block in response")
+	}
+	if !strings.Contains(pdn.RawAnswer, "*") {
+		t.Errorf("pdn.raw_answer = %q, want masked stars", pdn.RawAnswer)
+	}
+	if pdn.RawAnswer == testText {
+		t.Errorf("pdn.raw_answer = %q, must not equal the original", pdn.RawAnswer)
+	}
+	if pdn.MaskedRequest == "" {
+		t.Errorf("pdn.masked_request is empty")
+	}
+	if pdn.MaskedCount == 0 {
+		t.Errorf("pdn.masked_count = 0, want > 0")
+	}
+	if !pdn.Unmasked {
+		t.Errorf("pdn.unmasked = false, want true for checker system")
 	}
 }
 

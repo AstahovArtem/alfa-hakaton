@@ -134,7 +134,15 @@
       <div id="mask-latency" class="latency"></div>
     </div>
     <div class="output">
-      <div class="label">Ответ LLM</div>
+      <div class="label">Отправлено в LLM</div>
+      <pre id="llm-sent"></pre>
+    </div>
+    <div class="output">
+      <div class="label">Ответ LLM как получен</div>
+      <pre id="llm-raw" class="masked"></pre>
+    </div>
+    <div class="output">
+      <div class="label">Ответ после демаскирования</div>
       <pre id="llm"></pre>
       <div id="llm-latency" class="latency"></div>
     </div>
@@ -262,8 +270,11 @@
       if (data.choices && data.choices[0] && data.choices[0].message) {
         content = data.choices[0].message.content;
       }
+      const pdn = data.pdn || {};
+      byId('llm-sent').textContent = pdn.masked_request || '';
+      byId('llm-raw').innerHTML = highlightMasked(escapeHtml(pdn.raw_answer || ''));
       byId('llm').textContent = content;
-      byId('llm-latency').textContent = `latency: ${(performance.now() - t0).toFixed(0)} ms`;
+      byId('llm-latency').textContent = `latency: ${(performance.now() - t0).toFixed(0)} ms, masked: ${pdn.masked_count || 0}`;
     } catch (e) {
       showError(String(e));
     }

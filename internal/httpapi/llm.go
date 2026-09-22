@@ -62,6 +62,14 @@ type usage struct {
 	TotalTokens      int `json:"total_tokens"`
 }
 
+// pdnInfo carries the masking metadata returned alongside the OpenAI response.
+type pdnInfo struct {
+	MaskedRequest string `json:"masked_request"`
+	RawAnswer     string `json:"raw_answer"`
+	MaskedCount   int    `json:"masked_count"`
+	Unmasked      bool   `json:"unmasked"`
+}
+
 // chatResponse is the non-streaming OpenAI response returned to the client.
 type chatResponse struct {
 	ID      string `json:"id"`
@@ -75,7 +83,8 @@ type chatResponse struct {
 			Content string `json:"content"`
 		} `json:"message"`
 	} `json:"choices"`
-	Usage usage `json:"usage"`
+	Usage usage    `json:"usage"`
+	PDN   *pdnInfo `json:"pdn"`
 }
 
 // sseChunk is one streaming chunk from the upstream.
