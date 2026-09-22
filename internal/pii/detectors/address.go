@@ -480,36 +480,47 @@ func bareStreetsAfterLocality(text string, comps []addrComponent) []addrComponen
 }
 
 func (d *addressDetector) validGroup(t pii.Text, group []addrComponent) bool {
-	hasStreet := false
-	hasHouse := false
-	hasLocality := false
-	hasOther := false
-	for _, c := range group {
-		switch c.kind {
-		case kindStreet:
-			hasStreet = true
-		case kindHouse:
-			hasHouse = true
-		case kindStreetHouse:
-			hasStreet = true
-			hasHouse = true
-		case kindLocality:
-			hasLocality = true
-		default:
-			hasOther = true
-		}
-	}
+	flags := classifyGroup(group)
 	start := group[0].start
-	if hasStreet && hasHouse {
+	if flags.street && flags.house {
 		return !d.hasException(t, start)
 	}
-	if hasLocality && (hasOther || hasStreet || hasHouse) {
+	if flags.locality && (flags.other || flags.street || flags.house) {
 		return !d.hasException(t, start)
 	}
 	if hasLeftContext(t, start, addrContext, 30) {
 		return !d.hasException(t, start)
 	}
 	return false
+}
+
+// groupFlags summarises which component kinds appear in an address group.
+type groupFlags struct {
+	street   bool
+	house    bool
+	locality bool
+	other    bool
+}
+
+// classifyGroup scans the components and records which kinds are present.
+func classifyGroup(group []addrComponent) groupFlags {
+	var f groupFlags
+	for _, c := range group {
+		switch c.kind {
+		case kindStreet:
+			f.street = true
+		case kindHouse:
+			f.house = true
+		case kindStreetHouse:
+			f.street = true
+			f.house = true
+		case kindLocality:
+			f.locality = true
+		default:
+			f.other = true
+		}
+	}
+	return f
 }
 
 func (d *addressDetector) hasException(t pii.Text, pos int) bool {

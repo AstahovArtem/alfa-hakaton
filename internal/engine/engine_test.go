@@ -307,14 +307,20 @@ func TestEngineChunkedLargeText(t *testing.T) {
 	}
 
 	// Round-trip must restore the original text.
-	restored, misses, err := e.Unmask(ctx, "big", masked)
+	assertRoundTrip(t, ctx, e, "big", masked, text)
+}
+
+// assertRoundTrip unmaskes masked and verifies it restores want with no misses.
+func assertRoundTrip(t *testing.T, ctx context.Context, e *Engine, id, masked, want string) {
+	t.Helper()
+	restored, misses, err := e.Unmask(ctx, id, masked)
 	if err != nil {
 		t.Fatalf("Unmask: %v", err)
 	}
 	if misses != 0 {
 		t.Errorf("Unmask reported %d misses", misses)
 	}
-	if restored != text {
+	if restored != want {
 		t.Errorf("round-trip failed for large text")
 	}
 }
@@ -361,10 +367,7 @@ func TestProcessStoreCallCount(t *testing.T) {
 	opt := Options{Strategy: "partial", TTL: time.Minute}
 
 	// Mask: 1 GET (miss) + 1 SET.
-	res, err := e.Process(ctx, "c1", testText, opt)
-	if err != nil {
-		t.Fatalf("Process mask: %v", err)
-	}
+	res := processOrFail(t, ctx, e, "c1", testText, opt)
 	if cs.loads.Load() != 1 || cs.saves.Load() != 1 {
 		t.Errorf("mask: loads=%d saves=%d, want 1/1", cs.loads.Load(), cs.saves.Load())
 	}
@@ -373,14 +376,21 @@ func TestProcessStoreCallCount(t *testing.T) {
 	// Unmask: 1 GET only.
 	cs.loads.Store(0)
 	cs.saves.Store(0)
-	res2, err := e.Process(ctx, "c1", masked, opt)
-	if err != nil {
-		t.Fatalf("Process unmask: %v", err)
-	}
+	res2 := processOrFail(t, ctx, e, "c1", masked, opt)
 	if !res2.Unmasked || res2.Result != testText {
 		t.Errorf("unmask result: %+v", res2)
 	}
 	if cs.loads.Load() != 1 || cs.saves.Load() != 0 {
 		t.Errorf("unmask: loads=%d saves=%d, want 1/0", cs.loads.Load(), cs.saves.Load())
 	}
+}
+
+// processOrFail runs e.Process and fails the test on error.
+func processOrFail(t *testing.T, ctx context.Context, e *Engine, id, text string, opt Options) ProcessResult {
+	t.Helper()
+	res, err := e.Process(ctx, id, text, opt)
+	if err != nil {
+		t.Fatalf("Process: %v", err)
+	}
+	return res
 }

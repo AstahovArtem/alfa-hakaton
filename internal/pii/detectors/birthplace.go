@@ -190,17 +190,24 @@ func isRegionTail(s string) bool {
 	if s == "" {
 		return false
 	}
-	first := strings.Fields(s)[0]
-	lower := strings.ToLower(first)
-	if lower == "область" || lower == "области" || lower == "обл." ||
-		lower == wordKrai || lower == "края" || lower == wordRaion ||
-		lower == "района" || lower == "республика" || lower == "республики" {
-		return true
-	}
-	// A capitalised adjective ending in -ский/-ская/-ой/-ая (e.g. "Краснодарский").
-	if strings.HasSuffix(lower, "ский") || strings.HasSuffix(lower, "ская") ||
-		strings.HasSuffix(lower, sufOy) || strings.HasSuffix(lower, "ая") {
+	lower := strings.ToLower(strings.Fields(s)[0])
+	return isRegionKeyword(lower) || isRegionAdjective(lower)
+}
+
+// isRegionKeyword reports whether lower is a region/republic keyword such as
+// "область", "край" or "республика".
+func isRegionKeyword(lower string) bool {
+	switch lower {
+	case "область", "области", "обл.", wordKrai, "края", wordRaion,
+		"района", "республика", "республики":
 		return true
 	}
 	return false
+}
+
+// isRegionAdjective reports whether lower is a capitalised adjective ending in
+// -ский/-ская/-ой/-ая (e.g. "Краснодарский").
+func isRegionAdjective(lower string) bool {
+	return strings.HasSuffix(lower, "ский") || strings.HasSuffix(lower, "ская") ||
+		strings.HasSuffix(lower, sufOy) || strings.HasSuffix(lower, "ая")
 }

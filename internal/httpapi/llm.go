@@ -118,12 +118,12 @@ func (c *LLMClient) chatCompletion(ctx context.Context, req chatRequest) (string
 
 	if resp.StatusCode >= 500 || resp.StatusCode == http.StatusTooManyRequests {
 		c.metrics.LLMDuration.Observe(time.Since(start).Seconds())
-		io.Copy(io.Discard, resp.Body)
+		_, _ = io.Copy(io.Discard, resp.Body)
 		return "", chatResponse{}, fmt.Errorf("llm status %d", resp.StatusCode)
 	}
 	if resp.StatusCode != http.StatusOK {
 		c.metrics.LLMDuration.Observe(time.Since(start).Seconds())
-		io.Copy(io.Discard, resp.Body)
+		_, _ = io.Copy(io.Discard, resp.Body)
 		return "", chatResponse{}, fmt.Errorf("llm status %d", resp.StatusCode)
 	}
 

@@ -1,0 +1,130 @@
+package main
+
+import "strings"
+
+// positiveTemplates returns the pool of positive (PII-bearing) templates.
+func (g *gen) positiveTemplates() []string {
+	return []string{
+		// Анкета
+		"ФИО: {full_name}, дата рождения {birth_date}, место рождения: {birth_place}",
+		"Анкета: {full_name}, паспорт {passport}, выдан {issuer}, код подразделения {division}",
+		"Заявитель: {full_name}, гражданство {citizenship}, адрес регистрации: {address}",
+		"Клиент {full_name}, телефон {phone}, email {email}",
+		"Паспортные данные: {full_name}, серия и номер {passport}, дата рождения {birth_date}",
+		"Регистрация: {full_name}, дата рождения {birth_date}, адрес {address}, тел. {phone}",
+		"Личные данные: {full_name}, ИНН {inn}, СНИЛС {snils}",
+		"Анкета клиента: {full_name}, дата рождения {birth_date}, место рождения: {birth_place}, гражданство {citizenship}",
+		"Данные заявителя: {full_name}, паспорт {passport}, выдан {issuer}, код подразделения {division}",
+		"Заполните анкету: ФИО {full_name}, дата рождения {birth_date}, адрес {address}",
+		// Переписка с поддержкой
+		"Здравствуйте, меня зовут {full_name}, мой номер {phone}, помогите с заказом",
+		"Подскажите, я {full_name}, мой email {email}, не могу войти в приложение",
+		"Добрый день, я {full_name}, паспорт {passport}, хочу восстановить доступ",
+		"Уважаемая поддержка, я {full_name}, мой телефон {phone}, проблема с картой {card}",
+		"Здравствуйте, я {full_name}, дата рождения {birth_date}, подтвердите личность",
+		"Помогите, пожалуйста, я {full_name}, мой ИНН {inn}",
+		"Добрый день, я {full_name}, СНИЛС {snils}, не могу получить выплату",
+		"Здравствуйте, я {full_name}, адрес {address}, жду доставку",
+		"Я {full_name}, мой номер {phone}, карта {card}, CVV {cvv}",
+		"Поддержка, я {full_name}, email {email}, телефон {phone}",
+		// Заявление
+		"Заявление от {full_name_gen}, паспорт {passport}, выдан {issuer}",
+		"Прошу выдать справку, {full_name}, дата рождения {birth_date}",
+		"Заявление: {full_name}, адрес {address}, телефон {phone}",
+		"Прошу пересчитать, {full_name}, ИНН {inn}, СНИЛС {snils}",
+		"Заявление о выдаче: {full_name}, паспорт {passport}, код подразделения {division}",
+		"От {full_name_gen}: прошу изменить адрес на {address}",
+		"Заявление от {full_name_gen}, дата рождения {birth_date}, место рождения: {birth_place}",
+		"Прошу оформить, {full_name}, гражданство {citizenship}",
+		"Заявление: {full_name}, водительское удостоверение {driver_license}",
+		"От {full_name_gen}, паспорт {passport}, телефон {phone}",
+		// Чат с ботом
+		"Меня зовут {full_name}, мой номер {phone}",
+		"Я {full_name}, хочу узнать баланс карты {card}",
+		"Мой email {email}, имя {full_name}",
+		"Подтвердите, что вы {full_name}, дата рождения {birth_date}",
+		"Мой паспорт {passport}, я {full_name}",
+		"Я {full_name}, адрес {address}",
+		"Мой ИНН {inn}, ФИО {full_name}",
+		"Я {full_name}, СНИЛС {snils}",
+		"Мой телефон {phone}, я {full_name}",
+		"Я {full_name}, карта {card}, CVV {cvv}",
+		// Внутренняя заметка менеджера
+		"Клиент {full_name}, телефон {phone}, обратился по вопросу кредита",
+		"Заметка: {full_name}, паспорт {passport}, выдан {issuer}",
+		"Клиент {full_name}, адрес {address}, нужна проверка",
+		"Менеджер: {full_name}, email {email}, карта {card}",
+		"Клиент {full_name}, дата рождения {birth_date}, место рождения: {birth_place}",
+		"Заметка: {full_name}, ИНН {inn}, СНИЛС {snils}",
+		"Клиент {full_name}, водительское {driver_license}",
+		"Менеджер: {full_name}, загранпаспорт {foreign_passport}",
+		"Клиент {full_name}, телефон {phone}, адрес {address}",
+		"Заметка: {full_name}, паспорт {passport}, код подразделения {division}",
+		// SMS
+		"Ваш код безопасности для {full_name}: {cvv}",
+		"Уважаемый {full_name}, ваш заказ готов, телефон {phone}",
+		"Здравствуйте, {full_name}, ваша карта {card} заблокирована",
+		"Уважаемый {full_name}, подтвердите операцию по карте {card}",
+		"Ваш номер {phone} подтверждён, {full_name}",
+		"Уважаемый {full_name}, ваш email {email} изменён",
+		"Здравствуйте, {full_name}, ваш паспорт {passport} на проверке",
+		"Уважаемый {full_name}, ваша заявка принята, дата рождения {birth_date}",
+		"Ваш код безопасности: {cvv}, {full_name}",
+		"Уважаемый {full_name}, ваш адрес {address} подтверждён",
+		// Письмо
+		"Уважаемый {full_name}, ваш договор готов, телефон {phone}",
+		"Здравствуйте, {full_name}, подтвердите адрес {address}",
+		"Уважаемый {full_name}, ваша карта {card} готова к выдаче",
+		"Здравствуйте, {full_name}, ваш ИНН {inn} подтверждён",
+		"Уважаемый {full_name}, ваш СНИЛС {snils} на проверке",
+		"Здравствуйте, {full_name}, ваш паспорт {passport} готов",
+		"Уважаемый {full_name}, ваша дата рождения {birth_date} уточнена",
+		"Здравствуйте, {full_name}, ваш email {email} подтверждён",
+		"Уважаемый {full_name}, ваше водительское {driver_license} готово",
+		"Здравствуйте, {full_name}, ваш загранпаспорт {foreign_passport} готов",
+		// Держатель карты
+		"Держатель карты {card_holder}, карта {card}, CVV {cvv}",
+		"{card_holder} {card}",
+		"Имя на карте {card_holder}, номер {card}",
+		"Cardholder {card_holder}, card {card}",
+		"Держатель {card_holder}, карта {card}",
+	}
+}
+
+// negativeTemplates returns the pool of negative (trap) templates.
+func (g *gen) negativeTemplates() []string {
+	famous := g.famous[g.rng.Intn(len(g.famous))]
+	famousName := strings.Join(famous, " ")
+	return []string{
+		"поэт " + famousName + " родился в 1799 году",
+		"стихи " + famousName + " изучают в школе",
+		"отделение банка по адресу ул. Ленина, 1",
+		"филиал банка: г. Москва, ул. Тверская, д. 10",
+		"банкомат по адресу: г. Москва, ул. Ленина, д. 5",
+		"доп. офис: г. Москва, ул. Ленина, д. 5",
+		"головной офис: г. Москва, ул. Ленина, д. 5",
+		"Номер заказа 1234567890",
+		"сумма 15000 рублей",
+		"версия 1.2.3",
+		"в 14:30",
+		"в 1990 году",
+		"код 1234",
+		"число 1234567890",
+		"счёт 40817810099910004312",
+		"номер 1234567890",
+		"телефон 1234567890",
+		"дата 31.02.2020",
+		"ИНН 500100732258",
+		"карта 4111 1111 1111 1112",
+		"паспорт 0000 123456",
+		"снилс 112-233-445 96",
+		"загранпаспорт 71 123456",
+		"код 1234",
+		"дата 32.01.2020",
+		"ИНН 3664069398",
+		"улица Иванова",
+		"Москва — столица",
+		"IVAN IVANOV",
+		"держатель карты VISA MASTERCARD",
+	}
+}

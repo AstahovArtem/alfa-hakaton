@@ -189,21 +189,29 @@ func date(match string) bool {
 	}
 
 	// Numeric form: split on separators.
+	a, b, c, ok := numericParts(s)
+	if !ok {
+		return false
+	}
+	// Try all interpretations where one part is a plausible year (1900-2100).
+	return validYMD(a, b, c) || validYMD(c, a, b) || validYMD(c, b, a) || validYMD(a, c, b)
+}
+
+// numericParts splits a numeric date on separators and parses the three parts.
+func numericParts(s string) (a, b, c int, ok bool) {
 	parts := strings.FieldsFunc(s, func(r rune) bool {
 		return r == '.' || r == '/' || r == '-'
 	})
 	if len(parts) != 3 {
-		return false
+		return 0, 0, 0, false
 	}
 	a, err1 := strconv.Atoi(parts[0])
 	b, err2 := strconv.Atoi(parts[1])
 	c, err3 := strconv.Atoi(parts[2])
 	if err1 != nil || err2 != nil || err3 != nil {
-		return false
+		return 0, 0, 0, false
 	}
-
-	// Try all interpretations where one part is a plausible year (1900-2100).
-	return validYMD(a, b, c) || validYMD(c, a, b) || validYMD(c, b, a) || validYMD(a, c, b)
+	return a, b, c, true
 }
 
 // wordDate validates a "day month year" word-form date match.

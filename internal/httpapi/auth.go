@@ -12,6 +12,7 @@ import (
 const systemHeader = "X-System-Id"
 
 // apiKeyHeader is the header carrying the system API key.
+// #nosec G101 -- header name constant, not a credential value.
 const apiKeyHeader = "X-API-Key"
 
 // authResult is the outcome of identifying a system.

@@ -105,6 +105,7 @@ var validCategories = map[pii.Category]bool{
 
 // Load reads and validates the config from path.
 func Load(path string) (*Config, error) {
+	// #nosec G304 -- path is operator-controlled (CLI flag/env), not user input.
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("config: read %s: %w", path, err)

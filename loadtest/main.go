@@ -16,6 +16,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -259,7 +260,7 @@ func (c *counters) record(s sample) {
 
 // loadDataset reads the jsonl file into items.
 func loadDataset(path string) ([]datasetItem, error) {
-	f, err := os.Open(path)
+	f, err := os.Open(safePath(path))
 	if err != nil {
 		return nil, err
 	}
@@ -279,6 +280,16 @@ func loadDataset(path string) ([]datasetItem, error) {
 		items = append(items, it)
 	}
 	return items, sc.Err()
+}
+
+// safePath cleans path and rejects any traversal outside the working directory.
+func safePath(path string) string {
+	clean := filepath.Clean(path)
+	if clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+		fmt.Fprintf(os.Stderr, "loadtest: unsafe path: %s\n", path)
+		os.Exit(1)
+	}
+	return clean
 }
 
 // report prints the summary to stdout and writes the report to the given path
@@ -332,7 +343,7 @@ func report(c *counters, targetRPS int, duration time.Duration, url, dataset str
 	if path == "" {
 		path = fmt.Sprintf("./loadtest-report-%s.md", ts)
 	}
-	if err := os.WriteFile(path, []byte(b.String()), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(b.String()), 0o600); err != nil {
 		fmt.Fprintf(os.Stderr, "loadtest: write report: %v\n", err)
 		return
 	}

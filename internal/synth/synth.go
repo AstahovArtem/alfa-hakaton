@@ -356,7 +356,7 @@ func luhnCheckDigit(d string) byte {
 // masking strategy).
 func HashEmail(value string) string {
 	h := fnv.New64a()
-	h.Write([]byte(value))
+	_, _ = h.Write([]byte(value))
 	hash := h.Sum64()
 	const hexdigits = "0123456789abcdef"
 	var b [6]byte
@@ -370,7 +370,11 @@ func HashEmail(value string) string {
 func randDigits(rng *rand.Rand, n int) string {
 	var b strings.Builder
 	for i := 0; i < n; i++ {
-		b.WriteByte(byte('0' + rng.Intn(10)))
+		d := rng.Intn(10)
+		if d < 0 || d > 9 {
+			d = 0
+		}
+		b.WriteByte(byte('0' + d))
 	}
 	return b.String()
 }

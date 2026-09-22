@@ -3,6 +3,7 @@ package mask
 import (
 	"embed"
 	"hash/fnv"
+	"math"
 	// math/rand: deterministic fake values seeded by the input, not used for security.
 	"math/rand"
 	"strings"
@@ -149,40 +150,49 @@ func (s *syntheticStrategy) Mask(value string, cat pii.Category, doc *DocState) 
 	}
 	s.load()
 	rng := newSeeded(cat, value)
-	var out string
-	switch cat {
-	case pii.CatFullName:
-		out = s.synthName(value, rng)
-	case pii.CatPhone:
-		out = synthPhone(value, rng)
-	case pii.CatCardNumber:
-		out = synthCard(value, rng)
-	case pii.CatINN:
-		out = synthINN(value, rng)
-	case pii.CatSNILS:
-		out = synthSNILS(value, rng)
-	case pii.CatPassport:
-		out = synthPassport(value, rng)
-	case pii.CatDate, pii.CatBirthDate, pii.CatPassportDate:
-		out = synthDate(value, rng)
-	case pii.CatEmail:
-		out = synthEmail(value, rng)
-	default:
-		out = tokenFallback(value, cat, doc)
-	}
+	out := s.synthFor(value, cat, rng, doc)
 	if doc != nil {
 		doc.Remember(value, out)
 	}
 	return out
 }
 
+// synthFor dispatches to the synthetic generator for cat.
+func (s *syntheticStrategy) synthFor(value string, cat pii.Category, rng *rand.Rand, doc *DocState) string {
+	switch cat {
+	case pii.CatFullName:
+		return s.synthName(value, rng)
+	case pii.CatPhone:
+		return synthPhone(value, rng)
+	case pii.CatCardNumber:
+		return synthCard(value, rng)
+	case pii.CatINN:
+		return synthINN(value, rng)
+	case pii.CatSNILS:
+		return synthSNILS(value, rng)
+	case pii.CatPassport:
+		return synthPassport(value, rng)
+	case pii.CatDate, pii.CatBirthDate, pii.CatPassportDate:
+		return synthDate(value, rng)
+	case pii.CatEmail:
+		return synthEmail(value, rng)
+	default:
+		return tokenFallback(value, cat, doc)
+	}
+}
+
 // newSeeded returns a deterministic RNG seeded from category+value.
 func newSeeded(cat pii.Category, value string) *rand.Rand {
 	h := fnv.New64a()
-	h.Write([]byte(string(cat)))
-	h.Write([]byte{0})
-	h.Write([]byte(value))
-	return rand.New(rand.NewSource(int64(h.Sum64())))
+	_, _ = h.Write([]byte(string(cat)))
+	_, _ = h.Write([]byte{0})
+	_, _ = h.Write([]byte(value))
+	sum := h.Sum64()
+	if sum > math.MaxInt64 {
+		sum = math.MaxInt64
+	}
+	// #nosec G404 -- deterministic fake values seeded by input, not security
+	return rand.New(rand.NewSource(int64(sum)))
 }
 
 // tokenFallback produces a [CATEGORY_N] token for categories without a
