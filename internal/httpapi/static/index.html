@@ -151,123 +151,155 @@
 </div>
 
 <script>
-const $ = (id) => document.getElementById(id);
-let currentId = null;
+(function () {
+  "use strict";
 
-async function loadSystems() {
-  const res = await fetch('/healthz');
-  const data = await res.json();
-  // The demo page does not know the system list from the API; use a fixed set.
-  const systems = ['checker', 'demo', 'chatbot', 'legacy_crm'];
-  const sel = $('system');
-  systems.forEach((s) => {
-    const opt = document.createElement('option');
-    opt.value = s;
-    opt.textContent = s;
-    sel.appendChild(opt);
-  });
-  const saved = localStorage.getItem('pdn_system');
-  if (saved) sel.value = saved;
-  const key = localStorage.getItem('pdn_key');
-  if (key) $('apikey').value = key;
-}
+  const byId = (id) => document.getElementById(id);
+  let currentId = null;
 
-function headers() {
-  const sys = $('system').value;
-  const key = $('apikey').value;
-  localStorage.setItem('pdn_system', sys);
-  localStorage.setItem('pdn_key', key);
-  const h = { 'Content-Type': 'application/json', 'X-System-Id': sys };
-  if (key) h['X-API-Key'] = key;
-  return h;
-}
-
-function strategyBody() {
-  const s = $('strategy').value;
-  return s ? { strategy: s } : {};
-}
-
-function showError(msg) {
-  $('error').textContent = msg || '';
-}
-
-function renderBadges(found) {
-  const box = $('badges');
-  box.innerHTML = '';
-  for (const [cat, n] of Object.entries(found || {})) {
-    const b = document.createElement('span');
-    b.className = 'badge';
-    b.textContent = cat + ': ' + n;
-    box.appendChild(b);
+  async function loadSystems() {
+    await fetch('/healthz');
+    // The demo page does not know the system list from the API; use a fixed set.
+    const systems = ['checker', 'demo', 'chatbot', 'legacy_crm'];
+    const sel = byId('system');
+    for (const s of systems) {
+      const opt = document.createElement('option');
+      opt.value = s;
+      opt.textContent = s;
+      sel.appendChild(opt);
+    }
+    const saved = localStorage.getItem('pdn_system');
+    if (saved) {
+      sel.value = saved;
+    }
+    const key = localStorage.getItem('pdn_key');
+    if (key) {
+      byId('apikey').value = key;
+    }
   }
-}
 
-function highlightMasked(text) {
-  // Highlight [CATEGORY_N] tokens and partial masks.
-  return text.replace(/\[[A-Z_0-9]+\]/g, (m) => '<mark>' + m + '</mark>');
-}
+  function headers() {
+    const sys = byId('system').value;
+    const key = byId('apikey').value;
+    localStorage.setItem('pdn_system', sys);
+    localStorage.setItem('pdn_key', key);
+    const h = { 'Content-Type': 'application/json', 'X-System-Id': sys };
+    if (key) {
+      h['X-API-Key'] = key;
+    }
+    return h;
+  }
 
-$('btn-mask').addEventListener('click', async () => {
-  showError('');
-  const t0 = performance.now();
-  try {
-    const res = await fetch('/mask', {
-      method: 'POST',
-      headers: headers(),
-      body: JSON.stringify(Object.assign({ text: $('text').value }, strategyBody())),
-    });
-    const data = await res.json();
-    if (!res.ok) { showError(data.error || 'mask failed'); return; }
-    currentId = data.id;
-    renderBadges(data.found);
-    $('masked').innerHTML = highlightMasked(escapeHtml(data.masked));
-    $('mask-latency').textContent = 'latency: ' + data.latency_ms + ' ms, strategy: ' + (data.strategy || 'partial');
-  } catch (e) { showError(String(e)); }
-});
+  function strategyBody() {
+    const s = byId('strategy').value;
+    if (s) {
+      return { strategy: s };
+    }
+    return {};
+  }
 
-$('btn-llm').addEventListener('click', async () => {
-  showError('');
-  const t0 = performance.now();
-  try {
-    const res = await fetch('/v1/chat/completions', {
-      method: 'POST',
-      headers: headers(),
-      body: JSON.stringify(Object.assign({
-        model: 'deepseek-ai/DeepSeek-V4-Flash-0731',
-        messages: [{ role: 'user', content: $('text').value }],
-      }, strategyBody())),
-    });
-    const data = await res.json();
-    if (!res.ok) { showError(data.error || 'llm failed'); return; }
-    const content = data.choices && data.choices[0] && data.choices[0].message
-      ? data.choices[0].message.content : '';
-    $('llm').textContent = content;
-    $('llm-latency').textContent = 'latency: ' + (performance.now() - t0).toFixed(0) + ' ms';
-  } catch (e) { showError(String(e)); }
-});
+  function showError(msg) {
+    byId('error').textContent = msg || '';
+  }
 
-$('btn-unmask').addEventListener('click', async () => {
-  showError('');
-  if (!currentId) { showError('Сначала выполните маскирование'); return; }
-  const t0 = performance.now();
-  try {
-    const res = await fetch('/unmask', {
-      method: 'POST',
-      headers: headers(),
-      body: JSON.stringify({ id: currentId, text: $('masked').textContent }),
-    });
-    const data = await res.json();
-    if (!res.ok) { showError(data.error || 'unmask failed'); return; }
-    $('unmasked').textContent = data.text;
-    $('unmask-latency').textContent = 'latency: ' + (performance.now() - t0).toFixed(0) + ' ms, misses: ' + data.misses;
-  } catch (e) { showError(String(e)); }
-});
+  function renderBadges(found) {
+    const box = byId('badges');
+    box.innerHTML = '';
+    for (const [cat, n] of Object.entries(found || {})) {
+      const b = document.createElement('span');
+      b.className = 'badge';
+      b.textContent = `${cat}: ${n}`;
+      box.appendChild(b);
+    }
+  }
 
-function escapeHtml(s) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
+  function highlightMasked(text) {
+    // Highlight [CATEGORY_N] tokens and partial masks.
+    return text.replace(/\[[A-Z_0-9]+\]/g, (m) => `<mark>${m}</mark>`);
+  }
 
-loadSystems();
+  byId('btn-mask').addEventListener('click', async () => {
+    showError('');
+    try {
+      const res = await fetch('/mask', {
+        method: 'POST',
+        headers: headers(),
+        body: JSON.stringify({ text: byId('text').value, ...strategyBody() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showError(data.error || 'mask failed');
+        return;
+      }
+      currentId = data.id;
+      renderBadges(data.found);
+      byId('masked').innerHTML = highlightMasked(escapeHtml(data.masked));
+      byId('mask-latency').textContent = `latency: ${data.latency_ms} ms, strategy: ${data.strategy || 'partial'}`;
+    } catch (e) {
+      showError(String(e));
+    }
+  });
+
+  byId('btn-llm').addEventListener('click', async () => {
+    showError('');
+    const t0 = performance.now();
+    try {
+      const res = await fetch('/v1/chat/completions', {
+        method: 'POST',
+        headers: headers(),
+        body: JSON.stringify({
+          model: 'deepseek-ai/DeepSeek-V4-Flash-0731',
+          messages: [{ role: 'user', content: byId('text').value }],
+          ...strategyBody(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showError(data.error || 'llm failed');
+        return;
+      }
+      let content = '';
+      if (data.choices && data.choices[0] && data.choices[0].message) {
+        content = data.choices[0].message.content;
+      }
+      byId('llm').textContent = content;
+      byId('llm-latency').textContent = `latency: ${(performance.now() - t0).toFixed(0)} ms`;
+    } catch (e) {
+      showError(String(e));
+    }
+  });
+
+  byId('btn-unmask').addEventListener('click', async () => {
+    showError('');
+    if (!currentId) {
+      showError('Сначала выполните маскирование');
+      return;
+    }
+    const t0 = performance.now();
+    try {
+      const res = await fetch('/unmask', {
+        method: 'POST',
+        headers: headers(),
+        body: JSON.stringify({ id: currentId, text: byId('masked').textContent }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showError(data.error || 'unmask failed');
+        return;
+      }
+      byId('unmasked').textContent = data.text;
+      byId('unmask-latency').textContent = `latency: ${(performance.now() - t0).toFixed(0)} ms, misses: ${data.misses}`;
+    } catch (e) {
+      showError(String(e));
+    }
+  });
+
+  function escapeHtml(s) {
+    return s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+  }
+
+  loadSystems();
+})();
 </script>
 </body>
 </html>

@@ -117,9 +117,7 @@ func (d *namesDetector) detectForeignNames(t pii.Text, nt []nameToken, covered [
 		}
 		j := foreignNameRunEnd(text, nt, covered, i)
 		runLen := j - i + 1
-		if runLen >= 2 && runLen <= 4 &&
-			hasLeftContext(t, nt[i].start, foreignNameContext, 40) &&
-			endsPhrase(text, nt[j].end) {
+		if validForeignRun(t, nt, i, j, runLen) {
 			spans = append(
 				spans,
 				pii.Span{
@@ -145,12 +143,36 @@ func (d *namesDetector) detectForeignNames(t pii.Text, nt []nameToken, covered [
 // foreign-name candidates starting at i.
 func foreignNameRunEnd(text string, nt []nameToken, covered []bool, i int) int {
 	j := i
-	for j+1 < len(nt) && !covered[j+1] && isForeignNameCandidate(nt[j+1]) &&
-		onlyWhitespace(text, nt[j].end, nt[j+1].start) &&
-		!strings.Contains(text[nt[j].end:nt[j+1].start], "\n") {
+	for foreignRunContinues(text, nt, covered, j) {
 		j++
 	}
 	return j
+}
+
+// foreignRunContinues reports whether the token after j continues the current
+// foreign-name run: it is an uncovered foreign-name candidate separated by
+// whitespace on the same line.
+func foreignRunContinues(text string, nt []nameToken, covered []bool, j int) bool {
+	if j+1 >= len(nt) || covered[j+1] || !isForeignNameCandidate(nt[j+1]) {
+		return false
+	}
+	if !onlyWhitespace(text, nt[j].end, nt[j+1].start) {
+		return false
+	}
+	return !strings.Contains(text[nt[j].end:nt[j+1].start], "\n")
+}
+
+// validForeignRun reports whether a run of foreign-name candidates from i to j
+// (inclusive) forms a plausible full name: 2-4 tokens, a name context keyword
+// to the left, and the run ending a phrase.
+func validForeignRun(t pii.Text, nt []nameToken, i, j, runLen int) bool {
+	if runLen < 2 || runLen > 4 {
+		return false
+	}
+	if !hasLeftContext(t, nt[i].start, foreignNameContext, 40) {
+		return false
+	}
+	return endsPhrase(t.Raw, nt[j].end)
 }
 
 // isForeignNameCandidate reports whether a token could be part of a foreign

@@ -117,6 +117,11 @@ func (t nameToken) isNameOrSurname() bool {
 	return t.isName || t.isSurname || t.isSurnameGuess
 }
 
+// isSurnameLike reports whether the token is a surname or a surname guess.
+func (t nameToken) isSurnameLike() bool {
+	return t.isSurname || t.isSurnameGuess
+}
+
 // nameMatchCtx bundles the shared state passed between name-matching helpers.
 type nameMatchCtx struct {
 	text    string

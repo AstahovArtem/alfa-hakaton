@@ -105,19 +105,25 @@ func (s *partialStrategy) Mask(value string, cat pii.Category, doc *DocState) st
 	case "words":
 		out = maskWords(value, r.Char)
 	default:
-		head, tail := 0, 0
-		if r.KeepHead != nil {
-			head = *r.KeepHead
-		}
-		if r.KeepTail != nil {
-			tail = *r.KeepTail
-		}
-		out = maskDigits(value, head, tail, r.Char)
+		out = maskDigitsByRule(value, r)
 	}
 	if doc != nil {
 		doc.Remember(value, out)
 	}
 	return out
+}
+
+// maskDigitsByRule masks the digits of value using the keep-head/keep-tail
+// counts from the rule.
+func maskDigitsByRule(value string, r partialRule) string {
+	head, tail := 0, 0
+	if r.KeepHead != nil {
+		head = *r.KeepHead
+	}
+	if r.KeepTail != nil {
+		tail = *r.KeepTail
+	}
+	return maskDigits(value, head, tail, r.Char)
 }
 
 // maskDigits replaces digits with char except the first keepHead and last

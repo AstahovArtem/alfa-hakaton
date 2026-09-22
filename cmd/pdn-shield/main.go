@@ -120,25 +120,35 @@ func loadEncryptionKey(cfg *config.Config, logger *slog.Logger) []byte {
 func newStore(cfg *config.Config, key []byte, logger *slog.Logger) (store.Store, func()) {
 	switch cfg.Store.Kind {
 	case storeRedis:
-		password := os.Getenv("PDN_REDIS_PASSWORD")
-		rs, err := store.NewRedisWithOptions(cfg.Store.RedisAddr, password, key, store.Options{
-			PoolSize: cfg.Store.RedisPool,
-			Wait:     cfg.Store.RedisWait,
-			Timeout:  cfg.Store.RedisTimeout,
-		})
-		if err != nil {
-			logger.Error("redis store init failed", logErr, err)
-			os.Exit(1)
-		}
-		return rs, rs.Close
+		return newRedisStore(cfg, key, logger)
 	default:
-		ms, err := store.NewMemory(key)
-		if err != nil {
-			logger.Error("memory store init failed", logErr, err)
-			os.Exit(1)
-		}
-		return ms, ms.Close
+		return newMemoryStore(key, logger)
 	}
+}
+
+// newRedisStore builds a Redis-backed store, exiting on failure.
+func newRedisStore(cfg *config.Config, key []byte, logger *slog.Logger) (store.Store, func()) {
+	password := os.Getenv("PDN_REDIS_PASSWORD")
+	rs, err := store.NewRedisWithOptions(cfg.Store.RedisAddr, password, key, store.Options{
+		PoolSize: cfg.Store.RedisPool,
+		Wait:     cfg.Store.RedisWait,
+		Timeout:  cfg.Store.RedisTimeout,
+	})
+	if err != nil {
+		logger.Error("redis store init failed", logErr, err)
+		os.Exit(1)
+	}
+	return rs, rs.Close
+}
+
+// newMemoryStore builds an in-memory store, exiting on failure.
+func newMemoryStore(key []byte, logger *slog.Logger) (store.Store, func()) {
+	ms, err := store.NewMemory(key)
+	if err != nil {
+		logger.Error("memory store init failed", logErr, err)
+		os.Exit(1)
+	}
+	return ms, ms.Close
 }
 
 // newHTTPServer builds the HTTP server from the config and handler.

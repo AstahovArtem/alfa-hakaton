@@ -591,6 +591,7 @@ func trimStreetMarker(text string, start, end int) int {
 			cut--
 		}
 		return cut
+	default:
+		return end
 	}
-	return end
 }

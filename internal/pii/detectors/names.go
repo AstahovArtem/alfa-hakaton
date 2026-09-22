@@ -197,7 +197,7 @@ func (d *namesDetector) turkicPatronymic(
 	covered []bool,
 	spans *[]pii.Span,
 ) (bool, int) {
-	if i+1 >= len(cands) || !(nt[cands[i]].isSurname || nt[cands[i]].isSurnameGuess) || !nt[cands[i+1]].isPatrMarker {
+	if i+1 >= len(cands) || !isSurnamePatrMarkerPair(nt, cands, i) {
 		return false, 0
 	}
 	mid1, mid2, ok := twoNameGap(nt, cands[i], cands[i+1])
@@ -230,9 +230,7 @@ func (d *namesDetector) threeTokenName(
 	covered []bool,
 	spans *[]pii.Span,
 ) (bool, int) {
-	if i+2 >= len(cands) ||
-		!onlyWhitespace(text, nt[cands[i]].end, nt[cands[i+1]].start) ||
-		!onlyWhitespace(text, nt[cands[i+1]].end, nt[cands[i+2]].start) {
+	if !threeWhitespaceSeparated(text, nt, cands, i) {
 		return false, 0
 	}
 	seq := []nameToken{nt[cands[i]], nt[cands[i+1]], nt[cands[i+2]]}
@@ -241,10 +239,8 @@ func (d *namesDetector) threeTokenName(
 		return false, 0
 	}
 	start := seq[0].start
-	if i > 0 && (nt[cands[i-1]].isSurname || nt[cands[i-1]].isSurnameGuess) &&
-		hasOpenParen(text, nt[cands[i-1]].end, nt[cands[i]].start) &&
-		hasCloseParen(text, nt[cands[i]].end, nt[cands[i+1]].start) {
-		start = nt[cands[i-1]].start
+	if extStart, ok := maidenSurnameStart(text, nt, cands, i, nt[cands[i+1]].start, start); ok {
+		start = extStart
 		covered[cands[i-1]] = true
 	}
 	*spans = append(
@@ -284,6 +280,54 @@ func (d *namesDetector) twoTokenName(
 	return true, 2
 }
 
+// threeWhitespaceSeparated reports whether the three candidate tokens at
+// cands[i], cands[i+1] and cands[i+2] exist and are separated only by
+// whitespace.
+func threeWhitespaceSeparated(text string, nt []nameToken, cands []int, i int) bool {
+	if i+2 >= len(cands) {
+		return false
+	}
+	if !onlyWhitespace(text, nt[cands[i]].end, nt[cands[i+1]].start) {
+		return false
+	}
+	return onlyWhitespace(text, nt[cands[i+1]].end, nt[cands[i+2]].start)
+}
+
+// maidenSurnameStart returns the start of a maiden surname in parentheses that
+// precedes the sequence at cands[i], and whether the preceding surname token
+// should be marked covered. When no maiden surname is present it returns
+// seqStart and false.
+func maidenSurnameStart(text string, nt []nameToken, cands []int, i int, endPos, seqStart int) (int, bool) {
+	if i == 0 || !nt[cands[i-1]].isSurnameLike() {
+		return seqStart, false
+	}
+	if !hasOpenParen(text, nt[cands[i-1]].end, nt[cands[i]].start) {
+		return seqStart, false
+	}
+	if !hasCloseParen(text, nt[cands[i]].end, endPos) {
+		return seqStart, false
+	}
+	return nt[cands[i-1]].start, true
+}
+
+// isSurnamePatrMarkerPair reports whether cands[i] is a surname-like token and
+// cands[i+1] is a patronymic marker.
+func isSurnamePatrMarkerPair(nt []nameToken, cands []int, i int) bool {
+	return nt[cands[i]].isSurnameLike() && nt[cands[i+1]].isPatrMarker
+}
+
+// isSurnamePatrPair reports whether cands[i] is a surname-like token and
+// cands[i+1] is a patronymic.
+func isSurnamePatrPair(nt []nameToken, cands []int, i int) bool {
+	return nt[cands[i]].isSurnameLike() && nt[cands[i+1]].isPatr
+}
+
+// isPatrSurnamePair reports whether cands[i] is a patronymic and cands[i+1] is
+// a surname-like token.
+func isPatrSurnamePair(nt []nameToken, cands []int, i int) bool {
+	return nt[cands[i]].isPatr && nt[cands[i+1]].isSurnameLike()
+}
+
 // surnameGapName handles a surname + unknown given name + patronymic sequence,
 // where the patronymic makes the sequence unambiguous even when the given name
 // is not in the dictionary.
@@ -296,7 +340,7 @@ func (d *namesDetector) surnameGapName(
 	covered []bool,
 	spans *[]pii.Span,
 ) (bool, int) {
-	if i+1 >= len(cands) || !(nt[cands[i]].isSurname || nt[cands[i]].isSurnameGuess) || !nt[cands[i+1]].isPatr {
+	if i+1 >= len(cands) || !isSurnamePatrPair(nt, cands, i) {
 		return false, 0
 	}
 	ctx := nameMatchCtx{text: text, nt: nt, cands: cands, t: t, covered: covered, spans: spans}
@@ -318,10 +362,8 @@ func (d *namesDetector) emitGapName(ctx nameMatchCtx, i, mid int, conf float64) 
 		return false, 0
 	}
 	start := seq[0].start
-	if i > 0 && (nt[cands[i-1]].isSurname || nt[cands[i-1]].isSurnameGuess) &&
-		hasOpenParen(ctx.text, nt[cands[i-1]].end, nt[cands[i]].start) &&
-		hasCloseParen(ctx.text, nt[cands[i]].end, nt[mid].start) {
-		start = nt[cands[i-1]].start
+	if extStart, ok := maidenSurnameStart(ctx.text, nt, cands, i, nt[mid].start, start); ok {
+		start = extStart
 		covered[cands[i-1]] = true
 	}
 	*spans = append(
@@ -345,7 +387,7 @@ func (d *namesDetector) patrSurnameName(
 	covered []bool,
 	spans *[]pii.Span,
 ) (bool, int) {
-	if i+1 >= len(cands) || !nt[cands[i]].isPatr || !(nt[cands[i+1]].isSurname || nt[cands[i+1]].isSurnameGuess) {
+	if i+1 >= len(cands) || !isPatrSurnamePair(nt, cands, i) {
 		return false, 0
 	}
 	mid, ok := unknownNameBefore(nt, cands[i])
@@ -401,7 +443,7 @@ func (d *namesDetector) validSeq3(seq []nameToken, t pii.Text) (bool, float64) {
 }
 
 func (d *namesDetector) seq3SurnameNamePatr(seq []nameToken) (bool, float64) {
-	if (seq[0].isSurname || seq[0].isSurnameGuess) && seq[1].isName && seq[2].isPatr {
+	if seq[0].isSurnameLike() && seq[1].isName && seq[2].isPatr {
 		if d.hasDictOrPatr(seq) {
 			return true, 0.95
 		}
@@ -410,7 +452,7 @@ func (d *namesDetector) seq3SurnameNamePatr(seq []nameToken) (bool, float64) {
 }
 
 func (d *namesDetector) seq3NamePatrSurname(seq []nameToken) (bool, float64) {
-	if seq[0].isName && seq[1].isPatr && (seq[2].isSurname || seq[2].isSurnameGuess) {
+	if seq[0].isName && seq[1].isPatr && seq[2].isSurnameLike() {
 		if d.hasDictOrPatr(seq) {
 			return true, 0.95
 		}
@@ -419,7 +461,7 @@ func (d *namesDetector) seq3NamePatrSurname(seq []nameToken) (bool, float64) {
 }
 
 func (d *namesDetector) seq3SurnameInitials(seq []nameToken) (bool, float64) {
-	if (seq[0].isSurname || seq[0].isSurnameGuess) && seq[1].isInitial && seq[2].isInitial {
+	if seq[0].isSurnameLike() && seq[1].isInitial && seq[2].isInitial {
 		if d.hasDictOrPatr(seq) {
 			return true, 0.95
 		}
@@ -437,7 +479,7 @@ func (d *namesDetector) seq3NameInitials(seq []nameToken) (bool, float64) {
 }
 
 func (d *namesDetector) seq3InitialsSurname(seq []nameToken) (bool, float64) {
-	if seq[0].isInitial && seq[1].isInitial && (seq[2].isSurname || seq[2].isSurnameGuess) {
+	if seq[0].isInitial && seq[1].isInitial && seq[2].isSurnameLike() {
 		if d.hasDictOrPatr(seq) {
 			return true, 0.95
 		}
@@ -458,19 +500,21 @@ func (d *namesDetector) validSeq2(seq []nameToken, t pii.Text) (bool, float64) {
 
 // seq2NameSurname reports whether the sequence is "name surname".
 func (d *namesDetector) seq2NameSurname(seq []nameToken) bool {
-	return seq[0].isName && (seq[1].isSurname || seq[1].isSurnameGuess) && d.hasDictOrPatr(seq)
+	return seq[0].isName && seq[1].isSurnameLike() && d.hasDictOrPatr(seq)
 }
 
 // seq2SurnameName reports whether the sequence is "surname name".
 func (d *namesDetector) seq2SurnameName(seq []nameToken) bool {
-	return (seq[0].isSurname || seq[0].isSurnameGuess) && seq[1].isName && d.hasDictOrPatr(seq)
+	return seq[0].isSurnameLike() && seq[1].isName && d.hasDictOrPatr(seq)
 }
 
 // seq2NamePatr reports whether the sequence is "name patronymic" with a name
 // context keyword to the left.
 func (d *namesDetector) seq2NamePatr(seq []nameToken, t pii.Text) bool {
-	return seq[0].isName && seq[1].isPatr && d.hasDictOrPatr(seq) &&
-		hasLeftContext(t, seq[0].start, nameContext, 30)
+	if !seq[0].isName || !seq[1].isPatr || !d.hasDictOrPatr(seq) {
+		return false
+	}
+	return hasLeftContext(t, seq[0].start, nameContext, 30)
 }
 
 func (d *namesDetector) hasDictOrPatr(seq []nameToken) bool {
