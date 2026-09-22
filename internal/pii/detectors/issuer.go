@@ -148,44 +148,8 @@ func issuerEnd(raw, text string, start int, termRe *regexp.Regexp) int {
 			end = pos
 		}
 	}
-	// Sentence-ending periods (not abbreviations).
-	for i := start; i < len(text); i++ {
-		if text[i] != '.' {
-			continue
-		}
-		if isAbbrevPeriod(text, i) {
-			continue
-		}
-		// A period ends the value if followed by whitespace+capital or end.
-		if i+1 == len(text) || (text[i+1] == ' ' && i+2 < len(text) && isUpperRune(decodedRune(raw, i+2))) {
-			if i < end {
-				end = i
-			}
-		}
-	}
-	// A comma ends the value when the following word is not a continuation of
-	// the issuing authority (e.g. "..., копия страницы приложена к делу").
-	for i := start; i < len(text); i++ {
-		if text[i] != ',' {
-			continue
-		}
-		next := nextWord(text, i+1)
-		if next == "" {
-			continue
-		}
-		lower := strings.ToLower(next)
-		if issuerAlwaysEnd[lower] {
-			if i < end {
-				end = i
-			}
-			continue
-		}
-		if !issuerContinuations[lower] {
-			if i < end {
-				end = i
-			}
-		}
-	}
+	end = issuerEndAtPeriod(raw, text, start, end)
+	end = issuerEndAtComma(text, start, end)
 	// Cap at 16 words.
 	words := strings.Fields(text[start:end])
 	if len(words) > 16 {
@@ -196,6 +160,46 @@ func issuerEnd(raw, text string, start int, termRe *regexp.Regexp) int {
 		}
 		if cut < end {
 			end = cut
+		}
+	}
+	return end
+}
+
+// issuerEndAtPeriod trims the value at a sentence-ending period (not an
+// abbreviation) followed by whitespace+capital or the end of the text.
+func issuerEndAtPeriod(raw, text string, start, end int) int {
+	for i := start; i < len(text); i++ {
+		if text[i] != '.' {
+			continue
+		}
+		if isAbbrevPeriod(text, i) {
+			continue
+		}
+		if i+1 == len(text) || (text[i+1] == ' ' && i+2 < len(text) && isUpperRune(decodedRune(raw, i+2))) {
+			if i < end {
+				end = i
+			}
+		}
+	}
+	return end
+}
+
+// issuerEndAtComma trims the value at a comma when the following word is not a
+// continuation of the issuing authority.
+func issuerEndAtComma(text string, start, end int) int {
+	for i := start; i < len(text); i++ {
+		if text[i] != ',' {
+			continue
+		}
+		next := nextWord(text, i+1)
+		if next == "" {
+			continue
+		}
+		lower := strings.ToLower(next)
+		if issuerAlwaysEnd[lower] || !issuerContinuations[lower] {
+			if i < end {
+				end = i
+			}
 		}
 	}
 	return end
@@ -223,8 +227,4 @@ func nextWord(text string, pos int) string {
 		pos++
 	}
 	return text[start:pos]
-}
-
-func isUpperRune(r rune) bool {
-	return (r >= 'A' && r <= 'Z') || (r >= 'А' && r <= 'Я') || r == 'Ё'
 }

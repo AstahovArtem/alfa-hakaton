@@ -25,7 +25,7 @@ systems:                         # allowlist систем-потребителе
     enabled: true
     api_key: ""                  # пусто = не требуется
     categories: []               # пусто = все
-    strategy: partial
+    strategy: full
     unmask: true
     combo_rules: []
   - id: demo
@@ -33,6 +33,7 @@ systems:                         # allowlist систем-потребителе
     api_key_env: PDN_DEMO_KEY
     categories: []
     strategy: partial
+    allow_strategy_override: true
     unmask: true
   - id: chatbot
     enabled: true

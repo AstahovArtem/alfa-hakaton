@@ -59,11 +59,6 @@ func tokenize(text string) []token {
 	return toks
 }
 
-func isLetterRune(r rune) bool {
-	return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') ||
-		(r >= 'а' && r <= 'я') || (r >= 'А' && r <= 'Я') || r == 'ё' || r == 'Ё'
-}
-
 // tokenLower returns the lowercased form of a token. When the lowercased text
 // has the same byte length as the raw text, the token is sliced directly from
 // Text.Lower, avoiding a per-token strings.ToLower call.
@@ -278,126 +273,175 @@ func (d *namesDetector) DetectLower(t pii.Text) []pii.Span {
 	var spans []pii.Span
 	i := 0
 	for i < len(cands) {
-		ci := cands[i]
-		if covered[ci] {
-			i++
-			continue
-		}
-		// 4-token Turkic patronymic: surname + name + name + кызы/оглы/улы
-		// (e.g. "АБДУЛЛАЕВА СЕВИЛЬ ФАРИД КЫЗЫ"). The marker combines with the
-		// preceding given name into a single patronymic.
-		if i+1 < len(cands) && (nt[cands[i]].isSurname || nt[cands[i]].isSurnameGuess) && nt[cands[i+1]].isPatrMarker {
-			if mid1, mid2, ok := twoNameGap(nt, cands[i], cands[i+1]); ok {
-				seq := []nameToken{nt[cands[i]], nt[mid1], nt[mid2], nt[cands[i+1]]}
-				if !d.isFamous(seq) {
-					spans = append(spans, pii.Span{Start: seq[0].start, End: seq[3].end, Category: pii.CatFullName, Detector: d.Name(), Confidence: 0.95})
-					covered[cands[i]] = true
-					covered[mid1] = true
-					covered[mid2] = true
-					covered[cands[i+1]] = true
-					i += 2
-					continue
-				}
-			}
-		}
-		if i+2 < len(cands) && onlyWhitespace(text, nt[cands[i]].end, nt[cands[i+1]].start) &&
-			onlyWhitespace(text, nt[cands[i+1]].end, nt[cands[i+2]].start) {
-			seq := []nameToken{nt[cands[i]], nt[cands[i+1]], nt[cands[i+2]]}
-			if ok, conf := d.validSeq(seq, t); ok {
-				start := seq[0].start
-				// A maiden surname in parentheses may sit between the main
-				// surname and the given name, e.g. "Сафина (Ганиева) Гульнара
-				// Ильдаровна". Extend the span to include it.
-				if i > 0 && (nt[cands[i-1]].isSurname || nt[cands[i-1]].isSurnameGuess) &&
-					hasOpenParen(text, nt[cands[i-1]].end, nt[cands[i]].start) &&
-					hasCloseParen(text, nt[cands[i]].end, nt[cands[i+1]].start) {
-					start = nt[cands[i-1]].start
-					covered[cands[i-1]] = true
-				}
-				spans = append(spans, pii.Span{Start: start, End: seq[2].end, Category: pii.CatFullName, Detector: d.Name(), Confidence: conf})
-				covered[cands[i]] = true
-				covered[cands[i+1]] = true
-				covered[cands[i+2]] = true
-				i += 3
-				continue
-			}
-		}
-		if i+1 < len(cands) && onlyWhitespace(text, nt[cands[i]].end, nt[cands[i+1]].start) {
-			seq := []nameToken{nt[cands[i]], nt[cands[i+1]]}
-			if ok, conf := d.validSeq(seq, t); ok {
-				spans = append(spans, pii.Span{Start: seq[0].start, End: seq[1].end, Category: pii.CatFullName, Detector: d.Name(), Confidence: conf})
-				covered[cands[i]] = true
-				covered[cands[i+1]] = true
-				i += 2
-				continue
-			}
-		}
-		// Surname + unknown given name + patronymic: the patronymic makes the
-		// sequence unambiguous even when the given name is not in the dictionary.
-		if i+1 < len(cands) && (nt[cands[i]].isSurname || nt[cands[i]].isSurnameGuess) && nt[cands[i+1]].isPatr {
-			if mid, ok := singleNameGap(nt, cands[i], cands[i+1]); ok {
-				seq := []nameToken{nt[cands[i]], nt[mid], nt[cands[i+1]]}
-				if !d.isFamous(seq) {
-					start := seq[0].start
-					if i > 0 && (nt[cands[i-1]].isSurname || nt[cands[i-1]].isSurnameGuess) &&
-						hasOpenParen(text, nt[cands[i-1]].end, nt[cands[i]].start) &&
-						hasCloseParen(text, nt[cands[i]].end, nt[mid].start) {
-						start = nt[cands[i-1]].start
-						covered[cands[i-1]] = true
-					}
-					spans = append(spans, pii.Span{Start: start, End: seq[2].end, Category: pii.CatFullName, Detector: d.Name(), Confidence: 0.95})
-					covered[cands[i]] = true
-					covered[mid] = true
-					covered[cands[i+1]] = true
-					i += 2
-					continue
-				}
-			} else if mid, ok := lowercaseNameGap(nt, cands[i], cands[i+1], t); ok {
-				seq := []nameToken{nt[cands[i]], nt[mid], nt[cands[i+1]]}
-				if !d.isFamous(seq) {
-					start := seq[0].start
-					if i > 0 && (nt[cands[i-1]].isSurname || nt[cands[i-1]].isSurnameGuess) &&
-						hasOpenParen(text, nt[cands[i-1]].end, nt[cands[i]].start) &&
-						hasCloseParen(text, nt[cands[i]].end, nt[mid].start) {
-						start = nt[cands[i-1]].start
-						covered[cands[i-1]] = true
-					}
-					spans = append(spans, pii.Span{Start: start, End: seq[2].end, Category: pii.CatFullName, Detector: d.Name(), Confidence: 0.9})
-					covered[cands[i]] = true
-					covered[mid] = true
-					covered[cands[i+1]] = true
-					i += 2
-					continue
-				}
-			}
-		}
-		// Name + patronymic + surname where the given name is unknown but
-		// capitalised (e.g. "Ильгизу Рамилевичу Хабибуллину").
-		if i+1 < len(cands) && nt[cands[i]].isPatr && (nt[cands[i+1]].isSurname || nt[cands[i+1]].isSurnameGuess) {
-			if mid, ok := unknownNameBefore(nt, cands[i]); ok {
-				seq := []nameToken{nt[mid], nt[cands[i]], nt[cands[i+1]]}
-				if !d.isFamous(seq) {
-					spans = append(spans, pii.Span{Start: seq[0].start, End: seq[2].end, Category: pii.CatFullName, Detector: d.Name(), Confidence: 0.9})
-					covered[mid] = true
-					covered[cands[i]] = true
-					covered[cands[i+1]] = true
-					i += 2
-					continue
-				}
-			}
-		}
-		tok := nt[cands[i]]
-		if tok.isName && hasLeftContext(t, tok.start, nameContext, 30) {
-			spans = append(spans, pii.Span{Start: tok.start, End: tok.end, Category: pii.CatFullName, Detector: d.Name(), Confidence: 0.8})
-			covered[cands[i]] = true
-			i++
-			continue
-		}
-		i++
+		i += d.processCandidate(text, nt, cands, i, t, covered, &spans)
 	}
 	spans = append(spans, d.detectLatinNames(t, toks, covered)...)
 	spans = append(spans, d.detectForeignNames(t, nt, covered)...)
 	return spans
+}
+
+// processCandidate tries to emit a span starting at candidate index i. It
+// returns the number of candidate indices to advance.
+func (d *namesDetector) processCandidate(text string, nt []nameToken, cands []int, i int, t pii.Text, covered []bool, spans *[]pii.Span) int {
+	ci := cands[i]
+	if covered[ci] {
+		return 1
+	}
+	if handled, adv := d.turkicPatronymic(text, nt, cands, i, covered, spans); handled {
+		return adv
+	}
+	if handled, adv := d.threeTokenName(text, nt, cands, i, t, covered, spans); handled {
+		return adv
+	}
+	if handled, adv := d.twoTokenName(text, nt, cands, i, t, covered, spans); handled {
+		return adv
+	}
+	if handled, adv := d.surnameGapName(text, nt, cands, i, t, covered, spans); handled {
+		return adv
+	}
+	if handled, adv := d.patrSurnameName(text, nt, cands, i, t, covered, spans); handled {
+		return adv
+	}
+	if handled, adv := d.singleNameWithContext(nt, cands, i, t, covered, spans); handled {
+		return adv
+	}
+	return 1
+}
+
+// singleNameWithContext emits a single given name when a name context keyword
+// appears to the left.
+func (d *namesDetector) singleNameWithContext(nt []nameToken, cands []int, i int, t pii.Text, covered []bool, spans *[]pii.Span) (bool, int) {
+	tok := nt[cands[i]]
+	if !tok.isName || !hasLeftContext(t, tok.start, nameContext, 30) {
+		return false, 0
+	}
+	*spans = append(*spans, pii.Span{Start: tok.start, End: tok.end, Category: pii.CatFullName, Detector: d.Name(), Confidence: 0.8})
+	covered[cands[i]] = true
+	return true, 1
+}
+
+// turkicPatronymic handles a 4-token Turkic patronymic: surname + name + name +
+// кызы/оглы/улы. It returns whether it handled the case and how many candidate
+// indices to advance.
+func (d *namesDetector) turkicPatronymic(text string, nt []nameToken, cands []int, i int, covered []bool, spans *[]pii.Span) (bool, int) {
+	if i+1 >= len(cands) || !(nt[cands[i]].isSurname || nt[cands[i]].isSurnameGuess) || !nt[cands[i+1]].isPatrMarker {
+		return false, 0
+	}
+	mid1, mid2, ok := twoNameGap(nt, cands[i], cands[i+1])
+	if !ok {
+		return false, 0
+	}
+	seq := []nameToken{nt[cands[i]], nt[mid1], nt[mid2], nt[cands[i+1]]}
+	if d.isFamous(seq) {
+		return false, 0
+	}
+	*spans = append(*spans, pii.Span{Start: seq[0].start, End: seq[3].end, Category: pii.CatFullName, Detector: d.Name(), Confidence: 0.95})
+	covered[cands[i]] = true
+	covered[mid1] = true
+	covered[mid2] = true
+	covered[cands[i+1]] = true
+	return true, 2
+}
+
+// threeTokenName handles a three-token name sequence, optionally extending the
+// span to a maiden surname in parentheses.
+func (d *namesDetector) threeTokenName(text string, nt []nameToken, cands []int, i int, t pii.Text, covered []bool, spans *[]pii.Span) (bool, int) {
+	if i+2 >= len(cands) ||
+		!onlyWhitespace(text, nt[cands[i]].end, nt[cands[i+1]].start) ||
+		!onlyWhitespace(text, nt[cands[i+1]].end, nt[cands[i+2]].start) {
+		return false, 0
+	}
+	seq := []nameToken{nt[cands[i]], nt[cands[i+1]], nt[cands[i+2]]}
+	ok, conf := d.validSeq(seq, t)
+	if !ok {
+		return false, 0
+	}
+	start := seq[0].start
+	if i > 0 && (nt[cands[i-1]].isSurname || nt[cands[i-1]].isSurnameGuess) &&
+		hasOpenParen(text, nt[cands[i-1]].end, nt[cands[i]].start) &&
+		hasCloseParen(text, nt[cands[i]].end, nt[cands[i+1]].start) {
+		start = nt[cands[i-1]].start
+		covered[cands[i-1]] = true
+	}
+	*spans = append(*spans, pii.Span{Start: start, End: seq[2].end, Category: pii.CatFullName, Detector: d.Name(), Confidence: conf})
+	covered[cands[i]] = true
+	covered[cands[i+1]] = true
+	covered[cands[i+2]] = true
+	return true, 3
+}
+
+// twoTokenName handles a two-token name sequence.
+func (d *namesDetector) twoTokenName(text string, nt []nameToken, cands []int, i int, t pii.Text, covered []bool, spans *[]pii.Span) (bool, int) {
+	if i+1 >= len(cands) || !onlyWhitespace(text, nt[cands[i]].end, nt[cands[i+1]].start) {
+		return false, 0
+	}
+	seq := []nameToken{nt[cands[i]], nt[cands[i+1]]}
+	ok, conf := d.validSeq(seq, t)
+	if !ok {
+		return false, 0
+	}
+	*spans = append(*spans, pii.Span{Start: seq[0].start, End: seq[1].end, Category: pii.CatFullName, Detector: d.Name(), Confidence: conf})
+	covered[cands[i]] = true
+	covered[cands[i+1]] = true
+	return true, 2
+}
+
+// surnameGapName handles a surname + unknown given name + patronymic sequence,
+// where the patronymic makes the sequence unambiguous even when the given name
+// is not in the dictionary.
+func (d *namesDetector) surnameGapName(text string, nt []nameToken, cands []int, i int, t pii.Text, covered []bool, spans *[]pii.Span) (bool, int) {
+	if i+1 >= len(cands) || !(nt[cands[i]].isSurname || nt[cands[i]].isSurnameGuess) || !nt[cands[i+1]].isPatr {
+		return false, 0
+	}
+	if mid, ok := singleNameGap(nt, cands[i], cands[i+1]); ok {
+		return d.emitGapName(text, nt, cands, i, mid, t, covered, spans, 0.95)
+	}
+	if mid, ok := lowercaseNameGap(nt, cands[i], cands[i+1], t); ok {
+		return d.emitGapName(text, nt, cands, i, mid, t, covered, spans, 0.9)
+	}
+	return false, 0
+}
+
+// emitGapName emits a surname + given name + patronymic span for a gap name at
+// mid, optionally extending to a maiden surname in parentheses.
+func (d *namesDetector) emitGapName(text string, nt []nameToken, cands []int, i, mid int, t pii.Text, covered []bool, spans *[]pii.Span, conf float64) (bool, int) {
+	seq := []nameToken{nt[cands[i]], nt[mid], nt[cands[i+1]]}
+	if d.isFamous(seq) {
+		return false, 0
+	}
+	start := seq[0].start
+	if i > 0 && (nt[cands[i-1]].isSurname || nt[cands[i-1]].isSurnameGuess) &&
+		hasOpenParen(text, nt[cands[i-1]].end, nt[cands[i]].start) &&
+		hasCloseParen(text, nt[cands[i]].end, nt[mid].start) {
+		start = nt[cands[i-1]].start
+		covered[cands[i-1]] = true
+	}
+	*spans = append(*spans, pii.Span{Start: start, End: seq[2].end, Category: pii.CatFullName, Detector: d.Name(), Confidence: conf})
+	covered[cands[i]] = true
+	covered[mid] = true
+	covered[cands[i+1]] = true
+	return true, 2
+}
+
+// patrSurnameName handles a name + patronymic + surname sequence where the given
+// name is unknown but capitalised.
+func (d *namesDetector) patrSurnameName(text string, nt []nameToken, cands []int, i int, t pii.Text, covered []bool, spans *[]pii.Span) (bool, int) {
+	if i+1 >= len(cands) || !nt[cands[i]].isPatr || !(nt[cands[i+1]].isSurname || nt[cands[i+1]].isSurnameGuess) {
+		return false, 0
+	}
+	mid, ok := unknownNameBefore(nt, cands[i])
+	if !ok {
+		return false, 0
+	}
+	seq := []nameToken{nt[mid], nt[cands[i]], nt[cands[i+1]]}
+	if d.isFamous(seq) {
+		return false, 0
+	}
+	*spans = append(*spans, pii.Span{Start: seq[0].start, End: seq[2].end, Category: pii.CatFullName, Detector: d.Name(), Confidence: 0.9})
+	covered[mid] = true
+	covered[cands[i]] = true
+	covered[cands[i+1]] = true
+	return true, 2
 }
 
 // detectLatinNames finds runs of consecutive Latin words with capital initials
@@ -672,50 +716,95 @@ func (d *namesDetector) validSeq(seq []nameToken, t pii.Text) (bool, float64) {
 	}
 	n := len(seq)
 	if n == 3 {
-		if (seq[0].isSurname || seq[0].isSurnameGuess) && seq[1].isName && seq[2].isPatr {
-			if d.hasDictOrPatr(seq) {
-				return true, 0.95
-			}
-		}
-		if seq[0].isName && seq[1].isPatr && (seq[2].isSurname || seq[2].isSurnameGuess) {
-			if d.hasDictOrPatr(seq) {
-				return true, 0.95
-			}
-		}
-		if (seq[0].isSurname || seq[0].isSurnameGuess) && seq[1].isInitial && seq[2].isInitial {
-			if d.hasDictOrPatr(seq) {
-				return true, 0.95
-			}
-		}
-		if seq[0].isName && seq[1].isInitial && seq[2].isInitial {
-			if d.hasDictOrPatr(seq) {
-				return true, 0.95
-			}
-		}
-		if seq[0].isInitial && seq[1].isInitial && (seq[2].isSurname || seq[2].isSurnameGuess) {
-			if d.hasDictOrPatr(seq) {
-				return true, 0.95
-			}
-		}
-		return false, 0
+		return d.validSeq3(seq, t)
 	}
 	if n == 2 {
-		if seq[0].isName && (seq[1].isSurname || seq[1].isSurnameGuess) {
-			if d.hasDictOrPatr(seq) {
-				return true, 0.85
-			}
+		return d.validSeq2(seq, t)
+	}
+	return false, 0
+}
+
+// validSeq3 validates a three-token name sequence.
+func (d *namesDetector) validSeq3(seq []nameToken, t pii.Text) (bool, float64) {
+	if ok, conf := d.seq3SurnameNamePatr(seq); ok {
+		return ok, conf
+	}
+	if ok, conf := d.seq3NamePatrSurname(seq); ok {
+		return ok, conf
+	}
+	if ok, conf := d.seq3SurnameInitials(seq); ok {
+		return ok, conf
+	}
+	if ok, conf := d.seq3NameInitials(seq); ok {
+		return ok, conf
+	}
+	if ok, conf := d.seq3InitialsSurname(seq); ok {
+		return ok, conf
+	}
+	return false, 0
+}
+
+func (d *namesDetector) seq3SurnameNamePatr(seq []nameToken) (bool, float64) {
+	if (seq[0].isSurname || seq[0].isSurnameGuess) && seq[1].isName && seq[2].isPatr {
+		if d.hasDictOrPatr(seq) {
+			return true, 0.95
 		}
-		if (seq[0].isSurname || seq[0].isSurnameGuess) && seq[1].isName {
-			if d.hasDictOrPatr(seq) {
-				return true, 0.85
-			}
+	}
+	return false, 0
+}
+
+func (d *namesDetector) seq3NamePatrSurname(seq []nameToken) (bool, float64) {
+	if seq[0].isName && seq[1].isPatr && (seq[2].isSurname || seq[2].isSurnameGuess) {
+		if d.hasDictOrPatr(seq) {
+			return true, 0.95
 		}
-		if seq[0].isName && seq[1].isPatr {
-			if d.hasDictOrPatr(seq) && hasLeftContext(t, seq[0].start, nameContext, 30) {
-				return true, 0.85
-			}
+	}
+	return false, 0
+}
+
+func (d *namesDetector) seq3SurnameInitials(seq []nameToken) (bool, float64) {
+	if (seq[0].isSurname || seq[0].isSurnameGuess) && seq[1].isInitial && seq[2].isInitial {
+		if d.hasDictOrPatr(seq) {
+			return true, 0.95
 		}
-		return false, 0
+	}
+	return false, 0
+}
+
+func (d *namesDetector) seq3NameInitials(seq []nameToken) (bool, float64) {
+	if seq[0].isName && seq[1].isInitial && seq[2].isInitial {
+		if d.hasDictOrPatr(seq) {
+			return true, 0.95
+		}
+	}
+	return false, 0
+}
+
+func (d *namesDetector) seq3InitialsSurname(seq []nameToken) (bool, float64) {
+	if seq[0].isInitial && seq[1].isInitial && (seq[2].isSurname || seq[2].isSurnameGuess) {
+		if d.hasDictOrPatr(seq) {
+			return true, 0.95
+		}
+	}
+	return false, 0
+}
+
+// validSeq2 validates a two-token name sequence.
+func (d *namesDetector) validSeq2(seq []nameToken, t pii.Text) (bool, float64) {
+	if seq[0].isName && (seq[1].isSurname || seq[1].isSurnameGuess) {
+		if d.hasDictOrPatr(seq) {
+			return true, 0.85
+		}
+	}
+	if (seq[0].isSurname || seq[0].isSurnameGuess) && seq[1].isName {
+		if d.hasDictOrPatr(seq) {
+			return true, 0.85
+		}
+	}
+	if seq[0].isName && seq[1].isPatr {
+		if d.hasDictOrPatr(seq) && hasLeftContext(t, seq[0].start, nameContext, 30) {
+			return true, 0.85
+		}
 	}
 	return false, 0
 }

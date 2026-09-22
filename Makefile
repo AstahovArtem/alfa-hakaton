@@ -1,4 +1,4 @@
-.PHONY: build test vet lint run accuracy docker-build deploy k8s-apply load-test compose-up compose-down platform-bootstrap platform-render zip
+.PHONY: build test vet lint lint-full run accuracy docker-build deploy k8s-apply load-test compose-up compose-down platform-bootstrap platform-render zip
 
 build:
 	go build -o bin/pdn-shield ./cmd/pdn-shield
@@ -11,6 +11,13 @@ vet:
 
 lint:
 	gofmt -l .
+
+# Full static analysis: gofmt, vet, staticcheck and cyclomatic complexity.
+lint-full:
+	gofmt -l .
+	go vet ./...
+	staticcheck ./...
+	gocyclo -over 15 .
 
 run:
 	go run ./cmd/pdn-shield

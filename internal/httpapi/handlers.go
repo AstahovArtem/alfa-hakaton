@@ -27,8 +27,8 @@ func (s *Server) handleProcess(w http.ResponseWriter, r *http.Request) {
 	if err := readJSON(w, r, &req); err != nil {
 		return
 	}
-	if req.Payload == "" || req.PayloadID == "" {
-		writeError(w, http.StatusBadRequest, "payload and payload_id are required")
+	if req.PayloadID == "" {
+		writeError(w, http.StatusBadRequest, "payload_id is required")
 		return
 	}
 
@@ -73,8 +73,9 @@ func (s *Server) handleProcess(w http.ResponseWriter, r *http.Request) {
 
 // maskRequest is the /mask body.
 type maskRequest struct {
-	Text string `json:"text"`
-	ID   string `json:"id"`
+	Text     string `json:"text"`
+	ID       string `json:"id"`
+	Strategy string `json:"strategy"`
 }
 
 // maskResponse is the /mask response.
@@ -82,6 +83,7 @@ type maskResponse struct {
 	ID        string         `json:"id"`
 	Masked    string         `json:"masked"`
 	Found     map[string]int `json:"found"`
+	Strategy  string         `json:"strategy"`
 	LatencyMs int64          `json:"latency_ms"`
 }
 
@@ -106,7 +108,17 @@ func (s *Server) handleMask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sys := s.systemFrom(r)
+	strategy, status := s.strategyOverride(sys, req.Strategy)
+	if status != 0 {
+		if status == http.StatusForbidden {
+			writeError(w, status, "strategy override not allowed")
+		} else {
+			writeError(w, status, "unknown strategy")
+		}
+		return
+	}
 	opt := s.optionsFor(sys)
+	opt.Strategy = strategy
 	start := time.Now()
 	mres, err := s.engine.MaskEx(r.Context(), id, req.Text, opt)
 	if err != nil {
@@ -134,6 +146,7 @@ func (s *Server) handleMask(w http.ResponseWriter, r *http.Request) {
 		ID:        id,
 		Masked:    masked,
 		Found:     categoryMap(found),
+		Strategy:  strategy,
 		LatencyMs: latency,
 	})
 }

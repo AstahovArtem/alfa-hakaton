@@ -26,7 +26,7 @@ func LoadComboRules(r io.Reader) ([]ComboRule, error) {
 	}
 	out := make([]ComboRule, 0, len(rules))
 	for _, r := range rules {
-		out = append(out, ComboRule{Category: r.Category, RequiresAny: r.RequiresAny})
+		out = append(out, ComboRule(r))
 	}
 	return out, nil
 }

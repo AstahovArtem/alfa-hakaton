@@ -48,3 +48,21 @@ func (s *Server) optionsFor(sys *configSystem) engine.Options {
 	}
 	return opt
 }
+
+// strategyOverride resolves a per-request strategy override against a system.
+// override is the raw value of the optional "strategy" field. When it is empty
+// the system's configured strategy is returned. When the system is not allowed
+// to override, a 403 status is returned; when the strategy is unknown, a 400
+// status is returned. A status of 0 means success.
+func (s *Server) strategyOverride(sys *configSystem, override string) (string, int) {
+	if override == "" {
+		return sys.Strategy, 0
+	}
+	if !sys.AllowStrategyOverride {
+		return "", http.StatusForbidden
+	}
+	if !config.ValidStrategy(override) {
+		return "", http.StatusBadRequest
+	}
+	return override, 0
+}

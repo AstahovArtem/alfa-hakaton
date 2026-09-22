@@ -213,6 +213,41 @@ func TestEngineProcessUnknownID(t *testing.T) {
 	}
 }
 
+func TestEngineProcessPartialRestore(t *testing.T) {
+	e := testEngine(t)
+	ctx := context.Background()
+	opt := Options{Strategy: "partial", TTL: time.Minute}
+
+	// Mask a text with two PII values so the record has two replacements.
+	text := "Клиент Иванов Иван Иванович, тел +7 (916) 123-45-67"
+	res, err := e.Process(ctx, "p", text, opt)
+	if err != nil {
+		t.Fatalf("Process mask: %v", err)
+	}
+	masked := res.Result
+
+	// Build a payload that contains one masked value (restorable) plus a
+	// non-matching tail, so Restore applies one replacement and misses one.
+	phoneMask := masked[strings.Index(masked, "+7"):]
+	payload := phoneMask + " и ещё что-то"
+	pres, err := e.Process(ctx, "p", payload, opt)
+	if err != nil {
+		t.Fatalf("Process partial: %v", err)
+	}
+	if !pres.Unmasked {
+		t.Errorf("expected Unmasked=true, got %+v", pres)
+	}
+	if pres.Misses == 0 {
+		t.Errorf("expected misses > 0, got %d", pres.Misses)
+	}
+	if pres.Result == payload {
+		t.Errorf("expected restored text, got payload as-is: %q", pres.Result)
+	}
+	if !strings.Contains(pres.Result, "+7 (916) 123-45-67") {
+		t.Errorf("expected restored phone in result: %q", pres.Result)
+	}
+}
+
 func contains(s, sub string) bool {
 	for i := 0; i+len(sub) <= len(s); i++ {
 		if s[i:i+len(sub)] == sub {

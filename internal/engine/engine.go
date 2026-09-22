@@ -430,6 +430,11 @@ func (e *Engine) Process(ctx context.Context, id, payload string, opt Options) (
 		if misses == 0 {
 			return ProcessResult{Result: restored, Unmasked: true}, nil
 		}
+		// Partial restore: at least one replacement was applied, so return the
+		// restored text rather than the payload as-is.
+		if misses < len(rec.Replacements) {
+			return ProcessResult{Result: restored, Unmasked: true, Misses: misses}, nil
+		}
 		// Zero matches: return the payload as-is.
 		return ProcessResult{Result: payload, Misses: misses}, nil
 	}

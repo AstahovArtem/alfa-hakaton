@@ -102,6 +102,14 @@
     <h2>Система</h2>
     <label for="system">Система-потребитель</label>
     <select id="system"></select>
+    <label for="strategy">Стратегия маскирования</label>
+    <select id="strategy">
+      <option value="">по настройке системы</option>
+      <option value="partial">partial</option>
+      <option value="full">full</option>
+      <option value="token">token</option>
+      <option value="synthetic">synthetic</option>
+    </select>
     <label for="apikey">API-ключ (хранится в localStorage)</label>
     <input type="text" id="apikey" placeholder="оставьте пустым, если ключ не требуется">
   </div>
@@ -174,6 +182,11 @@ function headers() {
   return h;
 }
 
+function strategyBody() {
+  const s = $('strategy').value;
+  return s ? { strategy: s } : {};
+}
+
 function showError(msg) {
   $('error').textContent = msg || '';
 }
@@ -201,14 +214,14 @@ $('btn-mask').addEventListener('click', async () => {
     const res = await fetch('/mask', {
       method: 'POST',
       headers: headers(),
-      body: JSON.stringify({ text: $('text').value }),
+      body: JSON.stringify(Object.assign({ text: $('text').value }, strategyBody())),
     });
     const data = await res.json();
     if (!res.ok) { showError(data.error || 'mask failed'); return; }
     currentId = data.id;
     renderBadges(data.found);
     $('masked').innerHTML = highlightMasked(escapeHtml(data.masked));
-    $('mask-latency').textContent = 'latency: ' + data.latency_ms + ' ms';
+    $('mask-latency').textContent = 'latency: ' + data.latency_ms + ' ms, strategy: ' + (data.strategy || 'partial');
   } catch (e) { showError(String(e)); }
 });
 
@@ -219,10 +232,10 @@ $('btn-llm').addEventListener('click', async () => {
     const res = await fetch('/v1/chat/completions', {
       method: 'POST',
       headers: headers(),
-      body: JSON.stringify({
+      body: JSON.stringify(Object.assign({
         model: 'deepseek-ai/DeepSeek-V4-Flash-0731',
         messages: [{ role: 'user', content: $('text').value }],
-      }),
+      }, strategyBody())),
     });
     const data = await res.json();
     if (!res.ok) { showError(data.error || 'llm failed'); return; }

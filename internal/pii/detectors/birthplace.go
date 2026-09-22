@@ -133,17 +133,7 @@ func (d *birthplaceDetector) validStart(t pii.Text, start int, value string) boo
 	if trimmed == "" {
 		return false
 	}
-	// Settlement prefix.
-	if strings.HasPrefix(trimmed, "г.") || strings.HasPrefix(trimmed, "гор.") ||
-		strings.HasPrefix(trimmed, "пос.") || strings.HasPrefix(trimmed, "с.") ||
-		strings.HasPrefix(trimmed, "ст.") || strings.HasPrefix(trimmed, "дер.") ||
-		strings.HasPrefix(trimmed, "д.") || strings.HasPrefix(trimmed, "пгт") ||
-		strings.HasPrefix(trimmed, "аул") || strings.HasPrefix(trimmed, "х.") ||
-		strings.HasPrefix(trimmed, "хутор") || strings.HasPrefix(trimmed, "п.") ||
-		strings.HasPrefix(trimmed, "рп") || strings.HasPrefix(trimmed, "город") ||
-		strings.HasPrefix(trimmed, "посёлок") || strings.HasPrefix(trimmed, "поселок") ||
-		strings.HasPrefix(trimmed, "село") || strings.HasPrefix(trimmed, "деревня") ||
-		strings.HasPrefix(trimmed, "станица") {
+	if hasSettlementPrefix(trimmed) {
 		return true
 	}
 	// Capitalised word (in the raw text).
@@ -159,6 +149,20 @@ func (d *birthplaceDetector) validStart(t pii.Text, start int, value string) boo
 	lower := strings.ToLower(trimmed)
 	for _, c := range loadCities().cities {
 		if strings.HasPrefix(lower, c) {
+			return true
+		}
+	}
+	return false
+}
+
+// hasSettlementPrefix reports whether s starts with a settlement prefix such as
+// "г.", "пос.", "село" or "деревня".
+func hasSettlementPrefix(s string) bool {
+	for _, p := range []string{
+		"г.", "гор.", "пос.", "с.", "ст.", "дер.", "д.", "пгт", "аул", "х.",
+		"хутор", "п.", "рп", "город", "посёлок", "поселок", "село", "деревня", "станица",
+	} {
+		if strings.HasPrefix(s, p) {
 			return true
 		}
 	}

@@ -56,7 +56,10 @@ type System struct {
 	Categories []pii.Category `yaml:"categories"`
 	Strategy   string         `yaml:"strategy"`
 	Unmask     bool           `yaml:"unmask"`
-	ComboRules []ComboRule    `yaml:"combo_rules"`
+	// AllowStrategyOverride permits a per-request "strategy" field on /mask and
+	// the chat proxy to override the system's configured strategy.
+	AllowStrategyOverride bool        `yaml:"allow_strategy_override"`
+	ComboRules            []ComboRule `yaml:"combo_rules"`
 }
 
 // ComboRule is the config form of an engine combo rule.
@@ -75,7 +78,12 @@ type Config struct {
 }
 
 // validStrategies are the strategies the engine knows.
-var validStrategies = map[string]bool{"partial": true, "token": true, "synthetic": true}
+var validStrategies = map[string]bool{"partial": true, "full": true, "token": true, "synthetic": true}
+
+// ValidStrategy reports whether name is a known masking strategy.
+func ValidStrategy(name string) bool {
+	return validStrategies[name]
+}
 
 // validCategories are all categories the pipeline can produce.
 var validCategories = map[pii.Category]bool{
@@ -133,22 +141,31 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("config: duplicate system id %q", s.ID)
 		}
 		seen[s.ID] = true
-		if s.Strategy != "" && !validStrategies[s.Strategy] {
-			return fmt.Errorf("config: system %q has unknown strategy %q", s.ID, s.Strategy)
+		if err := validateSystem(s); err != nil {
+			return err
 		}
-		for _, cat := range s.Categories {
-			if !validCategories[cat] {
-				return fmt.Errorf("config: system %q has unknown category %q", s.ID, cat)
-			}
+	}
+	return nil
+}
+
+// validateSystem checks one system entry for unknown strategies, categories and
+// combo-rule references.
+func validateSystem(s System) error {
+	if s.Strategy != "" && !validStrategies[s.Strategy] {
+		return fmt.Errorf("config: system %q has unknown strategy %q", s.ID, s.Strategy)
+	}
+	for _, cat := range s.Categories {
+		if !validCategories[cat] {
+			return fmt.Errorf("config: system %q has unknown category %q", s.ID, cat)
 		}
-		for _, r := range s.ComboRules {
-			if !validCategories[r.Category] {
-				return fmt.Errorf("config: system %q combo rule has unknown category %q", s.ID, r.Category)
-			}
-			for _, req := range r.RequiresAny {
-				if !validCategories[req] {
-					return fmt.Errorf("config: system %q combo rule requires unknown category %q", s.ID, req)
-				}
+	}
+	for _, r := range s.ComboRules {
+		if !validCategories[r.Category] {
+			return fmt.Errorf("config: system %q combo rule has unknown category %q", s.ID, r.Category)
+		}
+		for _, req := range r.RequiresAny {
+			if !validCategories[req] {
+				return fmt.Errorf("config: system %q combo rule requires unknown category %q", s.ID, req)
 			}
 		}
 	}

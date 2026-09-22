@@ -112,64 +112,65 @@ func LoadRules(r io.Reader) ([]Rule, error) {
 		return nil, err
 	}
 	for i := range rf.Rules {
-		rule := &rf.Rules[i]
-		re, err := regexp.Compile(rule.Pattern)
-		if err != nil {
-			return nil, fmt.Errorf("rule %q: %w", rule.Name, err)
-		}
-		rule.re = re
-		if rule.MatchLower {
-			// Compile a case-insensitive variant for the Raw fallback path used
-			// when the lowercased text has a different byte length.
-			reLower, err := regexp.Compile("(?i)" + rule.Pattern)
-			if err != nil {
-				return nil, fmt.Errorf("rule %q (match_lower fallback): %w", rule.Name, err)
-			}
-			rule.reLower = reLower
-		}
-		rule.contextWindow = rule.ContextWindow
-		if rule.contextWindow == 0 {
-			rule.contextWindow = 40
-		}
-		rule.contextAfterWindow = rule.ContextAfterWindow
-		if rule.contextAfterWindow == 0 {
-			rule.contextAfterWindow = 20
-		}
-		rule.contextLower = make([]string, len(rule.Context))
-		for j, kw := range rule.Context {
-			rule.contextLower[j] = strings.ToLower(kw)
-		}
-		rule.contextAfterLower = make([]string, len(rule.ContextAfter))
-		for j, kw := range rule.ContextAfter {
-			rule.contextAfterLower[j] = strings.ToLower(kw)
-		}
-		rule.rejectContextLower = make([]string, len(rule.RejectContext))
-		for j, kw := range rule.RejectContext {
-			rule.rejectContextLower[j] = strings.ToLower(kw)
-		}
-		rule.rejectContextWindow = rule.RejectContextWindow
-		if rule.rejectContextWindow == 0 {
-			rule.rejectContextWindow = 25
-		}
-		rule.denyContextLower = make([]string, len(rule.DenyContext))
-		for j, kw := range rule.DenyContext {
-			rule.denyContextLower[j] = strings.ToLower(kw)
-		}
-		rule.denyContextWindow = rule.DenyContextWindow
-		if rule.denyContextWindow == 0 {
-			rule.denyContextWindow = 25
-		}
-		for j := range rule.Reclassify {
-			rc := &rule.Reclassify[j]
-			for k, kw := range rc.Context {
-				rc.Context[k] = strings.ToLower(kw)
-			}
-			for k, kw := range rc.ContextAfter {
-				rc.ContextAfter[k] = strings.ToLower(kw)
-			}
+		if err := compileRule(&rf.Rules[i]); err != nil {
+			return nil, err
 		}
 	}
 	return rf.Rules, nil
+}
+
+// compileRule compiles a rule's pattern and precomputes its context windows and
+// lowercased keywords.
+func compileRule(rule *Rule) error {
+	re, err := regexp.Compile(rule.Pattern)
+	if err != nil {
+		return fmt.Errorf("rule %q: %w", rule.Name, err)
+	}
+	rule.re = re
+	if rule.MatchLower {
+		// Compile a case-insensitive variant for the Raw fallback path used
+		// when the lowercased text has a different byte length.
+		reLower, err := regexp.Compile("(?i)" + rule.Pattern)
+		if err != nil {
+			return fmt.Errorf("rule %q (match_lower fallback): %w", rule.Name, err)
+		}
+		rule.reLower = reLower
+	}
+	rule.contextWindow = rule.ContextWindow
+	if rule.contextWindow == 0 {
+		rule.contextWindow = 40
+	}
+	rule.contextAfterWindow = rule.ContextAfterWindow
+	if rule.contextAfterWindow == 0 {
+		rule.contextAfterWindow = 20
+	}
+	rule.contextLower = lowerAll(rule.Context)
+	rule.contextAfterLower = lowerAll(rule.ContextAfter)
+	rule.rejectContextLower = lowerAll(rule.RejectContext)
+	rule.rejectContextWindow = rule.RejectContextWindow
+	if rule.rejectContextWindow == 0 {
+		rule.rejectContextWindow = 25
+	}
+	rule.denyContextLower = lowerAll(rule.DenyContext)
+	rule.denyContextWindow = rule.DenyContextWindow
+	if rule.denyContextWindow == 0 {
+		rule.denyContextWindow = 25
+	}
+	for j := range rule.Reclassify {
+		rc := &rule.Reclassify[j]
+		rc.Context = lowerAll(rc.Context)
+		rc.ContextAfter = lowerAll(rc.ContextAfter)
+	}
+	return nil
+}
+
+// lowerAll returns the lowercased forms of keywords.
+func lowerAll(keywords []string) []string {
+	out := make([]string, len(keywords))
+	for i, kw := range keywords {
+		out[i] = strings.ToLower(kw)
+	}
+	return out
 }
 
 // DefaultRules loads the embedded rules.yaml.
@@ -240,39 +241,10 @@ func (d *regexDetector) detectRule(t pii.Text, r Rule) []pii.Span {
 	text, re := r.matchText(t)
 	var spans []pii.Span
 	for _, loc := range re.FindAllStringIndex(text, -1) {
-		start, end := loc[0], loc[1]
-		if r.Group > 0 {
-			sub := re.FindStringSubmatchIndex(text[start:end])
-			if sub == nil || len(sub) < 2*(r.Group+1) || sub[2*r.Group] < 0 {
-				continue
-			}
-			start = start + sub[2*r.Group]
-			end = start + (sub[2*r.Group+1] - sub[2*r.Group])
-		} else if re.NumSubexp() > 0 {
-			// No explicit group: span covers from the first non-empty capture
-			// group to the last non-empty capture group, so context words stay
-			// outside the span.
-			sub := re.FindStringSubmatchIndex(text[start:end])
-			if sub == nil {
-				continue
-			}
-			first, last := -1, -1
-			for g := 1; g <= re.NumSubexp(); g++ {
-				if sub[2*g] >= 0 {
-					if first < 0 {
-						first = sub[2*g]
-					}
-					last = sub[2*g+1]
-				}
-			}
-			if first < 0 {
-				continue
-			}
-			start = start + first
-			end = start + (last - first)
+		start, end := spanBounds(text, re, r, loc)
+		if start < 0 {
+			continue
 		}
-		match := t.Raw[start:end]
-
 		// Trim trailing separators so a span never ends with a space, dash,
 		// period or comma (e.g. a card number followed by a space).
 		for end > start {
@@ -283,30 +255,10 @@ func (d *regexDetector) detectRule(t pii.Text, r Rule) []pii.Span {
 			}
 			break
 		}
-		match = t.Raw[start:end]
+		match := t.Raw[start:end]
 
-		if r.Validator != "" {
-			if v, ok := Validators[r.Validator]; ok && !v(match) {
-				continue
-			}
-		}
-
-		// Standalone: the match must not be adjacent to another digit.
-		if r.standalone() {
-			if start > 0 && isDigitByte(t.Raw[start-1]) {
-				continue
-			}
-			if end < len(t.Raw) && isDigitByte(t.Raw[end]) {
-				continue
-			}
-		}
-
-		// NotInDigitSequence: reject a match that is part of a sequence of digit
-		// groups separated by a single space or dash.
-		if r.NotInDigitSequence {
-			if isDigitGroupAdjacent(t.Raw, start, end, true) || isDigitGroupAdjacent(t.Raw, start, end, false) {
-				continue
-			}
+		if !r.acceptsMatch(t, start, end, match) {
+			continue
 		}
 
 		conf := r.Confidence
@@ -322,28 +274,6 @@ func (d *regexDetector) detectRule(t pii.Text, r Rule) []pii.Span {
 		if r.RequireContext && !hasCtx {
 			continue
 		}
-		// Reject context: if any reject keyword appears within the window to the
-		// left or right, the match is not personal data.
-		if len(r.rejectContextLower) > 0 {
-			if ok, _ := leftContext(t, start, r.rejectContextWindow, r.rejectContextLower); ok {
-				continue
-			}
-			if ok, _ := rightContext(t, end, r.rejectContextWindow, r.rejectContextLower); ok {
-				continue
-			}
-		}
-		// Deny context: if any deny keyword appears as a substring within the
-		// window to the left or right, the match is not personal data (e.g. a
-		// PIN for a door intercom). Substring matching catches inflected forms
-		// such as "домофона" and stems such as "сигнализац".
-		if len(r.denyContextLower) > 0 {
-			if denyContextLeft(t, start, r.denyContextWindow, r.denyContextLower) {
-				continue
-			}
-			if denyContextRight(t, end, r.denyContextWindow, r.denyContextLower) {
-				continue
-			}
-		}
 		if hasCtx {
 			conf += 0.05
 			// The bonus grows as the keyword gets closer to the match, measured
@@ -354,26 +284,7 @@ func (d *regexDetector) detectRule(t pii.Text, r Rule) []pii.Span {
 			conf += 0.01 * (1 - float64(dist)/float64(contextBonusWindow))
 		}
 
-		cat := r.Category
-		// Reclassification based on context.
-		for _, rc := range r.Reclassify {
-			win := rc.ContextWindow
-			if win == 0 {
-				win = r.contextWindow
-			}
-			if ok, _ := leftContext(t, start, win, rc.Context); ok {
-				cat = rc.Category
-				break
-			}
-			afterWin := rc.ContextAfterWindow
-			if afterWin == 0 {
-				afterWin = r.contextAfterWindow
-			}
-			if ok, _ := rightContext(t, end, afterWin, rc.ContextAfter); ok {
-				cat = rc.Category
-				break
-			}
-		}
+		cat := reclassify(t, start, end, r)
 
 		spans = append(spans, pii.Span{
 			Start:      start,
@@ -384,6 +295,126 @@ func (d *regexDetector) detectRule(t pii.Text, r Rule) []pii.Span {
 		})
 	}
 	return spans
+}
+
+// spanBounds computes the byte span of a match, honouring the rule's capture
+// group. It returns start < 0 when the match has no usable capture.
+func spanBounds(text string, re *regexp.Regexp, r Rule, loc []int) (int, int) {
+	start, end := loc[0], loc[1]
+	if r.Group > 0 {
+		sub := re.FindStringSubmatchIndex(text[start:end])
+		if sub == nil || len(sub) < 2*(r.Group+1) || sub[2*r.Group] < 0 {
+			return -1, 0
+		}
+		start = start + sub[2*r.Group]
+		end = start + (sub[2*r.Group+1] - sub[2*r.Group])
+		return start, end
+	}
+	if re.NumSubexp() > 0 {
+		// No explicit group: span covers from the first non-empty capture
+		// group to the last non-empty capture group, so context words stay
+		// outside the span.
+		sub := re.FindStringSubmatchIndex(text[start:end])
+		if sub == nil {
+			return -1, 0
+		}
+		first, last := -1, -1
+		for g := 1; g <= re.NumSubexp(); g++ {
+			if sub[2*g] >= 0 {
+				if first < 0 {
+					first = sub[2*g]
+				}
+				last = sub[2*g+1]
+			}
+		}
+		if first < 0 {
+			return -1, 0
+		}
+		start = start + first
+		end = start + (last - first)
+	}
+	return start, end
+}
+
+// acceptsMatch reports whether a match passes the validator, standalone and
+// digit-sequence checks.
+func (r Rule) acceptsMatch(t pii.Text, start, end int, match string) bool {
+	if r.Validator != "" {
+		if v, ok := Validators[r.Validator]; ok && !v(match) {
+			return false
+		}
+	}
+	// Standalone: the match must not be adjacent to another digit.
+	if r.standalone() {
+		if start > 0 && isDigitByte(t.Raw[start-1]) {
+			return false
+		}
+		if end < len(t.Raw) && isDigitByte(t.Raw[end]) {
+			return false
+		}
+	}
+	// NotInDigitSequence: reject a match that is part of a sequence of digit
+	// groups separated by a single space or dash.
+	if r.NotInDigitSequence {
+		if isDigitGroupAdjacent(t.Raw, start, end, true) || isDigitGroupAdjacent(t.Raw, start, end, false) {
+			return false
+		}
+	}
+	if r.rejectedByContext(t, start, end) {
+		return false
+	}
+	return true
+}
+
+// rejectedByContext reports whether a reject or deny keyword appears within the
+// configured windows to the left or right of the match.
+func (r Rule) rejectedByContext(t pii.Text, start, end int) bool {
+	// Reject context: if any reject keyword appears within the window to the
+	// left or right, the match is not personal data.
+	if len(r.rejectContextLower) > 0 {
+		if ok, _ := leftContext(t, start, r.rejectContextWindow, r.rejectContextLower); ok {
+			return true
+		}
+		if ok, _ := rightContext(t, end, r.rejectContextWindow, r.rejectContextLower); ok {
+			return true
+		}
+	}
+	// Deny context: if any deny keyword appears as a substring within the
+	// window to the left or right, the match is not personal data (e.g. a
+	// PIN for a door intercom). Substring matching catches inflected forms
+	// such as "домофона" and stems such as "сигнализац".
+	if len(r.denyContextLower) > 0 {
+		if denyContextLeft(t, start, r.denyContextWindow, r.denyContextLower) {
+			return true
+		}
+		if denyContextRight(t, end, r.denyContextWindow, r.denyContextLower) {
+			return true
+		}
+	}
+	return false
+}
+
+// reclassify returns the category of a match, applying context-based
+// reclassification rules.
+func reclassify(t pii.Text, start, end int, r Rule) pii.Category {
+	cat := r.Category
+	for _, rc := range r.Reclassify {
+		win := rc.ContextWindow
+		if win == 0 {
+			win = r.contextWindow
+		}
+		if ok, _ := leftContext(t, start, win, rc.Context); ok {
+			return rc.Category
+		}
+		afterWin := rc.ContextAfterWindow
+		if afterWin == 0 {
+			afterWin = r.contextAfterWindow
+		}
+		if ok, _ := rightContext(t, end, afterWin, rc.ContextAfter); ok {
+			return rc.Category
+		}
+	}
+	return cat
 }
 
 // contextDistance reports whether a context keyword is satisfied to the left or
@@ -539,73 +570,6 @@ func keywordAtBoundary(s string, start, end int) bool {
 	return true
 }
 
-// runeWindowBefore returns the last n runes before byte position pos, taken from
-// the lowercased text when byte lengths match, otherwise from the raw text. The
-// window is lowercased in the fallback path. No []rune allocation is performed.
-func runeWindowBefore(t pii.Text, pos, n int) string {
-	if t.LowerOK() {
-		return lastNRunesLower(t.Lower[:pos], n)
-	}
-	return strings.ToLower(lastNRunes(t.Raw[:pos], n))
-}
-
-// runeWindowAfter returns the first n runes after byte position pos, taken from
-// the lowercased text when byte lengths match, otherwise from the raw text. The
-// window is lowercased in the fallback path. No []rune allocation is performed.
-func runeWindowAfter(t pii.Text, pos, n int) string {
-	if t.LowerOK() {
-		return firstNRunesLower(t.Lower[pos:], n)
-	}
-	return strings.ToLower(firstNRunes(t.Raw[pos:], n))
-}
-
-// lastNRunesLower returns the last n runes of s as a string without allocating
-// a []rune. It walks back from the end over rune boundaries.
-func lastNRunesLower(s string, n int) string {
-	if n <= 0 {
-		return ""
-	}
-	if utf8.RuneCountInString(s) <= n {
-		return s
-	}
-	// Walk back n runes from the end.
-	i := len(s)
-	for count := 0; count < n && i > 0; count++ {
-		i--
-		for i > 0 && s[i]&0xC0 == 0x80 {
-			i--
-		}
-	}
-	return s[i:]
-}
-
-// firstNRunesLower returns the first n runes of s as a string without allocating
-// a []rune. It walks forward over rune boundaries.
-func firstNRunesLower(s string, n int) string {
-	if n <= 0 {
-		return ""
-	}
-	if utf8.RuneCountInString(s) <= n {
-		return s
-	}
-	i := 0
-	for count := 0; count < n && i < len(s); count++ {
-		_, size := utf8.DecodeRuneInString(s[i:])
-		i += size
-	}
-	return s[:i]
-}
-
-// containsDigit reports whether s contains any ASCII digit.
-func containsDigit(s string) bool {
-	for i := 0; i < len(s); i++ {
-		if isDigitByte(s[i]) {
-			return true
-		}
-	}
-	return false
-}
-
 // dateBetweenRe matches a date-like fragment (numeric or word form) used to
 // detect whether a context keyword jumps over another date.
 var dateBetweenRe = regexp.MustCompile(`\d{1,2}[./-]\d{1,2}[./-]\d{2,4}|\d{4}[./-]\d{1,2}[./-]\d{1,2}|\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря|янв|фев|мар|апр|май|июн|июл|авг|сен|сент|окт|ноя|дек)\.?\s+\d{2,4}`)
@@ -627,19 +591,31 @@ func isDigitByte(b byte) bool {
 // (e.g. "CVV2").
 func isDigitGroupAdjacent(text string, start, end int, left bool) bool {
 	if left {
-		if start < 2 || (text[start-1] != ' ' && text[start-1] != '-') {
-			return false
-		}
-		tokEnd := start - 1
-		tokStart := tokEnd
-		for tokStart > 0 && text[tokStart-1] != ' ' && text[tokStart-1] != '-' {
-			tokStart--
-		}
-		if tokStart == tokEnd {
-			return false
-		}
-		return allDigits(text[tokStart:tokEnd])
+		return digitGroupBefore(text, start)
 	}
+	return digitGroupAfter(text, end)
+}
+
+// digitGroupBefore reports whether the token immediately before the match,
+// separated by a single space or dash, is a pure digit group.
+func digitGroupBefore(text string, start int) bool {
+	if start < 2 || (text[start-1] != ' ' && text[start-1] != '-') {
+		return false
+	}
+	tokEnd := start - 1
+	tokStart := tokEnd
+	for tokStart > 0 && text[tokStart-1] != ' ' && text[tokStart-1] != '-' {
+		tokStart--
+	}
+	if tokStart == tokEnd {
+		return false
+	}
+	return allDigits(text[tokStart:tokEnd])
+}
+
+// digitGroupAfter reports whether the token immediately after the match,
+// separated by a single space or dash, is a pure digit group.
+func digitGroupAfter(text string, end int) bool {
 	if end+1 >= len(text) || (text[end] != ' ' && text[end] != '-') {
 		return false
 	}
@@ -665,22 +641,4 @@ func allDigits(s string) bool {
 		}
 	}
 	return true
-}
-
-// lastNRunes returns the last n runes of s as a string.
-func lastNRunes(s string, n int) string {
-	r := []rune(s)
-	if len(r) <= n {
-		return s
-	}
-	return string(r[len(r)-n:])
-}
-
-// firstNRunes returns the first n runes of s as a string.
-func firstNRunes(s string, n int) string {
-	r := []rune(s)
-	if len(r) <= n {
-		return s
-	}
-	return string(r[:n])
 }

@@ -12,12 +12,6 @@ var citizenshipContext = []string{
 	"гражданство", "гражданин", "гражданка", "citizenship",
 }
 
-// citizenshipSkip are words that may appear between the context keyword and the
-// country value (e.g. "Гражданство заявителя: Таджикистан").
-var citizenshipSkip = []string{
-	"заявителя", "клиента", "заявитель", "клиент",
-}
-
 // countryForms maps a canonical country name to its inflected forms (lowercase).
 // The forms are matched against the lowercased text.
 var countryForms = map[string][]string{

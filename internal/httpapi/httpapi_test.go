@@ -40,7 +40,7 @@ func testConfig() *config.Config {
 		LLM:   config.LLM{BaseURL: "http://unused", Model: "test-model", Timeout: 5 * time.Second},
 		Systems: []config.System{
 			{ID: "checker", Enabled: true, Strategy: "partial", Unmask: true},
-			{ID: "demo", Enabled: true, APIKeyEnv: "PDN_DEMO_KEY", Strategy: "partial", Unmask: true},
+			{ID: "demo", Enabled: true, APIKeyEnv: "PDN_DEMO_KEY", Strategy: "partial", AllowStrategyOverride: true, Unmask: true},
 			{ID: "chatbot", Enabled: true, APIKeyEnv: "PDN_CHATBOT_KEY", Strategy: "token", Unmask: false},
 			{ID: "legacy_crm", Enabled: false, APIKeyEnv: "PDN_LEGACY_KEY"},
 		},
@@ -61,6 +61,7 @@ func testServer(t *testing.T, cfg *config.Config) (*Server, *httptest.Server) {
 	p := pii.NewPipeline(detectors.Default()...)
 	strategies := map[string]mask.Strategy{
 		"partial":   mask.MustPartial(),
+		"full":      mask.NewFull(),
 		"token":     mask.NewToken(),
 		"synthetic": mask.NewSynthetic(),
 	}
@@ -83,6 +84,7 @@ func newServerWithLogger(cfg *config.Config, st store.Store, logger *slog.Logger
 	p := pii.NewPipeline(detectors.Default()...)
 	strategies := map[string]mask.Strategy{
 		"partial":   mask.MustPartial(),
+		"full":      mask.NewFull(),
 		"token":     mask.NewToken(),
 		"synthetic": mask.NewSynthetic(),
 	}
@@ -221,7 +223,26 @@ func TestProcessUnknownPayloadReturnsAsIs(t *testing.T) {
 	}
 }
 
-func TestProcessEmptyFields(t *testing.T) {
+func TestProcessEmptyPayload(t *testing.T) {
+	_, ts := testServer(t, testConfig())
+	// Empty payload with a valid id is allowed and returns an empty result.
+	resp, data := doJSON(t, ts, "POST", "/process", nil, map[string]string{
+		"payload":    "",
+		"payload_id": "x",
+	})
+	if resp.StatusCode != 200 {
+		t.Fatalf("status = %d, want 200, body %s", resp.StatusCode, data)
+	}
+	var pres processResponse
+	if err := json.Unmarshal(data, &pres); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if pres.Result != "" {
+		t.Errorf("result = %q, want empty", pres.Result)
+	}
+}
+
+func TestProcessMissingPayloadID(t *testing.T) {
 	_, ts := testServer(t, testConfig())
 	resp, _ := doJSON(t, ts, "POST", "/process", nil, map[string]string{"payload": "", "payload_id": ""})
 	if resp.StatusCode != 400 {
@@ -299,12 +320,12 @@ func TestUnmaskDisabledForSystem(t *testing.T) {
 
 func TestUnmaskRoundTrip(t *testing.T) {
 	_, ts := testServer(t, testConfig())
-	resp, data := doJSON(t, ts, "POST", "/mask", checkerHeaders(), map[string]string{"text": testText})
+	_, data := doJSON(t, ts, "POST", "/mask", checkerHeaders(), map[string]string{"text": testText})
 	var mres maskResponse
 	if err := json.Unmarshal(data, &mres); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	resp, data = doJSON(t, ts, "POST", "/unmask", checkerHeaders(), map[string]string{"id": mres.ID, "text": mres.Masked})
+	resp, data := doJSON(t, ts, "POST", "/unmask", checkerHeaders(), map[string]string{"id": mres.ID, "text": mres.Masked})
 	if resp.StatusCode != 200 {
 		t.Fatalf("unmask status = %d, body %s", resp.StatusCode, data)
 	}
@@ -427,5 +448,97 @@ func TestRequestLogStageTimings(t *testing.T) {
 	}
 	if strings.Contains(out, "Иванов") || strings.Contains(out, "4509") {
 		t.Errorf("request log leaks PII")
+	}
+}
+
+func TestMaskStrategyOverrideAllowed(t *testing.T) {
+	os.Setenv("PDN_DEMO_KEY", "demo-key")
+	defer os.Unsetenv("PDN_DEMO_KEY")
+	_, ts := testServer(t, testConfig())
+	headers := map[string]string{"X-System-Id": "demo", "X-API-Key": "demo-key"}
+	resp, data := doJSON(t, ts, "POST", "/mask", headers, map[string]string{
+		"text":     testText,
+		"strategy": "full",
+	})
+	if resp.StatusCode != 200 {
+		t.Fatalf("status = %d, body %s", resp.StatusCode, data)
+	}
+	var mres maskResponse
+	if err := json.Unmarshal(data, &mres); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if mres.Strategy != "full" {
+		t.Errorf("strategy = %q, want full", mres.Strategy)
+	}
+	if strings.Contains(mres.Masked, "Иванов") || strings.Contains(mres.Masked, "4509") {
+		t.Errorf("masked leaks PII: %q", mres.Masked)
+	}
+}
+
+func TestMaskStrategyOverrideDenied(t *testing.T) {
+	_, ts := testServer(t, testConfig())
+	resp, data := doJSON(t, ts, "POST", "/mask", checkerHeaders(), map[string]string{
+		"text":     testText,
+		"strategy": "full",
+	})
+	if resp.StatusCode != 403 {
+		t.Fatalf("status = %d, want 403, body %s", resp.StatusCode, data)
+	}
+	if !strings.Contains(string(data), "strategy override not allowed") {
+		t.Errorf("body = %s", data)
+	}
+}
+
+func TestMaskStrategyOverrideUnknown(t *testing.T) {
+	os.Setenv("PDN_DEMO_KEY", "demo-key")
+	defer os.Unsetenv("PDN_DEMO_KEY")
+	_, ts := testServer(t, testConfig())
+	headers := map[string]string{"X-System-Id": "demo", "X-API-Key": "demo-key"}
+	resp, data := doJSON(t, ts, "POST", "/mask", headers, map[string]string{
+		"text":     testText,
+		"strategy": "bogus",
+	})
+	if resp.StatusCode != 400 {
+		t.Fatalf("status = %d, want 400, body %s", resp.StatusCode, data)
+	}
+	if !strings.Contains(string(data), "unknown strategy") {
+		t.Errorf("body = %s", data)
+	}
+}
+
+func TestChatProxyStrategyOverride(t *testing.T) {
+	var captured []byte
+	llm := fakeLLM(t, &captured)
+	defer llm.Close()
+
+	cfg := testConfig()
+	cfg.LLM.BaseURL = llm.URL
+	_, ts := testServer(t, cfg)
+
+	// checker is not allowed to override.
+	resp, data := doJSON(t, ts, "POST", "/v1/chat/completions", checkerHeaders(), map[string]interface{}{
+		"messages": []map[string]string{{"role": "user", "content": testText}},
+		"strategy": "full",
+	})
+	if resp.StatusCode != 403 {
+		t.Fatalf("denied status = %d, want 403, body %s", resp.StatusCode, data)
+	}
+
+	// demo is allowed; the strategy field must not reach the LLM.
+	os.Setenv("PDN_DEMO_KEY", "demo-key")
+	defer os.Unsetenv("PDN_DEMO_KEY")
+	headers := map[string]string{"X-System-Id": "demo", "X-API-Key": "demo-key"}
+	resp, data = doJSON(t, ts, "POST", "/v1/chat/completions", headers, map[string]interface{}{
+		"messages": []map[string]string{{"role": "user", "content": testText}},
+		"strategy": "full",
+	})
+	if resp.StatusCode != 200 {
+		t.Fatalf("allowed status = %d, body %s", resp.StatusCode, data)
+	}
+	if bytes.Contains(captured, []byte("strategy")) {
+		t.Errorf("strategy field leaked to LLM: %s", captured)
+	}
+	if bytes.Contains(captured, []byte("Иванов")) || bytes.Contains(captured, []byte("4509")) {
+		t.Errorf("LLM request leaked PII: %s", captured)
 	}
 }

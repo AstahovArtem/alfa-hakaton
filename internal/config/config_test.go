@@ -82,6 +82,36 @@ func TestLoadUnknownStrategy(t *testing.T) {
 	}
 }
 
+func TestLoadFullStrategyAndOverride(t *testing.T) {
+	content := validYAML + `
+  - id: demo
+    enabled: true
+    strategy: full
+    allow_strategy_override: true
+    unmask: true
+`
+	cfg, err := Load(writeConfig(t, content))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	demo := cfg.SystemByID("demo")
+	if demo == nil {
+		t.Fatalf("demo system not found")
+	}
+	if demo.Strategy != "full" {
+		t.Errorf("strategy = %q, want full", demo.Strategy)
+	}
+	if !demo.AllowStrategyOverride {
+		t.Errorf("allow_strategy_override = false, want true")
+	}
+	if !ValidStrategy("full") {
+		t.Errorf("ValidStrategy(full) = false")
+	}
+	if ValidStrategy("bogus") {
+		t.Errorf("ValidStrategy(bogus) = true")
+	}
+}
+
 func TestLoadUnknownCategory(t *testing.T) {
 	content := validYAML + "\n  - id: bad\n    enabled: true\n    categories: [not_a_category]\n"
 	if _, err := Load(writeConfig(t, content)); err == nil {

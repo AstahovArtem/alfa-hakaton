@@ -65,7 +65,7 @@ func loadDatasetFile(t *testing.T, path string) []datasetRecord {
 				if idx < 0 {
 					t.Fatalf("line %d (%s): value %q not found in text %q", line, rec.ID, sp.Value, rec.Text)
 				}
-				if strings.Index(rec.Text[idx+len(sp.Value):], sp.Value) >= 0 {
+				if strings.Contains(rec.Text[idx+len(sp.Value):], sp.Value) {
 					t.Fatalf("line %d (%s): value %q occurs more than once in text %q", line, rec.ID, sp.Value, rec.Text)
 				}
 				sp.Start = idx
@@ -189,58 +189,21 @@ type matchFunc func(det, exp datasetSpan) bool
 // runAccuracy runs the pipeline over records, prints a per-category table and
 // enforces an overall precision/recall threshold. A threshold of 0 disables the
 // check.
+// stats holds the true-positive/false-positive/false-negative counts for one
+// category.
+type stats struct {
+	tp, fp, fn int
+}
+
 func runAccuracy(t *testing.T, name string, records []datasetRecord, threshold float64, match matchFunc) {
 	t.Helper()
 	p := pii.NewPipeline(detectors.Default()...)
 
-	type stats struct {
-		tp, fp, fn int
-	}
 	byCat := make(map[pii.Category]*stats)
 	var totalTP, totalFP, totalFN int
 
 	for _, rec := range records {
-		res := p.Run(rec.Text)
-		matched := make([]bool, len(rec.Spans))
-		for _, det := range res.Spans {
-			cat := det.Category
-			if byCat[cat] == nil {
-				byCat[cat] = &stats{}
-			}
-			best := -1
-			bestRatio := 0.0
-			for i, exp := range rec.Spans {
-				if exp.Category != string(cat) {
-					continue
-				}
-				r := matchRatio(datasetSpan{Start: det.Start, End: det.End}, exp)
-				if r > bestRatio {
-					bestRatio = r
-					best = i
-				}
-			}
-			if best >= 0 && match(datasetSpan{Start: det.Start, End: det.End}, rec.Spans[best]) {
-				if !matched[best] {
-					matched[best] = true
-					byCat[cat].tp++
-					totalTP++
-				}
-			} else {
-				byCat[cat].fp++
-				totalFP++
-			}
-		}
-		for i, exp := range rec.Spans {
-			if matched[i] {
-				continue
-			}
-			cat := pii.Category(exp.Category)
-			if byCat[cat] == nil {
-				byCat[cat] = &stats{}
-			}
-			byCat[cat].fn++
-			totalFN++
-		}
+		accumulateRecord(p, rec, byCat, match, &totalTP, &totalFP, &totalFN)
 	}
 
 	fmt.Printf("\n=== Accuracy by category (%s) ===", name)
@@ -292,5 +255,58 @@ func runAccuracy(t *testing.T, name string, records []datasetRecord, threshold f
 		if precision < threshold {
 			t.Errorf("overall precision %.3f < %.3f", precision, threshold)
 		}
+	}
+}
+
+// bestMatch returns the index of the expected span that best overlaps a
+// detected span, or -1 when no expected span shares the detected category.
+func bestMatch(expected []datasetSpan, det pii.Span) int {
+	best := -1
+	bestRatio := 0.0
+	for i, exp := range expected {
+		if exp.Category != string(det.Category) {
+			continue
+		}
+		r := matchRatio(datasetSpan{Start: det.Start, End: det.End}, exp)
+		if r > bestRatio {
+			bestRatio = r
+			best = i
+		}
+	}
+	return best
+}
+
+// accumulateRecord runs the pipeline over one record and updates the per-category
+// and total true-positive/false-positive/false-negative counters.
+func accumulateRecord(p *pii.Pipeline, rec datasetRecord, byCat map[pii.Category]*stats, match matchFunc, totalTP, totalFP, totalFN *int) {
+	res := p.Run(rec.Text)
+	matched := make([]bool, len(rec.Spans))
+	for _, det := range res.Spans {
+		cat := det.Category
+		if byCat[cat] == nil {
+			byCat[cat] = &stats{}
+		}
+		best := bestMatch(rec.Spans, det)
+		if best >= 0 && match(datasetSpan{Start: det.Start, End: det.End}, rec.Spans[best]) {
+			if !matched[best] {
+				matched[best] = true
+				byCat[cat].tp++
+				*totalTP++
+			}
+		} else {
+			byCat[cat].fp++
+			*totalFP++
+		}
+	}
+	for i, exp := range rec.Spans {
+		if matched[i] {
+			continue
+		}
+		cat := pii.Category(exp.Category)
+		if byCat[cat] == nil {
+			byCat[cat] = &stats{}
+		}
+		byCat[cat].fn++
+		*totalFN++
 	}
 }

@@ -11,7 +11,7 @@ import (
 )
 
 func TestApplyRestoreRoundTrip(t *testing.T) {
-	strategies := []Strategy{MustPartial(), NewToken(), NewSynthetic()}
+	strategies := []Strategy{MustPartial(), NewFull(), NewToken(), NewSynthetic()}
 	for _, s := range strategies {
 		t.Run(s.Name(), func(t *testing.T) {
 			text := "Клиент Иванов Иван Иванович, паспорт 4509 123456, тел +7 (916) 123-45-67, email ivan@mail.ru, карта 4111 1111 1111 1111, cvv 123"
@@ -71,9 +71,9 @@ type datasetSpan struct {
 	Category string `json:"category"`
 }
 
-func loadDatasetForMask(t *testing.T) []datasetRecord {
+func loadDatasetFileForMask(t *testing.T, path string) []datasetRecord {
 	t.Helper()
-	f, err := os.Open("../pii/testdata/dataset.jsonl")
+	f, err := os.Open(path)
 	if err != nil {
 		t.Fatalf("open dataset: %v", err)
 	}
@@ -107,8 +107,20 @@ func loadDatasetForMask(t *testing.T) []datasetRecord {
 }
 
 func TestRestoreRoundTripDataset(t *testing.T) {
-	records := loadDatasetForMask(t)
-	strategies := []Strategy{MustPartial(), NewToken(), NewSynthetic()}
+	records := loadDatasetFileForMask(t, "../pii/testdata/dataset.jsonl")
+	runRoundTrip(t, records)
+}
+
+func TestRestoreRoundTripBlind(t *testing.T) {
+	records := loadDatasetFileForMask(t, "../pii/testdata/blind.jsonl")
+	runRoundTrip(t, records)
+}
+
+// runRoundTrip verifies that every strategy restores the original text from the
+// masked text for every record.
+func runRoundTrip(t *testing.T, records []datasetRecord) {
+	t.Helper()
+	strategies := []Strategy{MustPartial(), NewFull(), NewToken(), NewSynthetic()}
 	for _, s := range strategies {
 		t.Run(s.Name(), func(t *testing.T) {
 			for _, rec := range records {
@@ -134,5 +146,29 @@ func TestRestoreRoundTripDataset(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestFullStrategy verifies the exact masking expectations for the full
+// strategy.
+func TestFullStrategy(t *testing.T) {
+	s := NewFull()
+	doc := NewDocState()
+	cases := []struct {
+		cat   pii.Category
+		value string
+		want  string
+	}{
+		{pii.CatFullName, "Иванов Иван Иванович", "****** **** ********"},
+		{pii.CatPassport, "4509 123456", "**** ******"},
+		{pii.CatPhone, "+7 (916) 123-45-67", "+* (***) ***-**-**"},
+		{pii.CatEmail, "ivan@mail.ru", "****@****.**"},
+		{pii.CatBirthDate, "12 мая 1990 года", "** *** **** ****"},
+	}
+	for _, tc := range cases {
+		got := s.Mask(tc.value, tc.cat, doc)
+		if got != tc.want {
+			t.Errorf("Mask(%q, %s) = %q, want %q", tc.value, tc.cat, got, tc.want)
+		}
 	}
 }

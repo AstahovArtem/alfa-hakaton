@@ -82,6 +82,7 @@ func main() {
 	pipeline := pii.NewPipeline(detectors.Default()...)
 	strategies := map[string]mask.Strategy{
 		"partial":   mask.MustPartial(),
+		"full":      mask.NewFull(),
 		"token":     mask.NewToken(),
 		"synthetic": mask.NewSynthetic(),
 	}
