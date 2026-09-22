@@ -1,0 +1,22 @@
+defaults: { mode: digits, keep_head: 2, keep_tail: 2, char: "*" }
+categories:
+  full_name:    { mode: initials }
+  card_holder:  { mode: initials }
+  passport:     { mode: digits, keep_head: 2, keep_tail: 2 }
+  card_number:  { mode: digits, keep_head: 2, keep_tail: 2 }
+  phone:        { mode: digits, keep_head: 2, keep_tail: 2 }
+  inn:          { mode: digits, keep_head: 2, keep_tail: 2 }
+  snils:        { mode: digits, keep_head: 2, keep_tail: 2 }
+  driver_license: { mode: digits, keep_head: 2, keep_tail: 2 }
+  foreign_passport: { mode: digits, keep_head: 2, keep_tail: 2 }
+  division_code: { mode: digits, keep_head: 0, keep_tail: 0 }
+  cvv:          { mode: digits, keep_head: 0, keep_tail: 0 }
+  pin:          { mode: digits, keep_head: 0, keep_tail: 0 }
+  date:         { mode: date }
+  birth_date:   { mode: date }
+  passport_date: { mode: date }
+  email:        { mode: email }
+  address:      { mode: words }
+  birth_place:  { mode: words }
+  passport_issuer: { mode: words }
+  citizenship:  { mode: words }
