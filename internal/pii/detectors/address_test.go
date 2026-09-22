@@ -171,3 +171,73 @@ func TestAddressHouseRangeAndParenCity(t *testing.T) {
 		t.Errorf("no address span for %q", in)
 	}
 }
+
+func TestAddressLabeledComponents(t *testing.T) {
+	in := "Страна: Россия\nИндекс: 119034\nГород: Москва\nУлица: Пречистенка\nДом: 17/9\nКвартира: 41"
+	res := runPipeline(t, in)
+	want := []string{"Россия", "119034", "Москва", "Пречистенка", "17/9", "41"}
+	var got []string
+	for _, s := range res.Spans {
+		if s.Category == pii.CatAddress {
+			got = append(got, in[s.Start:s.End])
+		}
+	}
+	if len(got) != len(want) {
+		t.Fatalf("labeled address spans = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("labeled address span %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestAddressLabeledCommaSeparated(t *testing.T) {
+	in := "Индекс: 344018, Город: Ростов-на-Дону, Улица: Будённовский проспект, Дом: 97, Квартира: 12."
+	res := runPipeline(t, in)
+	want := []string{"344018", "Ростов-на-Дону", "Будённовский проспект", "97", "12"}
+	var got []string
+	for _, s := range res.Spans {
+		if s.Category == pii.CatAddress {
+			got = append(got, in[s.Start:s.End])
+		}
+	}
+	if len(got) != len(want) {
+		t.Fatalf("labeled address spans = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("labeled address span %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestAddressLowercaseBareStreetFullSpan(t *testing.T) {
+	in := "я проживаю на тверской 5, квартира 8, это центр"
+	res := runPipeline(t, in)
+	found := false
+	for _, s := range res.Spans {
+		if s.Category == pii.CatAddress {
+			found = true
+			if got := in[s.Start:s.End]; got != "тверской 5, квартира 8" {
+				t.Errorf("address value = %q, want %q", got, "тверской 5, квартира 8")
+			}
+		}
+	}
+	if !found {
+		t.Errorf("no address span for %q", in)
+	}
+}
+
+func TestAddressOrgHotelFalsePositive(t *testing.T) {
+	cases := []string{
+		"Конференция «ФинТех-2026» пройдёт в отеле по адресу: Санкт-Петербург, Невский пр., 57.",
+		"регистрации: Республика",
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c)
+		if hasCategory(t, res, pii.CatAddress) {
+			t.Errorf("address should not detect %q, got %+v", c, res.Spans)
+		}
+	}
+}

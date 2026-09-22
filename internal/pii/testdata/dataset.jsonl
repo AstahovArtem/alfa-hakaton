@@ -340,3 +340,18 @@
 {"id":"ultra-date-017","text":"ВУ 7712345678, категории B, C. Выдано 14.06.2018.","spans":[{"value":"7712345678","category":"driver_license"},{"value":"14.06.2018","category":"date"}]}
 {"id":"ultra-date-018a","text":"issue date 04.28.2011 (месяц.день.год), серия 6008 номер 215734.","spans":[{"value":"04.28.2011","category":"passport_date"},{"value":"6008 номер 215734","category":"passport"}]}
 {"id":"ultra-date-018b","text":"DOB (US format mm.dd.yyyy): 12.31.1975","spans":[{"value":"12.31.1975","category":"birth_date"}]}
+{"id":"task19-addr-001","text":"Страна: Россия\nИндекс: 119034\nГород: Москва\nУлица: Пречистенка\nДом: 17/9\nКвартира: 41","spans":[{"value":"Россия","category":"address"},{"value":"119034","category":"address"},{"value":"Москва","category":"address"},{"value":"Пречистенка","category":"address"},{"value":"17/9","category":"address"},{"value":"41","category":"address"}]}
+{"id":"task19-addr-002","text":"Индекс: 344018, Город: Ростов-на-Дону, Улица: Будённовский проспект, Дом: 97, Квартира: 12.","spans":[{"value":"344018","category":"address"},{"value":"Ростов-на-Дону","category":"address"},{"value":"Будённовский проспект","category":"address"},{"value":"97","category":"address"},{"value":"12","category":"address"}]}
+{"id":"task20-addr-001","text":"я проживаю на тверской 5, квартира 8, это центр","spans":[{"value":"тверской 5, квартира 8","category":"address"}]}
+{"id":"task20-addr-002","text":"регистрации: Республика","spans":[]}
+{"id":"task20-addr-003","text":"Конференция «ФинТех-2026» пройдёт в отеле по адресу: Санкт-Петербург, Невский пр., 57.","spans":[]}
+{"id":"task21-bp-001","text":"родился пятого марта тысяча девятьсот восемьдесят пятого года в городе Тула","spans":[{"value":"Тула","category":"birth_place"}]}
+{"id":"task21-bp-002","text":"родилась десятого октября тысяча девятьсот шестьдесят второго года в деревне Малые Вяземы","spans":[{"value":"Малые Вяземы","category":"birth_place"}]}
+{"id":"task21-bp-003","text":"Место рождения: с. Большие Кайбицы Кайбицкого района Татарской АССР.","spans":[{"value":"с. Большие Кайбицы Кайбицкого района Татарской АССР","category":"birth_place"}]}
+{"id":"task22-cit-001","text":"гражданство Великобритании","spans":[{"value":"Великобритании","category":"citizenship"}]}
+{"id":"task22-cit-002","text":"гражданство ФРГ","spans":[{"value":"ФРГ","category":"citizenship"}]}
+{"id":"task22-cit-003","text":"гражданка Азербайджанской Республики","spans":[{"value":"Азербайджанской Республики","category":"citizenship"}]}
+{"id":"task23-iss-001","text":"паспорт 4001 №113578, выдан 31.01.2001 16 о/м Центрального р-на Санкт-Петербурга, код 782-016.","spans":[{"value":"16 о/м Центрального р-на Санкт-Петербурга","category":"passport_issuer"}]}
+{"id":"task23-iss-002","text":"паспорт мне выдали двадцать первого августа две тысячи девятнадцатого года в МВД по Республике Башкортостан","spans":[{"value":"МВД по Республике Башкортостан","category":"passport_issuer"}]}
+{"id":"task23-iss-003","text":"Паспорт получен первого сентября две тысячи шестого года в ОВД района Сокол г. Москвы","spans":[{"value":"ОВД района Сокол г. Москвы","category":"passport_issuer"}]}
+{"id":"task24-email-001","text":"To: support@alfabank.ru","spans":[]}

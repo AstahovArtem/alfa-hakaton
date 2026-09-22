@@ -8,14 +8,14 @@ import (
 )
 
 var issuerContextRe = regexp.MustCompile(
-	`(?i)(?:кем выдан|выдавший орган|орган выдачи|орган, выдавший|дата выдачи|выдано|выдана|выдан|выдачи|получал|получала|получил|получила|кем|орган)`,
+	`(?i)(?:кем выдан|выдавший орган|орган выдачи|орган, выдавший|дата выдачи|выдано|выдана|выдан|выдали|выдачи|получал|получала|получил|получила|получен|получена|кем|орган)`,
 )
 
 // issuerStartWordRe matches the first word of an issuing authority value. It is
 // searched for after a context keyword, allowing a gap of non-letter text (and
 // dialogue labels) between the context and the value.
 var issuerStartWordRe = regexp.MustCompile(
-	`(?i)(паспортным столом|межрайонным|отделением|отделении|отделения|отделом|отделе|отдел|управлением|управления|управление|миграционным|миграционной|паспортно-визовым|паспортным|паспортного|гу мвд|гувд|оуфмс|уфмс|омвд|умвд|увд|овд|мвд|милиции|тп|оп|мп)`,
+	`(?i)(паспортным столом|межрайонным|отделением|отделении|отделения|отделом|отделе|отдел|управлением|управления|управление|миграционным|миграционной|паспортно-визовым|паспортным|паспортного|гу мвд|гувд|оуфмс|уфмс|омвд|умвд|увд|овд|мвд|милиции|о/м|тп|оп|мп)`,
 )
 
 // issuerGapRe matches the text that may sit between a context keyword and the
@@ -30,11 +30,11 @@ var issuerTermRe = regexp.MustCompile(
 // Lowercase-only variants matched against the lowercased text to avoid
 // case-folding cost.
 var issuerContextLowerRe = regexp.MustCompile(
-	`(?:кем выдан|выдавший орган|орган выдачи|орган, выдавший|дата выдачи|выдано|выдана|выдан|выдачи|получал|получала|получил|получила|кем|орган)`,
+	`(?:кем выдан|выдавший орган|орган выдачи|орган, выдавший|дата выдачи|выдано|выдана|выдан|выдали|выдачи|получал|получала|получил|получила|получен|получена|кем|орган)`,
 )
 
 var issuerStartWordLowerRe = regexp.MustCompile(
-	`(паспортным столом|межрайонным|отделением|отделении|отделения|отделом|отделе|отдел|управлением|управления|управление|миграционным|миграционной|паспортно-визовым|паспортным|паспортного|гу мвд|гувд|оуфмс|уфмс|омвд|умвд|увд|овд|мвд|милиции|тп|оп|мп)`,
+	`(паспортным столом|межрайонным|отделением|отделении|отделения|отделом|отделе|отдел|управлением|управления|управление|миграционным|миграционной|паспортно-визовым|паспортным|паспортного|гу мвд|гувд|оуфмс|уфмс|омвд|умвд|увд|овд|мвд|милиции|о/м|тп|оп|мп)`,
 )
 
 var issuerGapLowerRe = regexp.MustCompile(`^(?:[^а-яёА-ЯЁ]+|клиент\s*:\s*|оператор\s*:\s*)*`)
@@ -138,9 +138,30 @@ func findIssuerStart(search string, from int, startRe, gapRe *regexp.Regexp) int
 			pos++
 			continue
 		}
-		return pos + m[0]
+		start := pos + m[0]
+		// Include a leading number that is part of the issuing authority value
+		// (e.g. "16 о/м Центрального р-на" keeps the "16").
+		return issuerStartWithNumber(search, start)
 	}
 	return -1
+}
+
+// issuerStartWithNumber extends start backward to include a number that
+// immediately precedes the issuing authority word (e.g. "16 о/м").
+func issuerStartWithNumber(search string, start int) int {
+	// Look back for a number separated by a single space.
+	i := start - 1
+	if i < 0 || search[i] != ' ' {
+		return start
+	}
+	j := i
+	for j > 0 && search[j-1] >= '0' && search[j-1] <= '9' {
+		j--
+	}
+	if j == i {
+		return start
+	}
+	return j
 }
 
 // isCyrillicLetter reports whether b is the leading byte of a Cyrillic UTF-8

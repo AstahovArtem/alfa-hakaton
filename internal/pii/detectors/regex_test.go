@@ -617,6 +617,16 @@ func TestEmailServiceNotPII(t *testing.T) {
 	}
 }
 
+func TestEmailBankDomainNotPII(t *testing.T) {
+	in := "From: Зайцев Игорь <i.zaitsev@corp-mail.ru>\nTo: support@alfabank.ru\nSubject: Re: блокировка"
+	res := runPipeline(t, in)
+	for _, s := range res.Spans {
+		if s.Category == pii.CatEmail && in[s.Start:s.End] == "support@alfabank.ru" {
+			t.Errorf("bank domain email should not be detected %q, got %+v", in, res.Spans)
+		}
+	}
+}
+
 func TestTollFreePhoneNotPII(t *testing.T) {
 	in := "Горячая линия банка 8 800 200-00-00, бесплатно по России"
 	res := runPipeline(t, in)

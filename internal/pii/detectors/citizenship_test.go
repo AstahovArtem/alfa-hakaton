@@ -70,3 +70,28 @@ func TestCitizenshipNegative(t *testing.T) {
 		}
 	}
 }
+
+func TestCitizenshipMoreForms(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"uk", "гражданство Великобритании", "Великобритании"},
+		{"frg", "гражданство ФРГ", "ФРГ"},
+		{"azerbaijanRepublic", "гражданка Азербайджанской Республики", "Азербайджанской Республики"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			res := runPipeline(t, c.in)
+			got, found := categoryValue(res, pii.CatCitizenship, c.in)
+			if !found {
+				t.Errorf("no citizenship span for %q", c.in)
+				return
+			}
+			if got != c.want {
+				t.Errorf("citizenship value for %q = %q, want %q", c.in, got, c.want)
+			}
+		})
+	}
+}

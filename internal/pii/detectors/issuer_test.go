@@ -87,3 +87,18 @@ func TestIssuerStopsBeforeNonContinuation(t *testing.T) {
 		assertSpanValue(t, runPipeline(t, c.in), pii.CatPassportIssuer, c.in, c.want)
 	}
 }
+
+func TestIssuerAfterDateWithNumber(t *testing.T) {
+	in := "паспорт 4001 №113578, выдан 31.01.2001 16 о/м Центрального р-на Санкт-Петербурга, код 782-016."
+	assertSpanValue(t, runPipeline(t, in), pii.CatPassportIssuer, in, "16 о/м Центрального р-на Санкт-Петербурга")
+}
+
+func TestIssuerVyдалиV(t *testing.T) {
+	in := "паспорт мне выдали двадцать первого августа две тысячи девятнадцатого года в МВД по Республике Башкортостан"
+	assertSpanValue(t, runPipeline(t, in), pii.CatPassportIssuer, in, "МВД по Республике Башкортостан")
+}
+
+func TestIssuerOVDRaionaSokol(t *testing.T) {
+	in := "Паспорт получен первого сентября две тысячи шестого года в ОВД района Сокол г. Москвы"
+	assertSpanValue(t, runPipeline(t, in), pii.CatPassportIssuer, in, "ОВД района Сокол г. Москвы")
+}

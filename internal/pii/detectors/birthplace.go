@@ -12,14 +12,14 @@ import (
 // an optional pronoun ("я") and preposition ("в") between the keyword and the
 // value, and an optional separator (":", "—", "-").
 var birthContextRe = regexp.MustCompile(
-	`(?i)(?:место рождения|место рожд\.|родился в|родилась в|родился|родилась|рожден в|рождён в|уроженец|уроженка)`,
+	`(?i)(?:место рождения|место рожд\.|родился\s+в\s+|родилась\s+в\s+|родился|родилась|рожден в|рождён в|уроженец|уроженка|род\.)`,
 )
 
 // settlementPrefixGorod is the "г." settlement prefix.
 const settlementPrefixGorod = "г."
 
 var birthContextLowerRe = regexp.MustCompile(
-	`(?:место рождения|место рожд\.|родился в|родилась в|родился|родилась|рожден в|рождён в|уроженец|уроженка)`,
+	`(?:место рождения|место рожд\.|родился\s+в\s+|родилась\s+в\s+|родился|родилась|рожден в|рождён в|уроженец|уроженка|род\.)`,
 )
 
 // birthValueRe matches the value after a birth-place context keyword. It
@@ -50,19 +50,19 @@ func birthValueBody(upper bool) string {
 	// before the preposition "в". A bare year (e.g. "1985 году") is also
 	// skipped.
 	dateTail := `(?:г\.|года|году|г)?\s*`
-	date := `(?:\d{1,2}[./-]\d{1,2}[./-]\d{4}\s+` + dateTail + `в\s+|\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря|янв|фев|мар|апр|май|июн|июл|авг|сен|окт|ноя|дек)\s+\d{4}\s+` + dateTail + `в\s+|\d{4}\s+` + dateTail + `в\s+)?`
+	date := `(?:` + dateWordsRe.String() + `\s+в\s+|\d{1,2}[./-]\d{1,2}[./-]\d{4}\s+` + dateTail + `в\s+|\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря|янв|фев|мар|апр|май|июн|июл|авг|сен|окт|ноя|дек)\s+\d{4}\s+` + dateTail + `в\s+|\d{4}\s+` + dateTail + `в\s+)?`
 	// An optional pronoun and preposition between the context and the place
 	// (e.g. "Родилась я в Ташкенте"). These stay outside the captured value.
 	lead := `(?:я\s+)?(?:в\s+)?`
-	prefix := `(?:г\.|гор\.|город|пос\.|посёлок|поселок|село|дер\.|деревня|станица|пгт|с\.|ст\.|аул|х\.|хутор|п\.|рп|д\.)?`
+	prefix := `(?:г\.|гор\.|город|городе|пос\.|посёлок|поселок|село|дер\.|деревня|деревне|станица|пгт|с\.|ст\.|аул|х\.|хутор|п\.|рп|д\.)?`
 	word := `[а-яё-]+`
 	if upper {
 		word = `[А-ЯЁ][а-яё-]+`
 	}
 	place := `(?:` + word + `|` + cityAlt + `)(?:\s+` + word + `){0,2}`
-	region := `(?:область|области|обл\.|край|края|район|района|республика|республики)`
-	tail := `(?:,?\s*(?:` + region + `\s+` + word + `(?:\s+` + word + `)?|` + word + `\s+` + region + `|` + region + `))?`
-	return date + lead + `(` + prefix + `\s*` + place + tail + `)`
+	region := `(?:область|области|обл\.|край|края|район|района|республика|республики|асср)`
+	tail := `(?:,?\s*(?:` + region + `\s+` + word + `(?:\s+` + word + `)?|` + word + `\s+` + region + `|` + region + `)){0,2}`
+	return date + lead + `(?P<value>` + prefix + `\s*` + place + tail + `)`
 }
 
 type birthplaceDetector struct{}
@@ -91,34 +91,64 @@ func (d *birthplaceDetector) DetectLower(t pii.Text) []pii.Span {
 		ctxRe, valueRe = birthContextLowerRe, birthValueLowerRe
 	}
 	var spans []pii.Span
+	valueIdx := valueRe.SubexpIndex("value")
 	for _, loc := range ctxRe.FindAllStringIndex(search, -1) {
-		ctxEnd := loc[1]
-		sub := valueRe.FindStringSubmatchIndex(search[ctxEnd:])
-		if sub == nil || sub[2] < 0 {
+		// The "род." abbreviation must be a standalone word, not part of a
+		// longer word (e.g. "город.").
+		if ctxEndIsRodAbbrev(search, loc) {
 			continue
 		}
-		start := ctxEnd + sub[2]
-		end := ctxEnd + sub[3]
-		end = trimBirthValue(search, start, end)
-		value := search[start:end]
-		// The value must start with a settlement prefix, a capitalised word or a
-		// city from the dictionary; otherwise no span is created (e.g. "родилась
-		// в один день с бабушкой").
-		if !d.validStart(t, start, value) {
-			continue
+		if span, ok := d.matchAtContext(t, search, loc[1], valueRe, valueIdx); ok {
+			spans = append(spans, span)
 		}
-		if wordCount(value) > 6 {
-			continue
-		}
-		spans = append(spans, pii.Span{
-			Start:      start,
-			End:        end,
-			Category:   pii.CatBirthPlace,
-			Detector:   d.Name(),
-			Confidence: 0.92,
-		})
 	}
 	return spans
+}
+
+// ctxEndIsRodAbbrev reports whether a context match is the "род." abbreviation
+// that is part of a longer word (e.g. "город.").
+func ctxEndIsRodAbbrev(search string, loc []int) bool {
+	return loc[1]-loc[0] == len("род.") && loc[0] > 0 && isLetterRune(runeBefore(search, loc[0]))
+}
+
+// matchAtContext builds a birth-place span for the value that follows a context
+// keyword ending at ctxEnd.
+func (d *birthplaceDetector) matchAtContext(t pii.Text, search string, ctxEnd int, valueRe *regexp.Regexp, valueIdx int) (pii.Span, bool) {
+	sub := valueRe.FindStringSubmatchIndex(search[ctxEnd:])
+	if sub == nil || sub[2*valueIdx] < 0 {
+		return pii.Span{}, false
+	}
+	start := ctxEnd + sub[2*valueIdx]
+	end := ctxEnd + sub[2*valueIdx+1]
+	end = trimBirthValue(search, start, end)
+	value := search[start:end]
+	// The value must start with a settlement prefix, a capitalised word or a
+	// city from the dictionary; otherwise no span is created (e.g. "родилась
+	// в один день с бабушкой").
+	if !d.validStart(t, start, value) {
+		return pii.Span{}, false
+	}
+	// Trim a prepositional settlement prefix (e.g. "в городе Тула" keeps only
+	// "Тула", "в деревне Малые Вяземы" keeps only "Малые Вяземы"), while the
+	// genitive/nominative forms (e.g. "уроженец города Казани", "аул Хучни") stay
+	// part of the value.
+	for _, p := range []string{"городе ", "деревне ", "посёлке ", "поселке ", "селе ", "станице "} {
+		if strings.HasPrefix(value, p) {
+			start += len(p)
+			value = search[start:end]
+			break
+		}
+	}
+	if wordCount(value) > 10 {
+		return pii.Span{}, false
+	}
+	return pii.Span{
+		Start:      start,
+		End:        end,
+		Category:   pii.CatBirthPlace,
+		Detector:   d.Name(),
+		Confidence: 0.92,
+	}, true
 }
 
 // trimBirthValue truncates a birth-place value at a citizenship clause or at a
@@ -177,7 +207,8 @@ func (d *birthplaceDetector) validStart(t pii.Text, start int, value string) boo
 func hasSettlementPrefix(s string) bool {
 	for _, p := range []string{
 		settlementPrefixGorod, "гор.", "пос.", "с.", "ст.", "дер.", "д.", "пгт", "аул", "х.",
-		"хутор", "п.", "рп", "город", "посёлок", "поселок", "село", "деревня", "станица",
+		"хутор", "п.", "рп", "город", "городе", "посёлок", "посёлка", "посёлоке", "поселок",
+		"поселке", "село", "селе", "деревня", "деревне", "станица", "станице",
 	} {
 		if strings.HasPrefix(s, p) {
 			return true

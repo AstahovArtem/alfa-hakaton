@@ -19,6 +19,7 @@ var Validators = map[string]func(match string) bool{
 	"date":              date,
 	"date_short_year":   dateShortYear,
 	"not_service_email": notServiceEmail,
+	"not_bank_email":    notBankEmail,
 	"not_toll_free":     notTollFree,
 }
 
@@ -40,6 +41,12 @@ var serviceEmailLocalParts = map[string]bool{
 	"help": true, "sales": true, "office": true, "hello": true,
 }
 
+// bankEmailDomains are corporate domains whose mailboxes are not personal data
+// (e.g. the bank's own "alfabank.ru").
+var bankEmailDomains = map[string]bool{
+	"alfabank.ru": true,
+}
+
 // notServiceEmail rejects an email whose local part is a corporate service
 // mailbox (support, info, noreply, ...).
 func notServiceEmail(match string) bool {
@@ -49,6 +56,17 @@ func notServiceEmail(match string) bool {
 	}
 	local := strings.ToLower(match[:at])
 	return !serviceEmailLocalParts[local]
+}
+
+// notBankEmail rejects an email whose domain is a corporate bank domain (e.g.
+// "alfabank.ru"), which is an organisation address rather than personal data.
+func notBankEmail(match string) bool {
+	at := strings.Index(match, "@")
+	if at < 0 {
+		return true
+	}
+	domain := strings.ToLower(match[at+1:])
+	return !bankEmailDomains[domain]
 }
 
 // notTollFree rejects a Russian toll-free 8 800 number, which is a corporate

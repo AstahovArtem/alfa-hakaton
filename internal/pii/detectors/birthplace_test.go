@@ -151,3 +151,33 @@ func TestBirthplaceFalsePositive(t *testing.T) {
 		t.Errorf("birth_place should not detect %q, got %+v", in, res.Spans)
 	}
 }
+
+func TestBirthplaceWordDateAndFullPrefix(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"родился пятого марта тысяча девятьсот восемьдесят пятого года в городе Тула", "Тула"},
+		{"родилась десятого октября тысяча девятьсот шестьдесят второго года в деревне Малые Вяземы", "Малые Вяземы"},
+		{"Место рождения: с. Большие Кайбицы Кайбицкого района Татарской АССР.", "с. Большие Кайбицы Кайбицкого района Татарской АССР"},
+	}
+	for _, c := range cases {
+		assertSpanValue(t, runPipeline(t, c.in), pii.CatBirthPlace, c.in, c.want)
+	}
+}
+
+func TestBirthplaceRodAbbrev(t *testing.T) {
+	in := "Клиент Степанов Б. Н., род. 12 окт 1969 в г. Орёл."
+	res := runPipeline(t, in)
+	if !hasCategory(t, res, pii.CatBirthPlace) {
+		t.Errorf("birth_place should detect %q, got %+v", in, res.Spans)
+	}
+}
+
+func TestBirthplaceRodNotInGorod(t *testing.T) {
+	in := "Дата рожд.: 09-11-2001. Прописка: мкр. Северный, д. 3, кв. 45, г. Белгород. Ф.И.О.: Остапенко Дарина Олеговна."
+	res := runPipeline(t, in)
+	if hasCategory(t, res, pii.CatBirthPlace) {
+		t.Errorf("birth_place should not detect %q, got %+v", in, res.Spans)
+	}
+}

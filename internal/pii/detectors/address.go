@@ -20,6 +20,7 @@ const (
 	kindHouse       = "house"
 	kindStreetHouse = "street_house"
 	kindLocality    = "locality"
+	kindLabeled     = "labeled"
 )
 
 // Street markers that introduce a house number.
@@ -113,26 +114,29 @@ var (
 		`(?i)(?:российская федерация|республика беларусь|россия|рф|казахстан|беларусь|армения|узбекистан)`,
 	)
 	addrRegionRe = regexp.MustCompile(
-		`(?i)(?:\S+\s+(?:область|обл\.|край|республика|респ\.|автономный округ|ао)|(?:республика|респ\.)\s+\S+)`,
+		`(?i)(?:\S+\s+(?:область|обл\.|край|автономный округ|ао)|(?:республика|респ\.)\s+\S+)`,
 	)
 	addrDistrictRe = regexp.MustCompile(`(?i)\S+\s+(?:район|р-н)`)
 	addrLocalityRe = regexp.MustCompile(
-		`(?i)(?:г\.|город|гор\.|пос\.|посёлок|поселок|с\.|село|дер\.|деревня|ст\.|станица|пгт)\s+[А-Яа-яЁё-]+(?:\s+[А-Яа-яЁё-]+){0,2}`,
+		`(?i)(?:г\.|город|гор\.|пос\.|посёлок|поселок|с\.|село|дер\.|деревня|ст\.|станица|пгт|мкр\.|микрорайон)\s+[А-Яа-яЁё-]+(?:\s+[А-Яа-яЁё-]+){0,2}`,
 	)
 	// addrStreetMarkerRe matches a street marker followed by the street name,
 	// e.g. "улица Гагарина". It is case-insensitive for the marker.
 	addrStreetMarkerRe = regexp.MustCompile(
-		`(?i)(?:ул\.|ул|улица|улице|улицу|пр-т|пр\.|проспект|проспекте|пер\.|переулок|б-р|бульвар|ш\.|шоссе|наб\.|набережная|пл\.|площадь|проезд|пр-д|тупик|аллея|линия)\s+[А-Яа-яЁё-]+\.?(?:\s+[А-Яа-яЁё-]+\.?){0,2}`,
+		`(?i)(?:ул\.|ул|улица|улице|улицу|пр-кт|пр-т|пр\.|проспект|проспекте|пер\.|переулок|б-р|бульвар|ш\.|шоссе|наб\.|набережная|пл\.|площадь|проезд|пр-д|тупик|аллея|линия)\s+[А-Яа-яЁё-]+\.?(?:\s+[А-Яа-яЁё-]+\.?){0,2}`,
 	)
 	// addrStreetNameRe matches a capitalised street name followed by a marker,
 	// e.g. "Ленинский проспект". It is case-sensitive so that prepositions like
 	// "на" are not captured as street names. It is matched against the raw text.
 	addrStreetNameRe = regexp.MustCompile(
-		`[А-ЯЁ][а-яё-]+\s+(?:улица|ул\.|проспект|пр-т|пр\.|переулок|пер\.|бульвар|б-р|шоссе|ш\.|набережная|наб\.|площадь|пл\.|проезд|тупик|аллея|линия)`,
+		`[А-ЯЁ][а-яё-]+(?:\s+[А-ЯЁ][а-яё-]+){0,1}\s+(?:улица|ул\.|проспект|пр-т|пр\.|переулок|пер\.|бульвар|б-р|шоссе|ш\.|набережная|наб\.|площадь|пл\.|проезд|тупик|аллея|линия)`,
 	)
 	addrHouseRe = regexp.MustCompile(
 		`(?i)(?:д\.|дом|д)\s*\d+[а-яa-z]?(?:\s*/\s*\d+)?(?:\s*-\s*\d+)?(?:\s*(?:к\.|корп\.|корпус|к)\s*\d+)?(?:\s*(?:стр\.|строение|с)\s*\d+)?`,
 	)
+	// addrStrRe matches a standalone строение number, e.g. "стр. 1" in
+	// "д. 10, стр. 1, кв. 704".
+	addrStrRe = regexp.MustCompile(`(?i)(?:стр\.|строение)\s*\d+[а-яa-z]?`)
 	addrAptRe = regexp.MustCompile(`(?i)(?:кв\.|кв|квартира|оф\.|офис|пом\.|помещение|комн\.)\s*\d+[а-я]?`)
 	// addrAptWordRe matches an apartment whose number is written in words, e.g.
 	// "квартира сорок два". The span runs to the end of the phrase.
@@ -147,7 +151,20 @@ var (
 	addrBareStreetCtxRe = regexp.MustCompile(
 		`[А-ЯЁ][а-яё-]+(?:\s+[А-ЯЁ][а-яё-]+){0,2}\s*,?\s*\d{1,4}[а-яa-z]?(?:\s+(?:корп\.|корпус|к)\s*\d+)?(?:\s*,\s*(?:кв\.|квартира)\s*\d+[а-я]?)?`,
 	)
+	// addrBareStreetCtxLowerRe is the lowercase-only variant of
+	// addrBareStreetCtxRe, matched against the lowercased text so a lowercase
+	// street name (e.g. "проживаю на тверской 5, квартира 8") is captured. The
+	// street name must follow a preposition ("на", "в", "по") so the span starts
+	// at the street, not at a context keyword. It is only accepted when a housing
+	// context keyword appears to the left.
+	addrBareStreetCtxLowerRe = regexp.MustCompile(
+		`(?:на|в|по)\s+([а-яё-]+(?:\s+[а-яё-]+){0,2}\s*,?\s*\d{1,4}[а-яa-z]?(?:\s+(?:корп\.|корпус|к)\s*\d+)?(?:\s*,\s*(?:кв\.|квартира)\s*\d+[а-я]?)?)`,
+	)
 	addrBareHouseRe = regexp.MustCompile(`,\s*\d{1,4}[а-яa-z]?(?:\s*-\s*\d+)?`)
+	// addrBareHouseDirectRe matches a bare house number directly after a street
+	// name with no comma, e.g. "пр. просвещения 87 к1". The optional корпус is
+	// included.
+	addrBareHouseDirectRe = regexp.MustCompile(`\d{1,4}[а-яa-z]?(?:\s+(?:к\.|корп\.|корпус|к)\s*\d+)?`)
 	// addrBareStreetHouseRe matches a bare street name (no marker) followed by a
 	// house number, e.g. "Кремлёвская 5". The street name must start with an
 	// uppercase letter so common nouns like "паспорт" or "код" are not captured.
@@ -160,20 +177,28 @@ var (
 		`(?:российская федерация|республика беларусь|россия|рф|казахстан|беларусь|армения|узбекистан)`,
 	)
 	addrRegionLowerRe = regexp.MustCompile(
-		`(?:\S+\s+(?:область|обл\.|край|республика|респ\.|автономный округ|ао)|(?:республика|респ\.)\s+\S+)`,
+		`(?:\S+\s+(?:область|обл\.|край|автономный округ|ао)|(?:республика|респ\.)\s+\S+)`,
 	)
 	addrDistrictLowerRe = regexp.MustCompile(`\S+\s+(?:район|р-н)`)
 	addrLocalityLowerRe = regexp.MustCompile(
-		`(?:г\.|город|гор\.|пос\.|посёлок|поселок|с\.|село|дер\.|деревня|ст\.|станица|пгт)\s+[а-яё-]+(?:\s+[а-яё-]+){0,2}`,
+		`(?:г\.|город|гор\.|пос\.|посёлок|поселок|с\.|село|дер\.|деревня|ст\.|станица|пгт|мкр\.|микрорайон)\s+[а-яё-]+(?:\s+[а-яё-]+){0,2}`,
 	)
 	addrHouseLowerRe = regexp.MustCompile(
 		`(?:д\.|дом|д)\s*\d+[а-яa-z]?(?:\s*/\s*\d+)?(?:\s*-\s*\d+)?(?:\s*(?:к\.|корп\.|корпус|к)\s*\d+)?(?:\s*(?:стр\.|строение|с)\s*\d+)?`,
 	)
+	addrStrLowerRe     = regexp.MustCompile(`(?:стр\.|строение)\s*\d+[а-яa-z]?`)
 	addrAptLowerRe     = regexp.MustCompile(`(?:кв\.|кв|квартира|оф\.|офис|пом\.|помещение|комн\.)\s*\d+[а-я]?`)
 	addrAptWordLowerRe = regexp.MustCompile(`(?:кв\.|квартира)\s+[а-яё]+(?:\s+[а-яё]+)?`)
 	addrPOBoxLowerRe   = regexp.MustCompile(`а/я\s*\d+`)
 	// addrParenLocalityRe matches a locality in parentheses, e.g. "(Уфа)".
 	addrParenLocalityRe = regexp.MustCompile(`\([А-ЯЁ][а-яё-]+\)`)
+	// addrLabeledRe matches a labelled address component prefix, e.g. "Страна:",
+	// "Индекс:", "Город:", "Улица:", "Дом:", "Квартира:". The value that follows
+	// runs to the next label or the end of the line and is computed in code. The
+	// label is matched case-insensitively; the value keeps its original case.
+	addrLabeledRe = regexp.MustCompile(
+		`(?i)(?:страна проживания|страна|индекс|город|улица|дом|квартира|кв\.|кв|region|country|index|zip|city|street|building|apt)\s*:\s*`,
+	)
 )
 
 // obliqueEndings are the non-nominative case endings appended to a city stem.
@@ -221,12 +246,26 @@ var addrContext = []string{
 // "отделения" are covered.
 var addrExceptionStems = []string{
 	"отделени", "офис", "банкомат", "филиал", "юридическ", "юрадрес", "головн",
+	"отель", "гостиниц", "конференц",
+}
+
+// addrNonStreetWords are capitalised words that must not be treated as a bare
+// street name in a street+house pattern (e.g. "Паспорт 5414", "Серия 45 09").
+var addrNonStreetWords = map[string]bool{
+	"паспорт": true, "серия": true, "снилс": true, "инн": true,
+	"телефон": true, "тел": true, "карта": true, "счёт": true, "счет": true,
+	"заказ": true, "договор": true, "код": true, "пин": true, "cvc": true,
+	"cvv": true, "выдан": true, "выдано": true, "получатель": true,
+	"клиент": true, "оператор": true, "фио": true, "ф.и.о": true,
+	"адрес": true, "адресу": true, "адреса": true, "адресе": true, "проживаю": true,
+	"проживает": true, "живу": true, "живёт": true, "живет": true, "снимаю": true,
+	"прописка": true, "регистрации": true, "регистрация": true,
 }
 
 // addrExceptionPhrases are whole-word organisation-address phrases that are not
 // covered by a single stem.
 var addrExceptionPhrases = []string{
-	"пункт выдачи", "адрес банка", "до",
+	"пункт выдачи", "адрес банка", "до", "банка", "банке",
 }
 
 // addrExceptionWindow is the number of runes scanned before an address group
@@ -255,12 +294,7 @@ func (d *addressDetector) DetectLower(t pii.Text) []pii.Span {
 	if len(comps) == 0 {
 		return nil
 	}
-	sort.Slice(comps, func(i, j int) bool {
-		if comps[i].start != comps[j].start {
-			return comps[i].start < comps[j].start
-		}
-		return comps[i].end > comps[j].end
-	})
+	sort.Slice(comps, func(i, j int) bool { return addrComponentLess(comps[i], comps[j]) })
 
 	// Drop overlapping components, keeping the longer one.
 	var kept []addrComponent
@@ -289,6 +323,19 @@ func (d *addressDetector) DetectLower(t pii.Text) []pii.Span {
 		i = j + 1
 	}
 	return spans
+}
+
+// addrComponentLess orders components by start, then by longer span, then
+// prefers a labelled component on identical spans so the value keeps its label
+// context (e.g. "Страна: Россия" beats the bare country "Россия").
+func addrComponentLess(a, b addrComponent) bool {
+	if a.start != b.start {
+		return a.start < b.start
+	}
+	if a.end != b.end {
+		return a.end > b.end
+	}
+	return a.kind == kindLabeled && b.kind != kindLabeled
 }
 
 // groupEnd returns the index of the last component in the group starting at i,
@@ -335,12 +382,12 @@ func (d *addressDetector) findComponents(t pii.Text) []addrComponent {
 	// When byte lengths match, match the (?i) regexes against the lowercased
 	// text with lowercase-only variants to avoid case-folding cost.
 	search := text
-	countryRe, regionRe, districtRe, localityRe, houseRe, aptRe, aptWordRe, poBoxRe :=
-		addrCountryRe, addrRegionRe, addrDistrictRe, addrLocalityRe, addrHouseRe, addrAptRe, addrAptWordRe, addrPOBoxRe
+	countryRe, regionRe, districtRe, localityRe, houseRe, aptRe, aptWordRe, poBoxRe, strRe :=
+		addrCountryRe, addrRegionRe, addrDistrictRe, addrLocalityRe, addrHouseRe, addrAptRe, addrAptWordRe, addrPOBoxRe, addrStrRe
 	if t.LowerOK() {
 		search = t.Lower
-		countryRe, regionRe, districtRe, localityRe, houseRe, aptRe, aptWordRe, poBoxRe =
-			addrCountryLowerRe, addrRegionLowerRe, addrDistrictLowerRe, addrLocalityLowerRe, addrHouseLowerRe, addrAptLowerRe, addrAptWordLowerRe, addrPOBoxLowerRe
+		countryRe, regionRe, districtRe, localityRe, houseRe, aptRe, aptWordRe, poBoxRe, strRe =
+			addrCountryLowerRe, addrRegionLowerRe, addrDistrictLowerRe, addrLocalityLowerRe, addrHouseLowerRe, addrAptLowerRe, addrAptWordLowerRe, addrPOBoxLowerRe, addrStrLowerRe
 	}
 	var comps []addrComponent
 	add := func(re *regexp.Regexp, kind string) {
@@ -356,6 +403,7 @@ func (d *addressDetector) findComponents(t pii.Text) []addrComponent {
 	comps = append(comps, findStreets(text)...)
 	trimStreetMarkers(text, comps)
 	add(houseRe, kindHouse)
+	add(strRe, kindHouse)
 	add(aptRe, "apartment")
 	add(aptWordRe, "apartment")
 	add(poBoxRe, "po_box")
@@ -364,8 +412,16 @@ func (d *addressDetector) findComponents(t pii.Text) []addrComponent {
 	comps = append(comps, findDictLocalities(t, text)...)
 	comps = append(comps, bareStreetsAfterLocality(text, comps)...)
 
-	// Bare adjective street + house number with a housing context keyword to the
-	// left (e.g. "снимаю на Профсоюзной 96 корпус 2, квартира 15").
+	comps = append(comps, findBareStreetContext(t, text)...)
+	comps = append(comps, findLabeledComponents(text)...)
+	return comps
+}
+
+// findBareStreetContext finds a bare adjective street + house number with a
+// housing context keyword to the left (e.g. "снимаю на Профсоюзной 96 корпус 2,
+// квартира 15" and the lowercase "проживаю на тверской 5, квартира 8").
+func findBareStreetContext(t pii.Text, text string) []addrComponent {
+	var comps []addrComponent
 	for _, loc := range addrBareStreetCtxRe.FindAllStringIndex(text, -1) {
 		start, end := loc[0], loc[1]
 		if followedByDigit(text, end) {
@@ -375,7 +431,96 @@ func (d *addressDetector) findComponents(t pii.Text) []addrComponent {
 			comps = append(comps, addrComponent{start: start, end: end, kind: kindStreetHouse})
 		}
 	}
+	// Lowercase street name variant (e.g. "проживаю на тверской 5, квартира 8").
+	comps = append(comps, findBareStreetContextLower(t, text)...)
 	return comps
+}
+
+// findBareStreetContextLower finds a lowercase bare street + house number with a
+// housing context keyword to the left (e.g. "проживаю на тверской 5, квартира
+// 8"). Matched against the lowercased text; the span covers the street+house
+// capture group.
+func findBareStreetContextLower(t pii.Text, text string) []addrComponent {
+	var comps []addrComponent
+	bareCtxSearch := text
+	if t.LowerOK() {
+		bareCtxSearch = t.Lower
+	}
+	for _, loc := range addrBareStreetCtxLowerRe.FindAllStringSubmatchIndex(bareCtxSearch, -1) {
+		start, end := loc[2], loc[3]
+		if start < 0 {
+			continue
+		}
+		if followedByDigit(text, end) {
+			continue
+		}
+		if bareStreetIsNonStreet(text, start) {
+			continue
+		}
+		if hasLeftContext(t, start, addrContext, 30) {
+			comps = append(comps, addrComponent{start: start, end: end, kind: kindStreetHouse})
+		}
+	}
+	return comps
+}
+
+// findLabeledComponents finds labelled address components (e.g. "Страна:
+// Россия", "Дом: 17/9"). Each label:value pair is a separate address component.
+// The span covers only the value, not the label. The value runs from after the
+// label to the next label, the end of the line, or a sentence-ending period.
+func findLabeledComponents(text string) []addrComponent {
+	var comps []addrComponent
+	labelLocs := addrLabeledRe.FindAllStringIndex(text, -1)
+	for i, loc := range labelLocs {
+		start := loc[1]
+		end := len(text)
+		if i+1 < len(labelLocs) {
+			end = labelLocs[i+1][0]
+		} else if nl := strings.IndexByte(text[start:], '\n'); nl >= 0 {
+			end = start + nl
+		}
+		start, end = trimLabeledValue(text, start, end)
+		if end > start {
+			comps = append(comps, addrComponent{start: start, end: end, kind: kindLabeled})
+		}
+	}
+	return comps
+}
+
+// trimLabeledValue trims a labelled component value to its meaningful span: it
+// stops at a sentence-ending period and trims leading/trailing whitespace, a
+// trailing comma, a trailing newline and a trailing period that follows a digit
+// (e.g. "Квартира: 12." keeps "12", while "обл." keeps its period).
+func trimLabeledValue(text string, start, end int) (int, int) {
+	if p := sentenceEndPeriod(text, start, end); p >= 0 {
+		end = p
+	}
+	for start < end && (text[start] == ' ' || text[start] == '\t') {
+		start++
+	}
+	for end > start && (text[end-1] == ' ' || text[end-1] == '\t' || text[end-1] == ',' || text[end-1] == '\n') {
+		end--
+	}
+	if end > start && text[end-1] == '.' && end-2 >= start && text[end-2] >= '0' && text[end-2] <= '9' {
+		end--
+	}
+	return start, end
+}
+
+// sentenceEndPeriod returns the byte offset of the first period within
+// [start, end) that ends a sentence (followed by whitespace and an uppercase
+// letter), or -1 when there is none. A period at the end of the text is not a
+// sentence end (it may be an abbreviation such as "обл.").
+func sentenceEndPeriod(text string, start, end int) int {
+	for i := start; i < end; i++ {
+		if text[i] != '.' {
+			continue
+		}
+		if i+1 < len(text) && text[i+1] == ' ' && i+2 < end && isUpperRune(decodedRune(text, i+2)) {
+			return i
+		}
+	}
+	return -1
 }
 
 // findLocalities appends locality components, skipping a settlement prefix that
@@ -426,12 +571,24 @@ func bareHousesAfterStreet(text string, comps []addrComponent) []addrComponent {
 			continue
 		}
 		windowEnd := runeOffsetAfter(text, s.end, 200)
-		for _, loc := range addrBareHouseRe.FindAllStringIndex(text[s.end:windowEnd], -1) {
-			start := s.end + loc[0]
-			end := s.end + loc[1]
-			if !followedByDigit(text, end) && gapRunes(text, s.end, start) <= 3 {
-				out = append(out, addrComponent{start: start, end: end, kind: kindHouse})
-			}
+		out = append(out, bareHousesInWindow(text, s.end, windowEnd, addrBareHouseRe, 3)...)
+		// A bare house number directly after the street (no comma), e.g.
+		// "пр. просвещения 87 к1". Only accepted when it immediately follows the
+		// street (gap of one space).
+		out = append(out, bareHousesInWindow(text, s.end, windowEnd, addrBareHouseDirectRe, 1)...)
+	}
+	return out
+}
+
+// bareHousesInWindow finds bare house numbers matching re within [from, windowEnd)
+// that are at most maxGap runes after from.
+func bareHousesInWindow(text string, from, windowEnd int, re *regexp.Regexp, maxGap int) []addrComponent {
+	var out []addrComponent
+	for _, loc := range re.FindAllStringIndex(text[from:windowEnd], -1) {
+		start := from + loc[0]
+		end := from + loc[1]
+		if !followedByDigit(text, end) && gapRunes(text, from, start) <= maxGap {
+			out = append(out, addrComponent{start: start, end: end, kind: kindHouse})
 		}
 	}
 	return out
@@ -538,7 +695,7 @@ func bareStreetsAfterLocality(text string, comps []addrComponent) []addrComponen
 		for _, loc := range addrBareStreetHouseRe.FindAllStringIndex(text[s.end:windowEnd], -1) {
 			start := s.end + loc[0]
 			end := s.end + loc[1]
-			if !followedByDigit(text, end) && gapRunes(text, s.end, start) <= 3 {
+			if !followedByDigit(text, end) && gapRunes(text, s.end, start) <= 3 && !bareStreetIsNonStreet(text, start) {
 				out = append(out, addrComponent{start: start, end: end, kind: kindStreetHouse})
 			}
 		}
@@ -546,9 +703,20 @@ func bareStreetsAfterLocality(text string, comps []addrComponent) []addrComponen
 	return out
 }
 
+// bareStreetIsNonStreet reports whether the first word of a bare street+house
+// match is a known non-street word (e.g. "Паспорт 5414").
+func bareStreetIsNonStreet(text string, start int) bool {
+	word := nextWord(text, start)
+	return addrNonStreetWords[strings.ToLower(word)]
+}
+
 func (d *addressDetector) validGroup(t pii.Text, group []addrComponent) bool {
 	flags := classifyGroup(group)
 	start := group[0].start
+	// A single labelled component (e.g. "Страна: Россия") is always an address.
+	if len(group) == 1 && flags.labeled {
+		return true
+	}
 	if flags.street && flags.house {
 		return !d.hasException(t, start)
 	}
@@ -567,6 +735,7 @@ type groupFlags struct {
 	house    bool
 	locality bool
 	other    bool
+	labeled  bool
 }
 
 // classifyGroup scans the components and records which kinds are present.
@@ -583,6 +752,8 @@ func classifyGroup(group []addrComponent) groupFlags {
 			f.house = true
 		case kindLocality:
 			f.locality = true
+		case kindLabeled:
+			f.labeled = true
 		default:
 			f.other = true
 		}
