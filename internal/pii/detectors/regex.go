@@ -23,6 +23,11 @@ var rulesFS embed.FS
 // is to the match, so a nearer keyword always outranks a farther one.
 const contextBonusWindow = 60
 
+// softContextWindow is the number of runes scanned to the left of a match for a
+// validator_soft_context keyword. When such a keyword is present and the
+// validator fails, the span is still accepted with a reduced confidence.
+const softContextWindow = 25
+
 // ReclassifyRule reclassifies a matched span to another category when a context
 // keyword appears within a window to the left or right of the match.
 type ReclassifyRule struct {
@@ -35,18 +40,24 @@ type ReclassifyRule struct {
 
 // Rule is a single regex-based detection rule.
 type Rule struct {
-	Name               string           `yaml:"name"`
-	Category           pii.Category     `yaml:"category"`
-	Pattern            string           `yaml:"pattern"`
-	Validator          string           `yaml:"validator"`
-	Confidence         float64          `yaml:"confidence"`
-	Context            []string         `yaml:"context"`
-	RequireContext     bool             `yaml:"require_context"`
-	ContextWindow      int              `yaml:"context_window"`
-	ContextAfter       []string         `yaml:"context_after"`
-	ContextAfterWindow int              `yaml:"context_after_window"`
-	Group              int              `yaml:"group"`
-	Reclassify         []ReclassifyRule `yaml:"reclassify"`
+	Name      string       `yaml:"name"`
+	Category  pii.Category `yaml:"category"`
+	Pattern   string       `yaml:"pattern"`
+	Validator string       `yaml:"validator"`
+	// ValidatorSoftContext, when non-empty, lists explicit category labels that
+	// soften a validator failure: if any keyword appears within softContextWindow
+	// runes to the left of the match, the span is accepted even when the
+	// validator rejects it, with confidence reduced by 0.2. Without a label the
+	// validator stays mandatory.
+	ValidatorSoftContext []string         `yaml:"validator_soft_context"`
+	Confidence           float64          `yaml:"confidence"`
+	Context              []string         `yaml:"context"`
+	RequireContext       bool             `yaml:"require_context"`
+	ContextWindow        int              `yaml:"context_window"`
+	ContextAfter         []string         `yaml:"context_after"`
+	ContextAfterWindow   int              `yaml:"context_after_window"`
+	Group                int              `yaml:"group"`
+	Reclassify           []ReclassifyRule `yaml:"reclassify"`
 	// ReclassifyDate, when true, applies the shared date birth_date
 	// reclassification (dateBirthReclassify) instead of the data-driven
 	// Reclassify rules. Used by the date and date_short_year rules so they share
@@ -81,6 +92,9 @@ type Rule struct {
 	contextAfterWindow int
 	// contextLower holds the lowercased context keywords.
 	contextLower []string
+	// validatorSoftContextLower holds the lowercased validator_soft_context
+	// keywords.
+	validatorSoftContextLower []string
 	// contextAfterLower holds the lowercased context_after keywords.
 	contextAfterLower []string
 	// rejectContextLower holds the lowercased reject_context keywords.
@@ -151,6 +165,7 @@ func compileRule(rule *Rule) error {
 	}
 	rule.contextLower = lowerAll(rule.Context)
 	rule.contextAfterLower = lowerAll(rule.ContextAfter)
+	rule.validatorSoftContextLower = lowerAll(rule.ValidatorSoftContext)
 	rule.rejectContextLower = lowerAll(rule.RejectContext)
 	rule.rejectContextWindow = rule.RejectContextWindow
 	if rule.rejectContextWindow == 0 {
@@ -253,35 +268,40 @@ func (d *regexDetector) detectRule(t pii.Text, r Rule) []pii.Span {
 		end = trimTrailingSeparators(t.Raw, start, end)
 		match := t.Raw[start:end]
 
-		if !r.acceptsMatch(t, start, end, match) {
+		if ok, soft := r.acceptsMatch(t, start, end, match); !ok {
 			continue
+		} else {
+			conf, ok := r.matchConfidence(t, start, end, soft)
+			if !ok {
+				continue
+			}
+
+			cat := reclassify(t, start, end, r)
+
+			spans = append(spans, pii.Span{
+				Start:      start,
+				End:        end,
+				Category:   cat,
+				Detector:   d.Name(),
+				Confidence: conf,
+			})
 		}
-
-		conf, ok := r.matchConfidence(t, start, end)
-		if !ok {
-			continue
-		}
-
-		cat := reclassify(t, start, end, r)
-
-		spans = append(spans, pii.Span{
-			Start:      start,
-			End:        end,
-			Category:   cat,
-			Detector:   d.Name(),
-			Confidence: conf,
-		})
 	}
 	return spans
 }
 
 // matchConfidence computes the confidence for a match, applying the context
 // bonus and the require-context gate. It returns false when the match must be
-// skipped.
-func (r Rule) matchConfidence(t pii.Text, start, end int) (float64, bool) {
+// skipped. soft reports that the validator failed but a validator_soft_context
+// keyword was present, so the confidence is reduced by 0.2 and the
+// require-context gate is satisfied by the soft label.
+func (r Rule) matchConfidence(t pii.Text, start, end int, soft bool) (float64, bool) {
 	conf := r.Confidence
 	if conf == 0 {
 		conf = 0.9
+	}
+	if soft {
+		conf -= 0.2
 	}
 
 	// Context keywords to the left or right raise confidence. A context is
@@ -289,7 +309,7 @@ func (r Rule) matchConfidence(t pii.Text, start, end int) (float64, bool) {
 	// the match. The nearest satisfying keyword yields a small bonus so that
 	// competing categories (e.g. cvv vs pin) resolve to the closer keyword.
 	hasCtx, dist, _ := contextDistance(t, start, end, r)
-	if r.RequireContext && !hasCtx {
+	if r.RequireContext && !hasCtx && !soft {
 		return 0, false
 	}
 	if hasCtx {
@@ -372,23 +392,55 @@ func captureBounds(text string, re *regexp.Regexp, start, end int) (int, int) {
 }
 
 // acceptsMatch reports whether a match passes the validator, standalone and
-// digit-sequence checks.
-func (r Rule) acceptsMatch(t pii.Text, start, end int, match string) bool {
-	if r.Validator != "" {
-		if v, ok := Validators[r.Validator]; ok && !v(match) {
-			return false
-		}
+// digit-sequence checks. The second return value reports that the validator
+// failed but a validator_soft_context keyword was present, so the match is
+// accepted with a reduced confidence.
+func (r Rule) acceptsMatch(t pii.Text, start, end int, match string) (bool, bool) {
+	soft := r.validatorSoftPassed(t, start, match)
+	if r.Validator != "" && !soft && !validatorPasses(r.Validator, match) {
+		return false, false
 	}
 	if r.standalone() && !standaloneBoundary(t.Raw, start, end) {
-		return false
+		return false, false
 	}
 	if r.NotInDigitSequence && inDigitSequence(t.Raw, start, end) {
-		return false
+		return false, false
 	}
 	if r.rejectedByContext(t, start, end) {
+		return false, false
+	}
+	return true, soft
+}
+
+// validatorSoftPassed reports whether the validator failed but a
+// validator_soft_context keyword is present, so the match is accepted with a
+// reduced confidence. It returns false when there is no validator or the
+// validator passes.
+func (r Rule) validatorSoftPassed(t pii.Text, start int, match string) bool {
+	if r.Validator == "" {
 		return false
 	}
-	return true
+	if validatorPasses(r.Validator, match) {
+		return false
+	}
+	return r.softContextPresent(t, start)
+}
+
+// validatorPasses reports whether the named validator accepts match. A missing
+// validator is treated as passing.
+func validatorPasses(name, match string) bool {
+	v, ok := Validators[name]
+	return !ok || v(match)
+}
+
+// softContextPresent reports whether a validator_soft_context keyword appears
+// within softContextWindow runes to the left of byte position start.
+func (r Rule) softContextPresent(t pii.Text, start int) bool {
+	if len(r.validatorSoftContextLower) == 0 {
+		return false
+	}
+	ok, _ := leftContext(t, start, softContextWindow, r.validatorSoftContextLower)
+	return ok
 }
 
 // standaloneBoundary reports whether the match is not adjacent to another digit.

@@ -63,7 +63,7 @@ func TestPhoneDetect(t *testing.T) {
 		{"positive", "Перезвоните по номеру +7 (916) 123-45-67", true},
 		{"positive8", "Мой номер 89161234567", true},
 		{"negative10digits", "Номер заказа 9161234567", false},
-		{"negativeForeign", "Позвоните на +1 916 123 45 67", false},
+		{"positiveForeign", "Позвоните на +1 916 123 45 67", true},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -495,12 +495,20 @@ func TestCVVNotCapturingNeighbor(t *testing.T) {
 }
 
 func TestCVVNotInDigitSequence(t *testing.T) {
-	res := runPipeline(t, "карта 5536 9138 1234 5678 cvv 123")
-	if len(res.Spans) != 1 || res.Spans[0].Category != pii.CatCVV {
-		t.Errorf("expected exactly one cvv span for 123, got %+v", res.Spans)
+	in := "карта 5536 9138 1234 5678 cvv 123"
+	res := runPipeline(t, in)
+	var cvvSpans []pii.Span
+	for _, s := range res.Spans {
+		if s.Category == pii.CatCVV {
+			cvvSpans = append(cvvSpans, s)
+		}
 	}
-	if got := res.Spans[0].Start; got != 35 {
-		t.Errorf("only the real cvv 123 should be detected, got span at %d", got)
+	if len(cvvSpans) != 1 {
+		t.Errorf("expected exactly one cvv span for 123, got %+v", res.Spans)
+		return
+	}
+	if got := in[cvvSpans[0].Start:cvvSpans[0].End]; got != "123" {
+		t.Errorf("only the real cvv 123 should be detected, got %q", got)
 	}
 }
 
@@ -567,5 +575,279 @@ func TestTollFreePhoneNotPII(t *testing.T) {
 	res := runPipeline(t, in)
 	if hasCategory(t, res, pii.CatPhone) {
 		t.Errorf("toll-free phone should not be detected %q, got %+v", in, res.Spans)
+	}
+}
+
+func TestSoftContextInvalidChecksum(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		cat  pii.Category
+	}{
+		{"inn", "ИНН 770123456789", pii.CatINN},
+		{"snils", "СНИЛС 123-456-789 01", pii.CatSNILS},
+		{"snilsPhrase", "страховой номер 123-456-789 01", pii.CatSNILS},
+		{"card", "карта 4276 1234 5678 9012", pii.CatCardNumber},
+		{"cardPlural", "карты 4276 1234 5678 9012", pii.CatCardNumber},
+		{"cardPan", "pan 4276 1234 5678 9012", pii.CatCardNumber},
+		{"passport", "паспорт 1234 567890", pii.CatPassport},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			res := runPipeline(t, c.in)
+			if !hasCategory(t, res, c.cat) {
+				t.Errorf("expected %s for %q, got %+v", c.cat, c.in, res.Spans)
+			}
+		})
+	}
+}
+
+func TestSoftContextConfidenceReduced(t *testing.T) {
+	// A soft-passed span (invalid checksum + label) must be 0.2 below the base
+	// confidence of a valid match.
+	valid := runPipeline(t, "ИНН 500100732259")
+	soft := runPipeline(t, "ИНН 770123456789")
+	validConf := spanConfidence(valid, pii.CatINN)
+	softConf := spanConfidence(soft, pii.CatINN)
+	if softConf != validConf-0.2 {
+		t.Errorf("soft confidence = %v, want valid %v - 0.2 = %v", softConf, validConf, validConf-0.2)
+	}
+}
+
+func spanConfidence(res pii.Result, cat pii.Category) float64 {
+	for _, s := range res.Spans {
+		if s.Category == cat {
+			return s.Confidence
+		}
+	}
+	return 0
+}
+
+func TestSoftContextTraps(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+	}{
+		{"orderNumber", "Заказ 1234567890"},
+		{"accountNumber", "счёт 40817810099910004312"},
+		{"innNoLabel", "номер 500100732258"},
+		{"cardNoLabel", "4111 1111 1111 1112"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			res := runPipeline(t, c.in)
+			if len(res.Spans) != 0 {
+				t.Errorf("expected no spans for %q, got %+v", c.in, res.Spans)
+			}
+		})
+	}
+}
+
+func TestPassportForms(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"seriesNoSpace", "Паспорт РФ 0304 № 771562", "0304 № 771562"},
+		{"seriesNoSpaceAfterNo", "клиент показал 4509 №123465", "4509 №123465"},
+		{"seriesAbbrev", "паспорт: с. 4509 н. 123456", "4509 н. 123456"},
+		{"seriesWord", "9203 номер 604718", "9203 номер 604718"},
+		{"seriesColon", "Паспорт: 2404 № 318077", "2404 № 318077"},
+		{"seriesAbbrevPassport", "паспорт с. 4619 н. 004821", "4619 н. 004821"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assertSpanValue(t, runPipeline(t, c.in), pii.CatPassport, c.in, c.want)
+		})
+	}
+}
+
+func TestDivisionCodeBare(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{"positive", "код подразделения 770001", true},
+		{"positiveKod", "выдан, код 372-002", true},
+		{"negativeNoContext", "770001", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			res := runPipeline(t, c.in)
+			if got := hasCategory(t, res, pii.CatDivisionCode); got != c.want {
+				t.Errorf("division bare detect %q = %v, want %v (spans: %+v)", c.in, got, c.want, res.Spans)
+			}
+		})
+	}
+}
+
+func TestDivisionCodeBareNotPassportNumber(t *testing.T) {
+	// The 6-digit passport number "887120" must not be detected as a division
+	// code even though "код подр." appears within the context window.
+	res := runPipeline(t, "паспорт 4503 №887120, код подр. 770-071")
+	for _, s := range res.Spans {
+		if s.Category == pii.CatDivisionCode {
+			if got := "паспорт 4503 №887120, код подр. 770-071"[s.Start:s.End]; got == "887120" {
+				t.Errorf("passport number 887120 should not be a division_code, got %+v", res.Spans)
+			}
+		}
+	}
+}
+
+func TestDriverLicenseTenDigits(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{"positiveVU", "ВУ 7712345678, категории B, C", true},
+		{"positiveSecond", "водительское удостоверение 9921087654", true},
+		{"negativeNoContext", "7712345678", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			res := runPipeline(t, c.in)
+			if got := hasCategory(t, res, pii.CatDriverLicense); got != c.want {
+				t.Errorf("driver 10-digit detect %q = %v, want %v (spans: %+v)", c.in, got, c.want, res.Spans)
+			}
+		})
+	}
+}
+
+func TestForeignPassportAlphanumeric(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{"positiveAB", "паспорт иностранного гражданина AB1234567", true},
+		{"positiveC", "паспорт иностранного гражданина C03871265", true},
+		{"positiveAC", "паспорт иностранного гражданина AC4870162", true},
+		{"positiveAR", "паспорт иностранного гражданина AR0391745", true},
+		{"positiveE", "паспорт иностранного гражданина E58329104", true},
+		{"positiveDigits", "паспорт иностранного гражданина 533418206", true},
+		{"negativeNoContext", "AB1234567", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			res := runPipeline(t, c.in)
+			if got := hasCategory(t, res, pii.CatForeignPassport); got != c.want {
+				t.Errorf("foreign alphanumeric detect %q = %v, want %v (spans: %+v)", c.in, got, c.want, res.Spans)
+			}
+		})
+	}
+}
+
+func TestSNILSAlternateSeparators(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{"positiveSpaces", "снилс: 145 680 392 80", true},
+		{"positiveDashes", "СНИЛС 201-378-945-49", true},
+		{"negativeNoContext", "145 680 392 80", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			res := runPipeline(t, c.in)
+			if got := hasCategory(t, res, pii.CatSNILS); got != c.want {
+				t.Errorf("snils alternate detect %q = %v, want %v (spans: %+v)", c.in, got, c.want, res.Spans)
+			}
+		})
+	}
+}
+
+func TestINNSpaced(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{"positive", "Её ИНН 7729 0061 4723", true},
+		{"negativeNoContext", "7729 0061 4723", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			res := runPipeline(t, c.in)
+			if got := hasCategory(t, res, pii.CatINN); got != c.want {
+				t.Errorf("inn spaced detect %q = %v, want %v (spans: %+v)", c.in, got, c.want, res.Spans)
+			}
+		})
+	}
+}
+
+func TestPhoneFourDigitCode(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{"positiveParen", "8 (4872) 36-01-22", true},
+		{"positiveSpace", "рабочий 8 4872 11-22-33", true},
+		{"positivePlus7", "Телефон: +7 (4932) 41-18-09", true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			res := runPipeline(t, c.in)
+			if got := hasCategory(t, res, pii.CatPhone); got != c.want {
+				t.Errorf("phone 4-digit code detect %q = %v, want %v (spans: %+v)", c.in, got, c.want, res.Spans)
+			}
+		})
+	}
+}
+
+func TestPhoneMoscowNoPrefix(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{"positive", "по номеру (495) 123-45-67", true},
+		{"negativeNoContext", "(495) 123-45-67", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			res := runPipeline(t, c.in)
+			if got := hasCategory(t, res, pii.CatPhone); got != c.want {
+				t.Errorf("phone moscow detect %q = %v, want %v (spans: %+v)", c.in, got, c.want, res.Spans)
+			}
+		})
+	}
+}
+
+func TestPhoneE164(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{"positiveUzbek", "телефон +998 90 123 45 67", true},
+		{"positiveChina", "телефон +86 138 1234 5678", true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			res := runPipeline(t, c.in)
+			if got := hasCategory(t, res, pii.CatPhone); got != c.want {
+				t.Errorf("phone e164 detect %q = %v, want %v (spans: %+v)", c.in, got, c.want, res.Spans)
+			}
+		})
+	}
+}
+
+func TestTollFreeExcluded(t *testing.T) {
+	cases := []string{
+		"8-800-200-00-00",
+		"8 800 200-00-00",
+		"звонить на 8 (800) 555-35-35",
+		"Позвоните 8 800 555 35 35",
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c)
+		if hasCategory(t, res, pii.CatPhone) {
+			t.Errorf("toll-free should not be detected %q, got %+v", c, res.Spans)
+		}
 	}
 }

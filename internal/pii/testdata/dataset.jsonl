@@ -4,7 +4,7 @@
 {"id":"phone-004","text":"Телефон +7-495-123-45-67","spans":[{"value":"+7-495-123-45-67","category":"phone"}]}
 {"id":"phone-005","text":"свяжитесь со мной 8(921)987-65-43","spans":[{"value":"8(921)987-65-43","category":"phone"}]}
 {"id":"phone-006","text":"номер телефона 7 916 111 22 33","spans":[{"value":"7 916 111 22 33","category":"phone"}]}
-{"id":"phone-007","text":"Позвоните 8 800 555 35 35","spans":[{"value":"8 800 555 35 35","category":"phone"}]}
+{"id":"phone-007","text":"Позвоните 8 800 555 35 35","spans":[]}
 {"id":"phone-008","text":"мобильный +7 999 000 11 22","spans":[{"value":"+7 999 000 11 22","category":"phone"}]}
 {"id":"email-001","text":"Напишите на IVAN.Petrov@Example.com","spans":[{"value":"IVAN.Petrov@Example.com","category":"email"}]}
 {"id":"email-002","text":"почта user_name+tag@mail.ru","spans":[{"value":"user_name+tag@mail.ru","category":"email"}]}
@@ -209,7 +209,7 @@
 {"id": "complex-007", "text": "Ахметов Руслан Маратович, дата рождения 15.03.1988, место рождения: г. Уфа, паспорт 8010 123456, кем выдан: ОВД района Хамовники, к/п 770-003, проживает: г. Уфа, проспект Октября, д. 15, телефон +7 999 000 11 22, email ruslan@mail.ru", "spans": [{"start": 0, "end": 46, "category": "full_name"}, {"start": 74, "end": 84, "category": "birth_date"}, {"start": 115, "end": 125, "category": "birth_place"}, {"start": 142, "end": 153, "category": "passport"}, {"start": 174, "end": 212, "category": "passport_issuer"}, {"start": 220, "end": 227, "category": "division_code"}, {"start": 249, "end": 300, "category": "address"}, {"start": 317, "end": 333, "category": "phone"}, {"start": 341, "end": 355, "category": "email"}]}
 {"id": "complex-008", "text": "Смирнова Анна Петровна, родилась 22.07.1995 в г. Новосибирск, паспорт 5009 111222, выдан Отделом УФМС России по г. Новосибирску, код подразделения 540-004, адрес: г. Новосибирск, ул. Советская, д. 7, кв. 3, тел. 8 921 987 65 43, почта anna@example.com", "spans": [{"start": 0, "end": 42, "category": "full_name"}, {"start": 61, "end": 71, "category": "birth_date"}, {"start": 75, "end": 101, "category": "birth_place"}, {"start": 118, "end": 129, "category": "passport"}, {"start": 142, "end": 212, "category": "passport_issuer"}, {"start": 248, "end": 255, "category": "division_code"}, {"start": 269, "end": 337, "category": "address"}, {"start": 347, "end": 362, "category": "phone"}, {"start": 375, "end": 391, "category": "email"}]}
 {"id": "complex-009", "text": "Кузнецов Дмитрий Александрович, дата рождения 01.01.1985, место рождения: г. Екатеринбург, паспорт 6509 333444, выдан Управлением МВД России по г. Екатеринбургу, код подразделения 660-005, адрес регистрации: г. Екатеринбург, ул. Малышева, д. 10, кв. 2, телефон +7 916 111 22 33, email dmitry@mail.ru", "spans": [{"start": 0, "end": 58, "category": "full_name"}, {"start": 86, "end": 96, "category": "birth_date"}, {"start": 127, "end": 155, "category": "birth_place"}, {"start": 172, "end": 183, "category": "passport"}, {"start": 196, "end": 274, "category": "passport_issuer"}, {"start": 310, "end": 317, "category": "division_code"}, {"start": 354, "end": 423, "category": "address"}, {"start": 440, "end": 456, "category": "phone"}, {"start": 464, "end": 478, "category": "email"}]}
-{"id": "complex-010", "text": "Волкова Ольга Игоревна, родилась 30.09.1991 в г. Краснодар, паспорт 0309 555666, выдан ОМВД России по району Хамовники, код подразделения 770-006, проживает: г. Краснодар, ул. Красная, д. 1, тел. 8 800 555 35 35, почта olga@yandex.ru", "spans": [{"start": 0, "end": 42, "category": "full_name"}, {"start": 61, "end": 71, "category": "birth_date"}, {"start": 75, "end": 97, "category": "birth_place"}, {"start": 114, "end": 125, "category": "passport"}, {"start": 138, "end": 196, "category": "passport_issuer"}, {"start": 232, "end": 239, "category": "division_code"}, {"start": 261, "end": 312, "category": "address"}, {"start": 322, "end": 337, "category": "phone"}, {"start": 350, "end": 364, "category": "email"}]}
+{"id": "complex-010", "text": "Волкова Ольга Игоревна, родилась 30.09.1991 в г. Краснодар, паспорт 0309 555666, выдан ОМВД России по району Хамовники, код подразделения 770-006, проживает: г. Краснодар, ул. Красная, д. 1, тел. 8 800 555 35 35, почта olga@yandex.ru", "spans": [{"start": 0, "end": 42, "category": "full_name"}, {"start": 61, "end": 71, "category": "birth_date"}, {"start": 75, "end": 97, "category": "birth_place"}, {"start": 114, "end": 125, "category": "passport"}, {"start": 138, "end": 196, "category": "passport_issuer"}, {"start": 232, "end": 239, "category": "division_code"}, {"start": 261, "end": 312, "category": "address"}, {"start": 350, "end": 364, "category": "email"}]}
 {"id":"passdate-009","text":"Паспорт 4509 123456 выдан ОУФМС России по г. Москве по району Хамовники 12.05.2010, код подразделения 770-001","spans":[{"value":"4509 123456","category":"passport"},{"value":"ОУФМС России по г. Москве по району Хамовники","category":"passport_issuer"},{"value":"12.05.2010","category":"passport_date"},{"value":"770-001","category":"division_code"}]}
 {"id":"passdate-010","text":"паспорт 4509 123456 выдан 12.05.2010, код подразделения 770-001","spans":[{"value":"4509 123456","category":"passport"},{"value":"12.05.2010","category":"passport_date"},{"value":"770-001","category":"division_code"}]}
 {"id":"birth-009","text":"родился 12.05.1990, место рождения: г. Москва","spans":[{"value":"12.05.1990","category":"birth_date"},{"value":"г. Москва","category":"birth_place"}]}
@@ -288,3 +288,29 @@
 {"id":"dateword-004","text":"двадцать первого августа две тысячи девятнадцатого года","spans":[{"value":"двадцать первого августа две тысячи девятнадцатого года","category":"date"}]}
 {"id":"dateword-005","text":"ПЯТОГО МАРТА 1985 ГОДА","spans":[{"value":"ПЯТОГО МАРТА 1985 ГОДА","category":"date"}]}
 {"id":"dateword-006","text":"родился пятого марта 1985 года","spans":[{"value":"пятого марта 1985 года","category":"birth_date"}]}
+{"id":"ultra-passport-001","text":"Паспорт РФ 0304 № 771562","spans":[{"value":"0304 № 771562","category":"passport"}]}
+{"id":"ultra-passport-002","text":"клиент показал 4509 №123465 — опечатка","spans":[{"value":"4509 №123465","category":"passport"}]}
+{"id":"ultra-passport-003","text":"паспорт: с. 4509 н. 123456","spans":[{"value":"4509 н. 123456","category":"passport"}]}
+{"id":"ultra-passport-004","text":"9203 номер 604718","spans":[{"value":"9203 номер 604718","category":"passport"}]}
+{"id":"ultra-passport-005","text":"Паспорт: 2404 № 318077","spans":[{"value":"2404 № 318077","category":"passport"}]}
+{"id":"ultra-division-001","text":"код подразделения 770001","spans":[{"value":"770001","category":"division_code"}]}
+{"id":"ultra-division-002","text":"выдан, код 372-002","spans":[{"value":"372-002","category":"division_code"}]}
+{"id":"ultra-driver-001","text":"ВУ 7712345678, категории B, C","spans":[{"value":"7712345678","category":"driver_license"}]}
+{"id":"ultra-driver-002","text":"второй водитель — водительское удостоверение 9921087654","spans":[{"value":"9921087654","category":"driver_license"}]}
+{"id":"ultra-foreign-001","text":"паспорт иностранного гражданина AB1234567","spans":[{"value":"AB1234567","category":"foreign_passport"}]}
+{"id":"ultra-foreign-002","text":"паспорт иностранного гражданина C03871265","spans":[{"value":"C03871265","category":"foreign_passport"}]}
+{"id":"ultra-foreign-003","text":"паспорт иностранного гражданина AC4870162","spans":[{"value":"AC4870162","category":"foreign_passport"}]}
+{"id":"ultra-foreign-004","text":"паспорт иностранного гражданина AR0391745","spans":[{"value":"AR0391745","category":"foreign_passport"}]}
+{"id":"ultra-foreign-005","text":"паспорт иностранного гражданина E58329104","spans":[{"value":"E58329104","category":"foreign_passport"}]}
+{"id":"ultra-foreign-006","text":"паспорт иностранного гражданина 533418206","spans":[{"value":"533418206","category":"foreign_passport"}]}
+{"id":"ultra-snils-001","text":"снилс: 145 680 392 80","spans":[{"value":"145 680 392 80","category":"snils"}]}
+{"id":"ultra-snils-002","text":"СНИЛС 201-378-945-49 к заявлению","spans":[{"value":"201-378-945-49","category":"snils"}]}
+{"id":"ultra-inn-001","text":"Её ИНН 7729 0061 4723, запишите","spans":[{"value":"7729 0061 4723","category":"inn"}]}
+{"id":"ultra-phone-001","text":"Перезвоните по номеру (495) 123-45-67 после 18:00","spans":[{"value":"(495) 123-45-67","category":"phone"}]}
+{"id":"ultra-phone-002","text":"Для связи: 8 (4872) 36-01-22","spans":[{"value":"8 (4872) 36-01-22","category":"phone"}]}
+{"id":"ultra-phone-003","text":"рабочий 8 4872 11-22-33 доб. 105","spans":[{"value":"8 4872 11-22-33","category":"phone"}]}
+{"id":"ultra-phone-004","text":"телефон +998 90 123 45 67","spans":[{"value":"+998 90 123 45 67","category":"phone"}]}
+{"id":"ultra-phone-005","text":"телефон +86 138 1234 5678","spans":[{"value":"+86 138 1234 5678","category":"phone"}]}
+{"id":"ultra-phone-006","text":"Телефон: +7 (4932) 41-18-09","spans":[{"value":"+7 (4932) 41-18-09","category":"phone"}]}
+{"id":"ultra-phone-007","text":"звонить на 8-800-200-00-00","spans":[]}
+{"id":"ultra-phone-008","text":"звонить на 8 (800) 555-35-35","spans":[]}

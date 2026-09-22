@@ -1,7 +1,7 @@
 rules:
   - name: phone_ru
     category: phone
-    pattern: '(?i)(?:\+7|8|7)[\s(-]*\d{3}[\s)-]*\d{3}[\s-]*\d{2}[\s-]*\d{2}'
+    pattern: '(?i)(?:\+7|8|7)[\s(-]*\d{3,4}[\s)-]*\d{2,3}[\s-]*\d{2}[\s-]*\d{2}'
     validator: phone
     confidence: 0.9
     context:
@@ -14,6 +14,44 @@ rules:
       - служба поддержки
       - поддержки банка
     reject_context_window: 150
+
+  - name: phone_moscow
+    category: phone
+    pattern: '(?i)\(\d{3}\)[\s-]*\d{3}[\s-]*\d{2}[\s-]*\d{2}'
+    validator: phone10
+    require_context: true
+    context_window: 40
+    confidence: 0.9
+    deny_context:
+      - +7
+      - 8
+    deny_context_window: 3
+    context:
+      - номер
+      - номеру
+      - номера
+      - тел
+      - телефон
+      - телефону
+      - позвон
+      - позвоните
+      - позвонить
+    context_after:
+      - номер
+      - номеру
+      - номера
+      - тел
+      - телефон
+      - телефону
+      - позвон
+      - позвоните
+      - позвонить
+
+  - name: phone_e164
+    category: phone
+    pattern: '(?i)\+\d{1,3}[\s-]*\d{2,3}[\s-]*\d{3,4}[\s-]*\d{2,4}[\s-]*\d{2,4}'
+    validator: phone_e164
+    confidence: 0.95
 
   - name: email
     category: email
@@ -29,6 +67,8 @@ rules:
     category: inn
     pattern: '(?i)\b\d{12}\b'
     validator: inn
+    validator_soft_context:
+      - инн
     confidence: 0.9
     context:
       - инн
@@ -52,10 +92,26 @@ rules:
       - кпп
       - огрн
 
+  - name: inn_spaced
+    category: inn
+    pattern: '(?i)\b\d{4}\s\d{4}\s\d{4}\b'
+    validator: inn
+    require_context: true
+    context_window: 40
+    confidence: 0.9
+    context:
+      - инн
+
   - name: card_number
     category: card_number
     pattern: '(?i)(?:\d[ -]?){13,19}'
     validator: luhn
+    validator_soft_context:
+      - карта
+      - карты
+      - номер карты
+      - card
+      - pan
     confidence: 0.9
     context:
       - карта
@@ -124,7 +180,7 @@ rules:
 
   - name: passport
     category: passport
-    pattern: '(?:серия\s*:?\s*(\d{4})[\s,]*номер\s*:?\s*(\d{6})|паспорт\s*(\d{4})\s*№?\s*(\d{6})|\b(\d{4})\s+(\d{6})\b|\b(\d{2}\s\d{2})\s(\d{6})\b|серия\s*:?\s*(\d{2}\s\d{2})\s*,?\s*(?:№|номер\s*:?)\s*(\d{6})|\b(\d{2}\s\d{2})\s*,?\s*(?:№|номер\s*:?)\s*(\d{6})\b)'
+    pattern: '(?:серия\s*:?\s*(\d{4})[\s,]*номер\s*:?\s*(\d{6})|паспорт\s*:?\s*(?:с\.\s*)?(\d{4})\s*(?:№|номер|н\.|ном\.)?\s*(\d{6})|\b(\d{4})\s+(\d{6})\b|\b(\d{4})\s*(?:№|номер|н\.|ном\.)\s*(\d{6})\b|\b(\d{2}\s\d{2})\s(\d{6})\b|серия\s*:?\s*(\d{2}\s\d{2})\s*,?\s*(?:№|номер\s*:?)\s*(\d{6})|\b(\d{2}\s\d{2})\s*,?\s*(?:№|номер\s*:?)\s*(\d{6})\b)'
     validator: passport
     confidence: 0.9
     match_lower: true
@@ -133,6 +189,9 @@ rules:
     category: passport
     pattern: '(?i)\b\d{10}\b'
     validator: passport
+    validator_soft_context:
+      - паспорт
+      - серия
     require_context: true
     context_window: 40
     confidence: 0.9
@@ -146,20 +205,33 @@ rules:
     category: division_code
     pattern: '(?i)\b\d{3}-\d{3}\b'
     require_context: true
-    context_window: 40
+    context_window: 60
     confidence: 0.9
     context:
       - код подразделения
       - к/п
       - код подр
+      - код
     context_after:
+      - код подразделения
+      - к/п
+      - код подр
+      - код
+
+  - name: division_code_bare
+    category: division_code
+    pattern: '(?i)\b\d{6}\b'
+    require_context: true
+    context_window: 20
+    confidence: 0.9
+    context:
       - код подразделения
       - к/п
       - код подр
 
   - name: driver_license
     category: driver_license
-    pattern: '(?i)(?:\b\d{2}\s\d{2}\s\d{6}\b|\b\d{4}\s\d{6}\b|\b\d{2}[а-яё]{2}\s\d{6}\b)'
+    pattern: '(?i)(?:\b\d{2}\s\d{2}\s\d{6}\b|\b\d{4}\s\d{6}\b|\b\d{2}[а-яё]{2}\s\d{6}\b|\b\d{10}\b)'
     require_context: true
     context_window: 40
     confidence: 0.9
@@ -178,8 +250,11 @@ rules:
 
   - name: snils
     category: snils
-    pattern: '(?i)(?:\b\d{3}-\d{3}-\d{3}\s\d{2}\b|\b\d{11}\b)'
+    pattern: '(?i)(?:\b\d{3}[\s-]\d{3}[\s-]\d{3}[\s-]\d{2}\b|\b\d{11}\b)'
     validator: snils
+    validator_soft_context:
+      - снилс
+      - страховой номер
     require_context: true
     context_window: 40
     confidence: 0.9
@@ -190,7 +265,7 @@ rules:
 
   - name: foreign_passport
     category: foreign_passport
-    pattern: '(?i)\b\d{2}\s\d{7}\b'
+    pattern: '(?i)(?:\b\d{2}\s\d{7}\b|\b[A-Z]{1,2}\d{7,8}\b|\b\d{9}\b)'
     require_context: true
     context_window: 40
     confidence: 0.9
@@ -202,6 +277,7 @@ rules:
       - загран.
       - иностранный паспорт
       - паспорт иностранного гражданина
+      - паспорт кнр
     context_after:
       - загранпаспорт
       - загран
@@ -210,6 +286,7 @@ rules:
       - загран.
       - иностранный паспорт
       - паспорт иностранного гражданина
+      - паспорт кнр
 
   - name: date
     category: date

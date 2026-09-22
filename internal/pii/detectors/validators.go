@@ -14,6 +14,8 @@ var Validators = map[string]func(match string) bool{
 	"snils":             snils,
 	"passport":          passport,
 	"phone":             phone,
+	"phone10":           phone10,
+	"phone_e164":        phoneE164,
 	"date":              date,
 	"date_short_year":   dateShortYear,
 	"not_service_email": notServiceEmail,
@@ -21,6 +23,10 @@ var Validators = map[string]func(match string) bool{
 }
 
 var nonDigit = regexp.MustCompile(`[^\d]`)
+
+// tollFreePrefix is the Russian toll-free 8 800 prefix. Numbers starting with
+// it are corporate contacts rather than personal data.
+const tollFreePrefix = "800"
 
 var wordDateRe = regexp.MustCompile(`^(\d{1,2})(?:-го|-е|-ого|-его)?\s+([а-яё]+)\s+(\d{4})(?:\s+(?:г\.|года|г))?$`)
 
@@ -49,7 +55,7 @@ func notServiceEmail(match string) bool {
 // contact rather than personal data.
 func notTollFree(match string) bool {
 	d := digits(match)
-	if len(d) == 11 && d[0] == '8' && d[1:4] == "800" {
+	if len(d) == 11 && d[0] == '8' && d[1:4] == tollFreePrefix {
 		return false
 	}
 	return true
@@ -152,12 +158,35 @@ func passport(match string) bool {
 }
 
 // phone validates a Russian phone number: exactly 11 digits, first is 7 or 8.
+// It rejects toll-free 8 800 numbers, which are corporate contacts rather than
+// personal data.
 func phone(match string) bool {
 	d := digits(match)
 	if len(d) != 11 {
 		return false
 	}
+	if d[0] == '8' && d[1:4] == tollFreePrefix {
+		return false
+	}
 	return d[0] == '7' || d[0] == '8'
+}
+
+// phone10 validates a 10-digit Russian phone number written with a parenthesised
+// area code and no leading 8/+7 (e.g. "(495) 123-45-67"). It rejects toll-free
+// 800 numbers.
+func phone10(match string) bool {
+	d := digits(match)
+	if len(d) != 10 {
+		return false
+	}
+	return d[:3] != tollFreePrefix
+}
+
+// phoneE164 validates an E.164 phone number: a leading '+' followed by 10-15
+// digits (country code + national number), with optional separators.
+func phoneE164(match string) bool {
+	d := digits(match)
+	return len(d) >= 10 && len(d) <= 15
 }
 
 var monthNames = map[string]int{
