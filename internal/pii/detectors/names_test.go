@@ -178,3 +178,190 @@ func TestFullNameSurnameInitialsUppercase(t *testing.T) {
 		t.Errorf("no full_name span for КИМ В.С.")
 	}
 }
+
+// Point 1: lowercase full name after a name context keyword.
+func TestFullNameLowercaseAfterContext(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"клиент: ахметзянова зульфия ильгизовна", "ахметзянова зульфия ильгизовна"},
+		{"ФИО: ахметзянова зульфия ильгизовна", "ахметзянова зульфия ильгизовна"},
+		{"клиент представился как васильев-петренко артём", "васильев-петренко артём"},
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c.in)
+		found := false
+		for _, s := range res.Spans {
+			if s.Category == pii.CatFullName {
+				found = true
+				if got := c.in[s.Start:s.End]; got != c.want {
+					t.Errorf("full_name value for %q = %q, want %q", c.in, got, c.want)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("no full_name span for %q", c.in)
+		}
+	}
+}
+
+// Point 2: four-token Turkic patronymic "name1 name2 кызы/оглы/улы".
+func TestFullNameTurkicFourToken(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"АБДУЛЛАЕВА СЕВИЛЬ ФАРИД КЫЗЫ", "АБДУЛЛАЕВА СЕВИЛЬ ФАРИД КЫЗЫ"},
+		{"Алиев Али Ахмед оглы", "Алиев Али Ахмед оглы"},
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c.in)
+		found := false
+		for _, s := range res.Spans {
+			if s.Category == pii.CatFullName {
+				found = true
+				if got := c.in[s.Start:s.End]; got != c.want {
+					t.Errorf("full_name value for %q = %q, want %q", c.in, got, c.want)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("no full_name span for %q", c.in)
+		}
+	}
+}
+
+// Point 3: dative/instrumental with an unknown given name.
+func TestFullNameDativeUnknownName(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"Доверенность выдана Ильгизу Рамилевичу Хабибуллину", "Ильгизу Рамилевичу Хабибуллину"},
+		{"Претензия от Айгуль Маратовны Сафиной", "Айгуль Маратовны Сафиной"},
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c.in)
+		found := false
+		for _, s := range res.Spans {
+			if s.Category == pii.CatFullName {
+				found = true
+				if got := c.in[s.Start:s.End]; got != c.want {
+					t.Errorf("full_name value for %q = %q, want %q", c.in, got, c.want)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("no full_name span for %q", c.in)
+		}
+	}
+}
+
+// Point 4: Latin full name after a context keyword.
+func TestFullNameLatinWithContext(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"my name is Tigran Avakyan", "Tigran Avakyan"},
+		{"name: Ivanov Ivan", "Ivanov Ivan"},
+		{"Заявитель Nguyen Van Long", "Nguyen Van Long"},
+		{"Клиент Ivanov Ivan", "Ivanov Ivan"},
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c.in)
+		found := false
+		for _, s := range res.Spans {
+			if s.Category == pii.CatFullName {
+				found = true
+				if got := c.in[s.Start:s.End]; got != c.want {
+					t.Errorf("full_name value for %q = %q, want %q", c.in, got, c.want)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("no full_name span for %q", c.in)
+		}
+	}
+}
+
+// Point 4 negative: Latin without context must not be detected.
+func TestFullNameLatinNoContext(t *testing.T) {
+	cases := []string{
+		"Tigran Avakyan",
+		"the client Tigran Avakyan",
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c)
+		if hasCategory(t, res, pii.CatFullName) {
+			t.Errorf("full_name should not detect %q, got %+v", c, res.Spans)
+		}
+	}
+}
+
+// Point 5: short non-Russian names in a dialogue reply.
+func TestFullNameForeignDialogue(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"Оператор: Как к вам обращаться?\nКлиент: Нгуен Тхи Хоа", "Нгуен Тхи Хоа"},
+		{"Данные для пропуска: ЛИ ЧЖИ ХУН", "ЛИ ЧЖИ ХУН"},
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c.in)
+		found := false
+		for _, s := range res.Spans {
+			if s.Category == pii.CatFullName {
+				found = true
+				if got := c.in[s.Start:s.End]; got != c.want {
+					t.Errorf("full_name value for %q = %q, want %q", c.in, got, c.want)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("no full_name span for %q", c.in)
+		}
+	}
+}
+
+// Point 6: company names in guillemets are not full names.
+func TestFullNameCompanyQuotesNegative(t *testing.T) {
+	cases := []string{
+		"компании «Пётр и Павел»",
+		"ООО «Иванов и партнёры»",
+		"АО «Пётр и Павел»",
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c)
+		if hasCategory(t, res, pii.CatFullName) {
+			t.Errorf("full_name should not detect company %q, got %+v", c, res.Spans)
+		}
+	}
+}
+
+// Point 6: maiden surname in parentheses is part of the full name span.
+func TestFullNameMaidenSurnameInParens(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"Сафина (Ганиева) Гульнара Ильдаровна", "Сафина (Ганиева) Гульнара Ильдаровна"},
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c.in)
+		found := false
+		for _, s := range res.Spans {
+			if s.Category == pii.CatFullName {
+				found = true
+				if got := c.in[s.Start:s.End]; got != c.want {
+					t.Errorf("full_name value for %q = %q, want %q", c.in, got, c.want)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("no full_name span for %q", c.in)
+		}
+	}
+}

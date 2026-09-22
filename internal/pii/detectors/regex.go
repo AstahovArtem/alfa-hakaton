@@ -6,6 +6,7 @@ import (
 	"io"
 	"regexp"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"gopkg.in/yaml.v3"
@@ -15,6 +16,12 @@ import (
 
 //go:embed rules.yaml
 var rulesFS embed.FS
+
+// contextBonusWindow is the fixed reference window used to scale the confidence
+// bonus for a satisfied context keyword. Using a single reference (rather than
+// each rule's own window) makes the bonus depend only on how close the keyword
+// is to the match, so a nearer keyword always outranks a farther one.
+const contextBonusWindow = 60
 
 // ReclassifyRule reclassifies a matched span to another category when a context
 // keyword appears within a window to the left or right of the match.
@@ -40,6 +47,17 @@ type Rule struct {
 	ContextAfterWindow int              `yaml:"context_after_window"`
 	Group              int              `yaml:"group"`
 	Reclassify         []ReclassifyRule `yaml:"reclassify"`
+	// RejectContext, when non-empty, suppresses a match when any keyword appears
+	// within RejectContextWindow runes to the left or right. Used to exclude
+	// values that are not personal data (e.g. a PIN for a door intercom).
+	RejectContext       []string `yaml:"reject_context"`
+	RejectContextWindow int      `yaml:"reject_context_window"`
+	// DenyContext, when non-empty, suppresses a match when any keyword appears
+	// as a substring within DenyContextWindow runes to the left or right. Unlike
+	// RejectContext it uses substring matching so inflected forms and stems are
+	// caught (e.g. "домофона" for "домофон", "сигнализации" for "сигнализац").
+	DenyContext       []string `yaml:"deny_context"`
+	DenyContextWindow int      `yaml:"deny_context_window"`
 	// Standalone, when true (default), requires that the character immediately
 	// before and after the match is not a digit. This prevents a rule from
 	// matching a fragment inside a longer run of digits (e.g. a phone number
@@ -60,6 +78,14 @@ type Rule struct {
 	contextLower []string
 	// contextAfterLower holds the lowercased context_after keywords.
 	contextAfterLower []string
+	// rejectContextLower holds the lowercased reject_context keywords.
+	rejectContextLower []string
+	// rejectContextWindow is the number of runes scanned for reject keywords.
+	rejectContextWindow int
+	// denyContextLower holds the lowercased deny_context keywords.
+	denyContextLower []string
+	// denyContextWindow is the number of runes scanned for deny keywords.
+	denyContextWindow int
 	re                *regexp.Regexp
 	// reLower is the pattern compiled without (?i), used to match the
 	// lowercased text when MatchLower is set and byte lengths match.
@@ -116,6 +142,22 @@ func LoadRules(r io.Reader) ([]Rule, error) {
 		rule.contextAfterLower = make([]string, len(rule.ContextAfter))
 		for j, kw := range rule.ContextAfter {
 			rule.contextAfterLower[j] = strings.ToLower(kw)
+		}
+		rule.rejectContextLower = make([]string, len(rule.RejectContext))
+		for j, kw := range rule.RejectContext {
+			rule.rejectContextLower[j] = strings.ToLower(kw)
+		}
+		rule.rejectContextWindow = rule.RejectContextWindow
+		if rule.rejectContextWindow == 0 {
+			rule.rejectContextWindow = 25
+		}
+		rule.denyContextLower = make([]string, len(rule.DenyContext))
+		for j, kw := range rule.DenyContext {
+			rule.denyContextLower[j] = strings.ToLower(kw)
+		}
+		rule.denyContextWindow = rule.DenyContextWindow
+		if rule.denyContextWindow == 0 {
+			rule.denyContextWindow = 25
 		}
 		for j := range rule.Reclassify {
 			rc := &rule.Reclassify[j]
@@ -276,13 +318,40 @@ func (d *regexDetector) detectRule(t pii.Text, r Rule) []pii.Span {
 		// satisfied only when no other digit group sits between the keyword and
 		// the match. The nearest satisfying keyword yields a small bonus so that
 		// competing categories (e.g. cvv vs pin) resolve to the closer keyword.
-		hasCtx, dist, win := contextDistance(t, start, end, r)
+		hasCtx, dist, _ := contextDistance(t, start, end, r)
 		if r.RequireContext && !hasCtx {
 			continue
 		}
+		// Reject context: if any reject keyword appears within the window to the
+		// left or right, the match is not personal data.
+		if len(r.rejectContextLower) > 0 {
+			if ok, _ := leftContext(t, start, r.rejectContextWindow, r.rejectContextLower); ok {
+				continue
+			}
+			if ok, _ := rightContext(t, end, r.rejectContextWindow, r.rejectContextLower); ok {
+				continue
+			}
+		}
+		// Deny context: if any deny keyword appears as a substring within the
+		// window to the left or right, the match is not personal data (e.g. a
+		// PIN for a door intercom). Substring matching catches inflected forms
+		// such as "домофона" and stems such as "сигнализац".
+		if len(r.denyContextLower) > 0 {
+			if denyContextLeft(t, start, r.denyContextWindow, r.denyContextLower) {
+				continue
+			}
+			if denyContextRight(t, end, r.denyContextWindow, r.denyContextLower) {
+				continue
+			}
+		}
 		if hasCtx {
 			conf += 0.05
-			conf += 0.01 * (1 - float64(dist)/float64(win))
+			// The bonus grows as the keyword gets closer to the match, measured
+			// against a fixed reference window so that a closer keyword always
+			// outranks a farther one regardless of a rule's own window size.
+			// This lets a nearer "пин-код" beat a farther "код безопасности"
+			// when both rules match the same number.
+			conf += 0.01 * (1 - float64(dist)/float64(contextBonusWindow))
 		}
 
 		cat := r.Category
@@ -336,7 +405,9 @@ func contextDistance(t pii.Text, start, end int, r Rule) (bool, int, int) {
 // leftContext reports whether any keyword appears in the window of size n runes
 // immediately to the left of position pos with no digit group between the
 // keyword and pos. It returns the distance in runes from the nearest keyword to
-// pos. Keywords must already be lowercased.
+// pos. Keywords must already be lowercased. A keyword only counts when it is at
+// a word boundary (not part of a longer word, e.g. "рожден" must not match
+// inside "рождения").
 func leftContext(t pii.Text, pos, n int, keywords []string) (bool, int) {
 	if len(keywords) == 0 {
 		return false, 0
@@ -344,7 +415,7 @@ func leftContext(t pii.Text, pos, n int, keywords []string) (bool, int) {
 	window := runeWindowBefore(t, pos, n)
 	best := -1
 	for _, kw := range keywords {
-		if idx := strings.LastIndex(window, kw); idx >= 0 {
+		if idx := lastKeywordIndex(window, kw); idx >= 0 {
 			if e := idx + len(kw); e > best {
 				best = e
 			}
@@ -353,7 +424,7 @@ func leftContext(t pii.Text, pos, n int, keywords []string) (bool, int) {
 	if best < 0 {
 		return false, 0
 	}
-	if containsDigit(window[best:]) {
+	if containsDate(window[best:]) {
 		return false, 0
 	}
 	return true, utf8.RuneCountInString(window[best:])
@@ -362,7 +433,8 @@ func leftContext(t pii.Text, pos, n int, keywords []string) (bool, int) {
 // rightContext reports whether any keyword appears in the window of size n runes
 // immediately to the right of position pos with no digit group between pos and
 // the keyword. It returns the distance in runes from pos to the nearest keyword.
-// Keywords must already be lowercased.
+// Keywords must already be lowercased. A keyword only counts when it is at a
+// word boundary.
 func rightContext(t pii.Text, pos, n int, keywords []string) (bool, int) {
 	if len(keywords) == 0 {
 		return false, 0
@@ -370,17 +442,101 @@ func rightContext(t pii.Text, pos, n int, keywords []string) (bool, int) {
 	window := runeWindowAfter(t, pos, n)
 	best := -1
 	for _, kw := range keywords {
-		if idx := strings.Index(window, kw); idx >= 0 && (best < 0 || idx < best) {
+		if idx := firstKeywordIndex(window, kw); idx >= 0 && (best < 0 || idx < best) {
 			best = idx
 		}
 	}
 	if best < 0 {
 		return false, 0
 	}
-	if containsDigit(window[:best]) {
+	if containsDate(window[:best]) {
 		return false, 0
 	}
 	return true, utf8.RuneCountInString(window[:best])
+}
+
+// denyContextLeft reports whether any deny keyword appears as a substring in the
+// window of size n runes immediately to the left of byte position pos. Keywords
+// must already be lowercased. Substring matching catches inflected forms and
+// stems, so no word-boundary check is applied.
+func denyContextLeft(t pii.Text, pos, n int, keywords []string) bool {
+	if len(keywords) == 0 {
+		return false
+	}
+	window := runeWindowBefore(t, pos, n)
+	for _, kw := range keywords {
+		if strings.Contains(window, kw) {
+			return true
+		}
+	}
+	return false
+}
+
+// denyContextRight reports whether any deny keyword appears as a substring in the
+// window of size n runes immediately to the right of byte position pos. Keywords
+// must already be lowercased.
+func denyContextRight(t pii.Text, pos, n int, keywords []string) bool {
+	if len(keywords) == 0 {
+		return false
+	}
+	window := runeWindowAfter(t, pos, n)
+	for _, kw := range keywords {
+		if strings.Contains(window, kw) {
+			return true
+		}
+	}
+	return false
+}
+
+// lastKeywordIndex returns the index of the last occurrence of kw in s that is
+// at a word boundary, or -1 if none.
+func lastKeywordIndex(s, kw string) int {
+	searchFrom := len(s)
+	for {
+		idx := strings.LastIndex(s[:searchFrom], kw)
+		if idx < 0 {
+			return -1
+		}
+		if keywordAtBoundary(s, idx, idx+len(kw)) {
+			return idx
+		}
+		searchFrom = idx
+	}
+}
+
+// firstKeywordIndex returns the index of the first occurrence of kw in s that is
+// at a word boundary, or -1 if none.
+func firstKeywordIndex(s, kw string) int {
+	searchFrom := 0
+	for {
+		idx := strings.Index(s[searchFrom:], kw)
+		if idx < 0 {
+			return -1
+		}
+		idx += searchFrom
+		if keywordAtBoundary(s, idx, idx+len(kw)) {
+			return idx
+		}
+		searchFrom = idx + 1
+	}
+}
+
+// keywordAtBoundary reports whether the substring s[start:end] is not part of a
+// longer word: the rune before start and the rune after end are not letters.
+func keywordAtBoundary(s string, start, end int) bool {
+	if start > 0 {
+		r, _ := utf8.DecodeLastRuneInString(s[:start])
+		if unicode.IsLetter(r) {
+			return false
+		}
+	}
+	if end < len(s) {
+		r, _ := utf8.DecodeRuneInString(s[end:])
+		if unicode.IsLetter(r) {
+			return false
+		}
+	}
+	return true
 }
 
 // runeWindowBefore returns the last n runes before byte position pos, taken from
@@ -448,6 +604,15 @@ func containsDigit(s string) bool {
 		}
 	}
 	return false
+}
+
+// dateBetweenRe matches a date-like fragment (numeric or word form) used to
+// detect whether a context keyword jumps over another date.
+var dateBetweenRe = regexp.MustCompile(`\d{1,2}[./-]\d{1,2}[./-]\d{2,4}|\d{4}[./-]\d{1,2}[./-]\d{1,2}|\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря|янв|фев|мар|апр|май|июн|июл|авг|сен|сент|окт|ноя|дек)\.?\s+\d{2,4}`)
+
+// containsDate reports whether s contains a date-like fragment.
+func containsDate(s string) bool {
+	return dateBetweenRe.MatchString(s)
 }
 
 // isDigitByte reports whether b is an ASCII digit.

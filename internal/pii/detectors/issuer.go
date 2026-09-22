@@ -7,19 +7,29 @@ import (
 	"pdn-shield/internal/pii"
 )
 
-var issuerContextRe = regexp.MustCompile(`(?i)(?:кем выдан|выдавший орган|орган выдачи|орган, выдавший|выдано|выдан|орган)`)
+var issuerContextRe = regexp.MustCompile(`(?i)(?:кем выдан|выдавший орган|орган выдачи|орган, выдавший|дата выдачи|выдано|выдана|выдан|выдачи|получал|получала|получил|получила|кем|орган)`)
 
-var issuerStartRe = regexp.MustCompile(`(?i)^\s*:?\s*(ГУ МВД|ГУВД|ОУФМС|УФМС|ОМВД|УВД|ОВД|МВД|ОТДЕЛЕНИЕМ|ОТДЕЛЕНИЕ|ОТДЕЛОМ|ОТДЕЛ|УПРАВЛЕНИЕМ|УПРАВЛЕНИЕ|МИГРАЦИОННЫМ|ПАСПОРТНО-ВИЗОВЫМ|ПАСПОРТНЫМ|ТП|ОП|МП)`)
+// issuerStartWordRe matches the first word of an issuing authority value. It is
+// searched for after a context keyword, allowing a gap of non-letter text (and
+// dialogue labels) between the context and the value.
+var issuerStartWordRe = regexp.MustCompile(`(?i)(паспортным столом|межрайонным|отделением|отделении|отделения|отделом|отделе|отдел|управлением|управления|управление|миграционным|миграционной|паспортно-визовым|паспортным|паспортного|гу мвд|гувд|оуфмс|уфмс|омвд|умвд|увд|овд|мвд|милиции|тп|оп|мп)`)
 
-var issuerTermRe = regexp.MustCompile(`(?i)(?:\n|;|\d{1,2}[./-]\d{1,2}[./-]\d{4}|\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+\d{4}|код подразделения|к/п|дата выдачи|выдан)`)
+// issuerGapRe matches the text that may sit between a context keyword and the
+// issuing authority value: non-Cyrillic runs (whitespace, digits, dates,
+// punctuation) and dialogue labels such as "клиент:" / "оператор:".
+var issuerGapRe = regexp.MustCompile(`(?i)^(?:[^а-яёА-ЯЁ]+|клиент\s*:\s*|оператор\s*:\s*)*`)
+
+var issuerTermRe = regexp.MustCompile(`(?i)(?:\n|;|\d{1,2}[./-]\d{1,2}[./-]\d{4}|\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+\d{4}|\d{1,2}\s+(?:янв|фев|мар|апр|мая|май|июн|июл|авг|сен|сент|окт|ноя|дек)\.?\s+\d{4}|код подразделения|к/п|дата выдачи|выдан|гражданство)`)
 
 // Lowercase-only variants matched against the lowercased text to avoid
 // case-folding cost.
-var issuerContextLowerRe = regexp.MustCompile(`(?:кем выдан|выдавший орган|орган выдачи|орган, выдавший|выдано|выдан|орган)`)
+var issuerContextLowerRe = regexp.MustCompile(`(?:кем выдан|выдавший орган|орган выдачи|орган, выдавший|дата выдачи|выдано|выдана|выдан|выдачи|получал|получала|получил|получила|кем|орган)`)
 
-var issuerStartLowerRe = regexp.MustCompile(`^\s*:?\s*(гу мвд|гувд|оуфмс|уфмс|омвд|увд|овд|мвд|отделением|отделение|отделом|отдел|управлением|управление|миграционным|паспортно-визовым|паспортным|тп|оп|мп)`)
+var issuerStartWordLowerRe = regexp.MustCompile(`(паспортным столом|межрайонным|отделением|отделении|отделения|отделом|отделе|отдел|управлением|управления|управление|миграционным|миграционной|паспортно-визовым|паспортным|паспортного|гу мвд|гувд|оуфмс|уфмс|омвд|умвд|увд|овд|мвд|милиции|тп|оп|мп)`)
 
-var issuerTermLowerRe = regexp.MustCompile(`(?:\n|;|\d{1,2}[./-]\d{1,2}[./-]\d{4}|\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+\d{4}|код подразделения|к/п|дата выдачи|выдан)`)
+var issuerGapLowerRe = regexp.MustCompile(`^(?:[^а-яёА-ЯЁ]+|клиент\s*:\s*|оператор\s*:\s*)*`)
+
+var issuerTermLowerRe = regexp.MustCompile(`(?:\n|;|\d{1,2}[./-]\d{1,2}[./-]\d{4}|\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+\d{4}|\d{1,2}\s+(?:янв|фев|мар|апр|мая|май|июн|июл|авг|сен|сент|окт|ноя|дек)\.?\s+\d{4}|код подразделения|к/п|дата выдачи|выдан|гражданство)`)
 
 // issuerAbbrevs are abbreviations whose trailing period is not a sentence end.
 var issuerAbbrevs = map[string]bool{
@@ -64,20 +74,19 @@ func (d *issuerDetector) Detect(text string) []pii.Span {
 func (d *issuerDetector) DetectLower(t pii.Text) []pii.Span {
 	text := t.Raw
 	search := text
-	ctxRe, startRe, termRe := issuerContextRe, issuerStartRe, issuerTermRe
+	ctxRe, startRe, gapRe, termRe := issuerContextRe, issuerStartWordRe, issuerGapRe, issuerTermRe
 	if t.LowerOK() {
 		search = t.Lower
-		ctxRe, startRe, termRe = issuerContextLowerRe, issuerStartLowerRe, issuerTermLowerRe
+		ctxRe, startRe, gapRe, termRe = issuerContextLowerRe, issuerStartWordLowerRe, issuerGapLowerRe, issuerTermLowerRe
 	}
 	var spans []pii.Span
 	for _, loc := range ctxRe.FindAllStringIndex(search, -1) {
 		ctxEnd := loc[1]
-		startSub := startRe.FindStringSubmatchIndex(search[ctxEnd:])
-		if startSub == nil || startSub[2] < 0 {
+		start := findIssuerStart(search, ctxEnd, startRe, gapRe)
+		if start < 0 {
 			continue
 		}
-		start := ctxEnd + startSub[2]
-		end := issuerEnd(search, start, termRe)
+		end := issuerEnd(text, search, start, termRe)
 		value := search[start:end]
 		value = strings.TrimRight(value, " ,.")
 		end = start + len(value)
@@ -95,10 +104,43 @@ func (d *issuerDetector) DetectLower(t pii.Text) []pii.Span {
 	return spans
 }
 
+// findIssuerStart returns the byte offset where the issuing authority value
+// begins, scanning forward from from for the first start word. A gap of
+// non-letter text (whitespace, digits, dates, punctuation) and dialogue labels
+// may sit between the context keyword and the value. It returns -1 when no
+// start word is found.
+func findIssuerStart(search string, from int, startRe, gapRe *regexp.Regexp) int {
+	pos := from
+	for pos < len(search) {
+		if loc := gapRe.FindStringIndex(search[pos:]); loc != nil && loc[1] > 0 {
+			pos += loc[1]
+			continue
+		}
+		m := startRe.FindStringIndex(search[pos:])
+		if m == nil {
+			return -1
+		}
+		if m[0] > 0 && isCyrillicLetter(search[pos+m[0]-1]) {
+			pos++
+			continue
+		}
+		return pos + m[0]
+	}
+	return -1
+}
+
+// isCyrillicLetter reports whether b is the leading byte of a Cyrillic UTF-8
+// sequence (U+0400–U+04FF, encoded as 0xD0–0xD1).
+func isCyrillicLetter(b byte) bool {
+	return b >= 0xD0 && b <= 0xD1
+}
+
 // issuerEnd returns the byte offset where the issuer value ends, scanning from
 // start for the earliest terminator (sentence end, date, keyword, newline) and
-// capping the value at 12 words.
-func issuerEnd(text string, start int, termRe *regexp.Regexp) int {
+// capping the value at 12 words. raw is the original text (used for the
+// uppercase sentence-end check); text is the text the terminator regexes run
+// against (the lowercased text when byte lengths match).
+func issuerEnd(raw, text string, start int, termRe *regexp.Regexp) int {
 	end := len(text)
 	for _, tloc := range termRe.FindAllStringIndex(text[start:], -1) {
 		pos := start + tloc[0]
@@ -115,7 +157,7 @@ func issuerEnd(text string, start int, termRe *regexp.Regexp) int {
 			continue
 		}
 		// A period ends the value if followed by whitespace+capital or end.
-		if i+1 == len(text) || (text[i+1] == ' ' && i+2 < len(text) && isUpperRune(rune(text[i+2]))) {
+		if i+1 == len(text) || (text[i+1] == ' ' && i+2 < len(text) && isUpperRune(decodedRune(raw, i+2))) {
 			if i < end {
 				end = i
 			}
@@ -144,11 +186,11 @@ func issuerEnd(text string, start int, termRe *regexp.Regexp) int {
 			}
 		}
 	}
-	// Cap at 12 words.
+	// Cap at 16 words.
 	words := strings.Fields(text[start:end])
-	if len(words) > 12 {
+	if len(words) > 16 {
 		cut := start
-		for k := 0; k < 12; k++ {
+		for k := 0; k < 16; k++ {
 			idx := strings.Index(text[cut:], words[k])
 			cut += idx + len(words[k])
 		}

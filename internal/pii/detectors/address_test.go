@@ -86,3 +86,109 @@ func TestAddressSpanValue(t *testing.T) {
 		}
 	}
 }
+
+func TestAddressFullStreetAfterPreposition(t *testing.T) {
+	in := "Доставить на улица Гагарина, 5"
+	res := runPipeline(t, in)
+	found := false
+	for _, s := range res.Spans {
+		if s.Category == pii.CatAddress {
+			found = true
+			if got := in[s.Start:s.End]; got != "улица Гагарина, 5" {
+				t.Errorf("address value = %q, want %q", got, "улица Гагарина, 5")
+			}
+		}
+	}
+	if !found {
+		t.Errorf("no address span for %q", in)
+	}
+}
+
+func TestAddressBareStreetHousingContext(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"снимаю на Профсоюзной 96 корпус 2, квартира 15", "Профсоюзной 96 корпус 2, квартира 15"},
+		{"живу на Тверской 5, квартира сорок два", "Тверской 5, квартира сорок два"},
+		{"Реальный адрес доставки: Пушкина, 15, кв. 2", "Пушкина, 15, кв. 2"},
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c.in)
+		found := false
+		for _, s := range res.Spans {
+			if s.Category == pii.CatAddress {
+				found = true
+				if got := c.in[s.Start:s.End]; got != c.want {
+					t.Errorf("address value for %q = %q, want %q", c.in, got, c.want)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("no address span for %q", c.in)
+		}
+	}
+}
+
+func TestAddressSecondAddress(t *testing.T) {
+	in := "Прописка: 350000, Краснодарский край, г. Краснодар, ул. Красная, 176, кв. 9. Фактически проживаю по адресу Ленинский пр-т, 10, кв. 300."
+	res := runPipeline(t, in)
+	count := 0
+	for _, s := range res.Spans {
+		if s.Category == pii.CatAddress {
+			count++
+		}
+	}
+	if count != 2 {
+		t.Errorf("expected 2 address spans, got %d (%+v)", count, res.Spans)
+	}
+}
+
+func TestAddressPostal(t *testing.T) {
+	in := "630099 Новосибирск, а/я 145"
+	res := runPipeline(t, in)
+	found := false
+	for _, s := range res.Spans {
+		if s.Category == pii.CatAddress {
+			found = true
+			if got := in[s.Start:s.End]; got != "630099 Новосибирск, а/я 145" {
+				t.Errorf("address value = %q, want %q", got, "630099 Новосибирск, а/я 145")
+			}
+		}
+	}
+	if !found {
+		t.Errorf("no address span for %q", in)
+	}
+}
+
+func TestAddressOrgFalsePositive(t *testing.T) {
+	cases := []string{
+		"Наш офис на ул. Ленина, 1 работает с 9 до 18, банкомат по адресу пр. Мира, 44 доступен круглосуточно.",
+		"Отделение банка на Ленинском пр-те, 10 закрыто на ремонт",
+		"Юридический адрес компании: 125009, Москва, Тверская ул., 7, офис 301.",
+		"Wildberries пункт выдачи: Москва, ул. Бутлерова, 17.",
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c)
+		if hasCategory(t, res, pii.CatAddress) {
+			t.Errorf("address should not detect org address %q, got %+v", c, res.Spans)
+		}
+	}
+}
+
+func TestAddressHouseRangeAndParenCity(t *testing.T) {
+	in := "ул. Кирова, 8-12 (Уфа)"
+	res := runPipeline(t, in)
+	found := false
+	for _, s := range res.Spans {
+		if s.Category == pii.CatAddress {
+			found = true
+			if got := in[s.Start:s.End]; got != "ул. Кирова, 8-12 (Уфа)" {
+				t.Errorf("address value = %q, want %q", got, "ул. Кирова, 8-12 (Уфа)")
+			}
+		}
+	}
+	if !found {
+		t.Errorf("no address span for %q", in)
+	}
+}

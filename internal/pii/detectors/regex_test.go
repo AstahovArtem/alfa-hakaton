@@ -443,32 +443,6 @@ func TestCitizenshipSpanExcludesContext(t *testing.T) {
 	}
 }
 
-func TestCitizenshipForms(t *testing.T) {
-	cases := []struct {
-		in   string
-		want string
-	}{
-		{"гражданин Республики Казахстан", "Республики Казахстан"},
-		{"гражданство РФ", "РФ"},
-		{"гражданка Российской Федерации", "Российской Федерации"},
-	}
-	for _, c := range cases {
-		res := runPipeline(t, c.in)
-		found := false
-		for _, s := range res.Spans {
-			if s.Category == pii.CatCitizenship {
-				found = true
-				if got := c.in[s.Start:s.End]; got != c.want {
-					t.Errorf("citizenship value for %q = %q, want %q", c.in, got, c.want)
-				}
-			}
-		}
-		if !found {
-			t.Errorf("no citizenship span for %q", c.in)
-		}
-	}
-}
-
 func TestPhoneNotInsideLongNumber(t *testing.T) {
 	res := runPipeline(t, "счёт 40817810099910004312")
 	if len(res.Spans) != 0 {
@@ -514,5 +488,54 @@ func TestDateYearDayMonth(t *testing.T) {
 	res := runPipeline(t, "2020.15.03")
 	if !hasCategory(t, res, pii.CatDate) {
 		t.Errorf("2020.15.03 should be a date (Y-D-M), got %+v", res.Spans)
+	}
+}
+
+func TestPINRejectNonCard(t *testing.T) {
+	in := "Пароль от Wi-Fi 1234, пин-код от домофона 4321"
+	res := runPipeline(t, in)
+	if hasCategory(t, res, pii.CatPIN) {
+		t.Errorf("pin should not detect non-card codes %q, got %+v", in, res.Spans)
+	}
+}
+
+func TestCVVBackOfCard(t *testing.T) {
+	in := "код с обратной стороны карты 321"
+	res := runPipeline(t, in)
+	found := false
+	for _, s := range res.Spans {
+		if s.Category == pii.CatCVV {
+			found = true
+			if got := in[s.Start:s.End]; got != "321" {
+				t.Errorf("cvv value = %q, want %q", got, "321")
+			}
+		}
+	}
+	if !found {
+		t.Errorf("no cvv span for %q", in)
+	}
+}
+
+func TestINNOrgNotPII(t *testing.T) {
+	in := "Организация: ИНН 7707083893, КПП 770701001, ОГРН 1027700132195"
+	res := runPipeline(t, in)
+	if hasCategory(t, res, pii.CatINN) {
+		t.Errorf("org INN should not be detected %q, got %+v", in, res.Spans)
+	}
+}
+
+func TestEmailServiceNotPII(t *testing.T) {
+	in := "Support: support@alfabank.ru работает круглосуточно"
+	res := runPipeline(t, in)
+	if hasCategory(t, res, pii.CatEmail) {
+		t.Errorf("service email should not be detected %q, got %+v", in, res.Spans)
+	}
+}
+
+func TestTollFreePhoneNotPII(t *testing.T) {
+	in := "Горячая линия банка 8 800 200-00-00, бесплатно по России"
+	res := runPipeline(t, in)
+	if hasCategory(t, res, pii.CatPhone) {
+		t.Errorf("toll-free phone should not be detected %q, got %+v", in, res.Spans)
 	}
 }

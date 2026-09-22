@@ -15,6 +15,7 @@ func Default() []pii.Detector {
 		NewCardholderDetector(),
 		NewAddressDetector(),
 		NewBirthplaceDetector(),
+		NewCitizenshipDetector(),
 		NewIssuerDetector(),
 	}
 }

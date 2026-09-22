@@ -7,11 +7,23 @@ rules:
     context:
       - телефон
       - тел
+    reject_context:
+      - горячая линия
+      - горячей линии
+      - бесплатно по россии
+      - служба поддержки
+      - поддержки банка
+    reject_context_window: 150
 
   - name: email
     category: email
     pattern: '[\p{L}\p{N}._%+\-]+@[\p{L}\p{N}.\-]+\.\p{L}{2,}'
     confidence: 0.95
+    reject_context:
+      - работает круглосуточно
+      - служба поддержки
+      - горячая линия
+      - поддержки банка
 
   - name: inn
     category: inn
@@ -33,6 +45,12 @@ rules:
       - юрлицо
       - организация
       - ип
+    reject_context:
+      - ооо
+      - ао
+      - пао
+      - кпп
+      - огрн
 
   - name: card_number
     category: card_number
@@ -57,12 +75,25 @@ rules:
       - cvv2
       - cvc2
       - код безопасности
+      - код с обратной стороны карты
+      - код на обороте
     context_after:
       - cvv
       - cvc
       - cvv2
       - cvc2
       - код безопасности
+      - код с обратной стороны карты
+      - код на обороте
+    deny_context:
+      - wi-fi
+      - wifi
+      - домофон
+      - подъезд
+      - сейф
+      - замок
+      - пароль
+      - сигнализац
 
   - name: pin
     category: pin
@@ -81,6 +112,15 @@ rules:
       - пин
       - пин-код
       - pin-код
+    deny_context:
+      - wi-fi
+      - wifi
+      - домофон
+      - подъезд
+      - сейф
+      - замок
+      - пароль
+      - сигнализац
 
   - name: passport
     category: passport
@@ -173,25 +213,36 @@ rules:
 
   - name: date
     category: date
-    pattern: '(?:\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b|\b\d{4}[./-]\d{1,2}[./-]\d{1,2}\b|\b\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+\d{4}\b(?:\s+(?:года|г\.|г))?)'
+    pattern: '(?:\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b|\b\d{4}[./-]\d{1,2}[./-]\d{1,2}\b|\b\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+\d{4}\b(?:\s+(?:года|г\.|г))?|\b\d{1,2}(?:-го|-е|-ого|-его)\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+\d{4}\b|\b\d{1,2}\s+(?:янв|фев|мар|апр|мая|май|июн|июл|авг|сен|сент|окт|ноя|дек)\.?\s+\d{4}\b|\b\d{4}\s+г\.?\s*,?\s+\d{1,2}(?:-го|-е|-ого|-его)?\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря))'
     validator: date
     confidence: 0.85
     match_lower: true
     reclassify:
-      - context: [родил, рожден, рождён, дата рождения, д.р., др]
-        context_after: [место рождения, уроженец, уроженка, г.р., г. р., года рождения, г.р, р.]
+      - context: [г.р., г. р., д.р., др]
+        context_after: [г.р., г. р., года рождения, р.]
+        context_window: 15
+        context_after_window: 15
+        category: birth_date
+      - context: [родился, родилась, родился, родились, родил, рожден, рождён, дата рождения, дату рождения, уроженец, уроженка]
+        context_after: [место рождения, уроженец, уроженка]
         context_window: 120
         context_after_window: 40
         category: birth_date
-      - context: [выдан, дата выдачи]
-        context_after: [код подразделения, к/п, код подр]
-        context_window: 160
-        context_after_window: 40
-        category: passport_date
 
-  - name: citizenship
-    category: citizenship
-    pattern: '(?:гражданство\s*:?\s*|гражданин\s+|гражданка\s+)([а-яёА-ЯЁ\s]+)'
-    group: 1
-    confidence: 0.9
+  - name: date_short_year
+    category: date
+    pattern: '(?:\b\d{1,2}[./-]\d{1,2}[./-]\d{2}\b)'
+    validator: date_short_year
+    confidence: 0.85
     match_lower: true
+    reclassify:
+      - context: [г.р., г. р., д.р., др]
+        context_after: [г.р., г. р., года рождения, р.]
+        context_window: 15
+        context_after_window: 15
+        category: birth_date
+      - context: [родился, родилась, родился, родились, родил, рожден, рождён, дата рождения, дату рождения, уроженец, уроженка]
+        context_after: [место рождения, уроженец, уроженка]
+        context_window: 120
+        context_after_window: 40
+        category: birth_date

@@ -9,17 +9,51 @@ import (
 // Validators maps a validator name to its function. Each validator normalizes
 // the input (removes spaces, dashes, parentheses) before checking.
 var Validators = map[string]func(match string) bool{
-	"luhn":     luhn,
-	"inn":      inn,
-	"snils":    snils,
-	"passport": passport,
-	"phone":    phone,
-	"date":     date,
+	"luhn":              luhn,
+	"inn":               inn,
+	"snils":             snils,
+	"passport":          passport,
+	"phone":             phone,
+	"date":              date,
+	"date_short_year":   dateShortYear,
+	"not_service_email": notServiceEmail,
+	"not_toll_free":     notTollFree,
 }
 
 var nonDigit = regexp.MustCompile(`[^\d]`)
 
-var wordDateRe = regexp.MustCompile(`^(\d{1,2})\s+([а-яё]+)\s+(\d{4})(?:\s+(?:г\.|года|г))?$`)
+var wordDateRe = regexp.MustCompile(`^(\d{1,2})(?:-го|-е|-ого|-его)?\s+([а-яё]+)\s+(\d{4})(?:\s+(?:г\.|года|г))?$`)
+
+// yearFirstDateRe matches "1985 г., 5 марта" (year first, then day + month).
+var yearFirstDateRe = regexp.MustCompile(`^(\d{4})\s+г\.?\s*,?\s+(\d{1,2})(?:-го|-е|-ого|-его)?\s+([а-яё]+)$`)
+
+// serviceEmailLocalParts are local parts of corporate/service mailboxes that
+// are not personal data.
+var serviceEmailLocalParts = map[string]bool{
+	"support": true, "info": true, "noreply": true, "no-reply": true,
+	"help": true, "sales": true, "office": true, "hello": true,
+}
+
+// notServiceEmail rejects an email whose local part is a corporate service
+// mailbox (support, info, noreply, ...).
+func notServiceEmail(match string) bool {
+	at := strings.Index(match, "@")
+	if at < 0 {
+		return true
+	}
+	local := strings.ToLower(match[:at])
+	return !serviceEmailLocalParts[local]
+}
+
+// notTollFree rejects a Russian toll-free 8 800 number, which is a corporate
+// contact rather than personal data.
+func notTollFree(match string) bool {
+	d := digits(match)
+	if len(d) == 11 && d[0] == '8' && d[1:4] == "800" {
+		return false
+	}
+	return true
+}
 
 func digits(s string) string {
 	return nonDigit.ReplaceAllString(s, "")
@@ -129,6 +163,11 @@ func phone(match string) bool {
 var monthNames = map[string]int{
 	"января": 1, "февраля": 2, "марта": 3, "апреля": 4, "мая": 5, "июня": 6,
 	"июля": 7, "августа": 8, "сентября": 9, "октября": 10, "ноября": 11, "декабря": 12,
+	// Abbreviated month forms (with or without a trailing dot).
+	"янв": 1, "янв.": 1, "фев": 2, "фев.": 2, "мар": 3, "мар.": 3, "апр": 4, "апр.": 4,
+	"май": 5, "май.": 5, "июн": 6, "июн.": 6, "июл": 7, "июл.": 7,
+	"авг": 8, "авг.": 8, "сен": 9, "сен.": 9, "сент": 9, "сент.": 9, "окт": 10, "окт.": 10,
+	"ноя": 11, "ноя.": 11, "дек": 12, "дек.": 12,
 }
 
 // date validates a date. It accepts numeric dates in several orders and
@@ -138,14 +177,26 @@ func date(match string) bool {
 	s := strings.TrimSpace(match)
 	lower := strings.ToLower(s)
 
-	// Word form: "12 мая 1990" or "12 мая 1990 г." / "12 мая 1990 года".
+	// Word form: "12 мая 1990" or "12 мая 1990 г." / "12 мая 1990 года",
+	// "5-го марта 1985", "05 мар 1985".
 	if m := wordDateRe.FindStringSubmatch(lower); m != nil {
 		day, _ := strconv.Atoi(m[1])
-		month, ok := monthNames[m[2]]
+		month, ok := monthNames[strings.TrimSuffix(m[2], ".")]
 		if !ok {
 			return false
 		}
 		year, _ := strconv.Atoi(m[3])
+		return validYMD(year, month, day)
+	}
+
+	// Year-first word form: "1985 г., 5 марта".
+	if m := yearFirstDateRe.FindStringSubmatch(lower); m != nil {
+		year, _ := strconv.Atoi(m[1])
+		day, _ := strconv.Atoi(m[2])
+		month, ok := monthNames[strings.TrimSuffix(m[3], ".")]
+		if !ok {
+			return false
+		}
 		return validYMD(year, month, day)
 	}
 
@@ -177,6 +228,42 @@ func date(match string) bool {
 	// Y-D-M: year, day, month (e.g. 2020.15.03).
 	if validYMD(a, c, b) {
 		ok = true
+	}
+	return ok
+}
+
+// dateShortYear validates a numeric date with a two-digit year (e.g. 05.03.85).
+// The two-digit year is interpreted as 19xx or 20xx.
+func dateShortYear(match string) bool {
+	s := strings.TrimSpace(match)
+	parts := strings.FieldsFunc(s, func(r rune) bool {
+		return r == '.' || r == '/' || r == '-'
+	})
+	if len(parts) != 3 {
+		return false
+	}
+	a, err1 := strconv.Atoi(parts[0])
+	b, err2 := strconv.Atoi(parts[1])
+	c, err3 := strconv.Atoi(parts[2])
+	if err1 != nil || err2 != nil || err3 != nil {
+		return false
+	}
+	// One part must be a plausible two-digit year (00-99).
+	ok := false
+	if c >= 0 && c <= 99 {
+		year := 1900 + c
+		if validYMD(year, a, b) {
+			ok = true
+		}
+		if validYMD(year, b, a) {
+			ok = true
+		}
+	}
+	if a >= 0 && a <= 99 {
+		year := 1900 + a
+		if validYMD(year, b, c) {
+			ok = true
+		}
 	}
 	return ok
 }

@@ -87,3 +87,88 @@ func TestBirthplaceSpanValue(t *testing.T) {
 		}
 	}
 }
+
+func TestBirthplaceStopAtComma(t *testing.T) {
+	in := "уроженка г. Еревана, гражданка Республики Армения"
+	res := runPipeline(t, in)
+	found := false
+	for _, s := range res.Spans {
+		if s.Category == pii.CatBirthPlace {
+			found = true
+			if got := in[s.Start:s.End]; got != "г. Еревана" {
+				t.Errorf("birth_place value = %q, want %q", got, "г. Еревана")
+			}
+		}
+	}
+	if !found {
+		t.Errorf("no birth_place span for %q", in)
+	}
+}
+
+func TestBirthplaceAbbrevMonth(t *testing.T) {
+	in := "родилась 05 мар 1985 в г. Набережные Челны, паспорт получала уже в Казани"
+	res := runPipeline(t, in)
+	found := false
+	for _, s := range res.Spans {
+		if s.Category == pii.CatBirthPlace {
+			found = true
+			if got := in[s.Start:s.End]; got != "г. Набережные Челны" {
+				t.Errorf("birth_place value = %q, want %q", got, "г. Набережные Челны")
+			}
+		}
+	}
+	if !found {
+		t.Errorf("no birth_place span for %q", in)
+	}
+}
+
+func TestBirthplaceRegionAbbrev(t *testing.T) {
+	in := "место рожд.: пос. Красный Яр Астраханской обл."
+	res := runPipeline(t, in)
+	found := false
+	for _, s := range res.Spans {
+		if s.Category == pii.CatBirthPlace {
+			found = true
+			if got := in[s.Start:s.End]; got != "пос. Красный Яр Астраханской обл." {
+				t.Errorf("birth_place value = %q, want %q", got, "пос. Красный Яр Астраханской обл.")
+			}
+		}
+	}
+	if !found {
+		t.Errorf("no birth_place span for %q", in)
+	}
+}
+
+func TestBirthplaceDashAndPronoun(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"место рождения — Челябинск", "Челябинск"},
+		{"Родилась я в Ташкенте", "Ташкенте"},
+		{"Родился в с. Верхние Киги, Башкирия", "с. Верхние Киги"},
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c.in)
+		found := false
+		for _, s := range res.Spans {
+			if s.Category == pii.CatBirthPlace {
+				found = true
+				if got := c.in[s.Start:s.End]; got != c.want {
+					t.Errorf("birth_place value for %q = %q, want %q", c.in, got, c.want)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("no birth_place span for %q", c.in)
+		}
+	}
+}
+
+func TestBirthplaceFalsePositive(t *testing.T) {
+	in := "Она родилась в один день с бабушкой"
+	res := runPipeline(t, in)
+	if hasCategory(t, res, pii.CatBirthPlace) {
+		t.Errorf("birth_place should not detect %q, got %+v", in, res.Spans)
+	}
+}
