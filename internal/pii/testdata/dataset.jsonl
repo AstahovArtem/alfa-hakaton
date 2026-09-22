@@ -314,3 +314,21 @@
 {"id":"ultra-phone-006","text":"Телефон: +7 (4932) 41-18-09","spans":[{"value":"+7 (4932) 41-18-09","category":"phone"}]}
 {"id":"ultra-phone-007","text":"звонить на 8-800-200-00-00","spans":[]}
 {"id":"ultra-phone-008","text":"звонить на 8 (800) 555-35-35","spans":[]}
+{"id":"ultra-cvv-001","text":"три цифры на обороте — 921","spans":[{"value":"921","category":"cvv"}]}
+{"id":"ultra-cvv-002","text":"На обороте: 507","spans":[{"value":"507","category":"cvv"}]}
+{"id":"ultra-cvv-003","text":"код с обратной стороны 604","spans":[{"value":"604","category":"cvv"}]}
+{"id":"ultra-cvv-004","text":"CVC: 043","spans":[{"value":"043","category":"cvv"}]}
+{"id":"ultra-pin-001","text":"код от карты — 2580","spans":[{"value":"2580","category":"pin"}]}
+{"id":"ultra-pin-002","text":"пин-код от карты 5536 9104 6872 0190 это 4071 или 4017","spans":[{"value":"5536 9104 6872 0190","category":"card_number"},{"value":"4071","category":"pin"},{"value":"4017","category":"pin"}]}
+{"id":"ultra-holder-001","text":"имя на карте ALEXANDRA VOLKOVA-BRANDT","spans":[{"value":"ALEXANDRA VOLKOVA-BRANDT","category":"card_holder"}]}
+{"id":"ultra-holder-002","text":"CARDHOLDER: OKSANA MELNYK\nCARD NO: 2201 9002 7463 8810","spans":[{"value":"OKSANA MELNYK","category":"card_holder"},{"value":"2201 9002 7463 8810","category":"card_number"}]}
+{"id":"ultra-holder-003","text":"Карта на имя ZULFIYA AKHMEDOVA","spans":[{"value":"ZULFIYA AKHMEDOVA","category":"card_holder"}]}
+{"id":"ultra-holder-004","text":"Эмбоссированное имя: MARIIA KOVALENKO. Номер карты: 4627 7930 0145 5828.","spans":[{"value":"MARIIA KOVALENKO","category":"card_holder"},{"value":"4627 7930 0145 5828","category":"card_number"}]}
+{"id":"ultra-holder-005","text":"На лицевой стороне: 5316 7402 8853 9041, VALID THRU 11/29, RUSLAN GAREEV.","spans":[{"value":"5316 7402 8853 9041","category":"card_number"},{"value":"RUSLAN GAREEV","category":"card_holder"}]}
+{"id":"ultra-name-001","text":"ДАТА РОЖДЕНИЯ: 14.07.1979","spans":[{"value":"14.07.1979","category":"birth_date"}]}
+{"id":"ultra-name-002","text":"ДаТа РоЖдЕнИя: 19.09.1988","spans":[{"value":"19.09.1988","category":"birth_date"}]}
+{"id":"ultra-name-003","text":"МЕСТО РОЖДЕНИЯ: КОПЕЙСК","spans":[{"value":"КОПЕЙСК","category":"birth_place"}]}
+{"id":"ultra-name-004","text":"Гагарина Юрия Алексеевича","spans":[]}
+{"id":"ultra-name-005","text":"зовут Каримов Бахтиёр","spans":[{"value":"Каримов Бахтиёр","category":"full_name"}]}
+{"id":"ultra-name-006","text":"доставка карты для Нгуен Тхи Лан","spans":[{"value":"Нгуен Тхи Лан","category":"full_name"}]}
+{"id":"ultra-name-007","text":"Бабушка написала в чат: внучок, я забыла, пин-код от карты 5536 9104 6872 0190 это 4071 или 4017? Роза Мусаевна.","spans":[{"value":"5536 9104 6872 0190","category":"card_number"},{"value":"4071","category":"pin"},{"value":"4017","category":"pin"},{"value":"Роза Мусаевна","category":"full_name"}]}

@@ -21,6 +21,7 @@ var latinNameContext = []string{
 // or "ЛИ ЧЖИ ХУН" after "Данные для пропуска:").
 var foreignNameContext = []string{
 	"обращаться", ctxZovut, "фамилию", "фамилия", ctxFIO, "представьтесь", "пропуска",
+	"для", "на имя",
 }
 
 func (d *namesDetector) detectLatinNames(t pii.Text, toks []token, covered []bool) []pii.Span {

@@ -132,7 +132,10 @@ rules:
       - cvc2
       - код безопасности
       - код с обратной стороны карты
+      - код с обратной стороны
       - код на обороте
+      - на обороте
+      - три цифры на обороте
     context_after:
       - cvv
       - cvc
@@ -140,7 +143,10 @@ rules:
       - cvc2
       - код безопасности
       - код с обратной стороны карты
+      - код с обратной стороны
       - код на обороте
+      - на обороте
+      - три цифры на обороте
     deny_context:
       - wi-fi
       - wifi
@@ -155,7 +161,7 @@ rules:
     category: pin
     pattern: '(?i)\b\d{4}\b'
     require_context: true
-    context_window: 30
+    context_window: 50
     confidence: 0.9
     not_in_digit_sequence: true
     context:
@@ -163,11 +169,13 @@ rules:
       - пин
       - пин-код
       - pin-код
+      - код от карты
     context_after:
       - pin
       - пин
       - пин-код
       - pin-код
+      - код от карты
     deny_context:
       - wi-fi
       - wifi

@@ -24,10 +24,12 @@ var cardholderStop = map[string]bool{
 	"VISA": true, "MASTERCARD": true, "MIR": true, "CVV": true, "CVC": true,
 	"PIN": true, "LLC": true, "LTD": true, "OOO": true, "PAO": true, "AO": true,
 	"INN": true, "USD": true, "EUR": true, "RUB": true,
+	"CARD": true, "VALID": true, "THRU": true, "EXP": true, "NO": true,
 }
 
 var cardholderContext = []string{
-	"держатель", "владелец карты", "cardholder", "card holder", "name on card", "имя на карте",
+	"держатель", "держателя", "держателю", "держателем", "владелец карты", "cardholder", "card holder",
+	"name on card", "имя на карте", "имя держателя", "на имя", "эмбоссированное имя", "cardholder:",
 }
 
 var cardNumRe = regexp.MustCompile(`(?:\d[ -]?){13,19}`)
@@ -89,7 +91,7 @@ func (d *cardholderDetector) tryThree(
 		End:        seq[2].end,
 		Category:   pii.CatCardHolder,
 		Detector:   d.Name(),
-		Confidence: 0.85,
+		Confidence: cardholderConfidence(seq, t, hasCard),
 	}, 3
 }
 
@@ -116,13 +118,14 @@ func (d *cardholderDetector) tryTwo(
 		End:        seq[1].end,
 		Category:   pii.CatCardHolder,
 		Detector:   d.Name(),
-		Confidence: 0.85,
+		Confidence: cardholderConfidence(seq, t, hasCard),
 	}, 2
 }
 
 // isCardholderWord reports whether s is a Latin word of 2+ letters or a single
-// Latin letter (a middle initial). Case is not restricted here; the case logic
-// is applied in validCardholder.
+// Latin letter (a middle initial). Inner hyphens are allowed so hyphenated
+// surnames (e.g. "VOLKOVA-BRANDT") are treated as a single word. Case is not
+// restricted here; the case logic is applied in validCardholder.
 func isCardholderWord(s string) bool {
 	if cardholderStop[strings.ToUpper(s)] {
 		return false
@@ -131,11 +134,16 @@ func isCardholderWord(s string) bool {
 		return false
 	}
 	letterCount := 0
-	for _, r := range s {
-		if !isLatinLetter(r) {
-			return false
+	for i, r := range s {
+		if isLatinLetter(r) {
+			letterCount++
+			continue
 		}
-		letterCount++
+		// Allow an inner hyphen between two letters.
+		if r == '-' && i > 0 && i < len(s)-1 {
+			continue
+		}
+		return false
 	}
 	return letterCount >= 1
 }
@@ -176,6 +184,24 @@ func isAllUpper(s string) bool {
 		}
 	}
 	return true
+}
+
+// cardholderConfidence returns the confidence for a cardholder span. An
+// all-uppercase name alongside a card number or a cardholder context keyword is
+// a strong signal (embossed cardholder), so it outranks a competing full_name
+// span.
+func cardholderConfidence(seq []token, t pii.Text, hasCard bool) float64 {
+	allUpper := true
+	for _, tok := range seq {
+		if !isAllUpper(tok.text) {
+			allUpper = false
+			break
+		}
+	}
+	if allUpper && (hasCard || hasLeftContext(t, seq[0].start, cardholderContext, 30)) {
+		return 0.95
+	}
+	return 0.85
 }
 
 // hasCardNumber reports whether the text contains a 13-19 digit sequence

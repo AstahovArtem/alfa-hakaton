@@ -211,7 +211,7 @@ func surnameStem(s string) string {
 
 // normalizeWord reduces a word to a matching stem for the famous-person check.
 func normalizeWord(lower string) string {
-	for _, e := range []string{sufYmi, sufImi, sufOgo, sufOmu, sufAmi, sufAh, sufYm, sufIm, sufOy, sufOm, sufEm, "а", "у", "ы", "е"} {
+	for _, e := range []string{sufYmi, sufImi, sufOgo, sufOmu, sufAmi, sufAh, sufYm, sufIm, sufOy, sufOm, sufEm, "а", "я", "у", "ы", "е", "й"} {
 		if strings.HasSuffix(lower, e) {
 			lower = lower[:len(lower)-len(e)]
 			break
@@ -230,6 +230,8 @@ var stopWords = map[string]bool{
 	"банк": true, "москва": true, ctxRussia: true, "российская": true, "федерация": true,
 	ctxOblast: true, ctxGorod: true, "улица": true, ctxDom: true, ctxClient: true, "паспорт": true,
 	ctxOtdelenie: true, "офис": true, "договор": true, "счёт": true, "карта": true, "номер": true,
+	"дата": true, "место": true, "рождения": true, "рождение": true, "рожден": true, "рождён": true,
+	"xxxx": true, "тест": true, "тестов": true, "тестовой": true, "тестовой среде": true,
 	"январь": true, monthJanuary: true, "февраль": true, monthFebruary: true, "март": true,
 	"апрель": true, monthApril: true, "май": true, monthMay: true, "июнь": true, monthJune: true,
 	"июль": true, monthJuly: true, monthAugust: true, "сентябрь": true, monthSeptember: true,
@@ -255,6 +257,71 @@ var lowercaseNameContext = []string{
 // given name to form a patronymic (e.g. "Фарид кызы", "Али оглы").
 var patrMarkers = map[string]bool{
 	"кызы": true, "оглы": true, "улы": true,
+}
+
+// famousPatronymicPairs lists "given name patronymic" pairs that identify a
+// specific famous person (e.g. "фёдор михайлович" = Достоевский). A
+// name+patronymic pair in this set is not PII. Keys are normalised with
+// normalizeWord so inflected forms (e.g. "Фёдора Михайловича") match.
+var famousPatronymicPairs = []string{
+	"александр сергеевич",
+	"лев николаевич",
+	"фёдор михайлович",
+	"юрий алексеевич",
+	"пётр андреевич",
+	"сергей александрович",
+	"михаил васильевич",
+	"иван сергеевич",
+	"антон павлович",
+	"николай васильевич",
+	"владимир владимирович",
+	"дмитрий иванович",
+	"алексей архипович",
+	"валентина владимировна",
+	"алла борисовна",
+	"марина ивановна",
+	"анна андреевна",
+	"борис леонидович",
+	"иосиф виссарионович",
+	"никита сергеевич",
+	"леонид ильич",
+	"георгий константинович",
+	"илья ефимович",
+	"казимир северинович",
+	"василий васильевич",
+	"андрей дмитриевич",
+	"игорь васильевич",
+	"виктор робертович",
+	"константин эдуардович",
+	"сергей павлович",
+	"дмитрий менделеевич",
+	"михаил иванович",
+	"иван петрович",
+	"екатерина вторая",
+	"владимир ильич",
+	"михаил сергеевич",
+	"дмитрий анатольевич",
+	"сергей викторович",
+	"александр васильевич",
+	"михаил иларионович",
+	"лев давидович",
+	"николай иванович",
+	"владимир семёнович",
+}
+
+// famousPatronymics is the normalised lookup set built from
+// famousPatronymicPairs.
+var famousPatronymics = buildFamousPatronymics()
+
+func buildFamousPatronymics() map[string]bool {
+	m := make(map[string]bool, len(famousPatronymicPairs))
+	for _, p := range famousPatronymicPairs {
+		words := strings.Fields(p)
+		if len(words) == 2 {
+			m[normalizeWord(words[0])+" "+normalizeWord(words[1])] = true
+		}
+	}
+	return m
 }
 
 func (d *namesDetector) classify(

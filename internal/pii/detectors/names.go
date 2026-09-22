@@ -158,6 +158,9 @@ func (d *namesDetector) processCandidate(
 	if handled, adv := d.patrSurnameName(text, nt, cands, i, t, covered, spans); handled {
 		return adv
 	}
+	if handled, adv := d.surnameUnknownName(text, nt, cands, i, t, covered, spans); handled {
+		return adv
+	}
 	if handled, adv := d.singleNameWithContext(nt, cands, i, t, covered, spans); handled {
 		return adv
 	}
@@ -408,6 +411,52 @@ func (d *namesDetector) patrSurnameName(
 	return true, 2
 }
 
+// surnameUnknownName handles a surname + unknown given name sequence where the
+// given name is not in the dictionary but a name context keyword (e.g. "зовут")
+// appears to the left (e.g. "зовут Каримов Бахтиёр").
+func (d *namesDetector) surnameUnknownName(
+	text string,
+	nt []nameToken,
+	cands []int,
+	i int,
+	t pii.Text,
+	covered []bool,
+	spans *[]pii.Span,
+) (bool, int) {
+	if !nt[cands[i]].isSurnameLike() {
+		return false, 0
+	}
+	ci := cands[i]
+	if ci+1 >= len(nt) {
+		return false, 0
+	}
+	next := nt[ci+1]
+	if next.isNameLike() || stopWords[next.lower] {
+		return false, 0
+	}
+	if !onlyWhitespace(text, nt[ci].end, next.start) {
+		return false, 0
+	}
+	r, _ := utf8.DecodeRuneInString(next.text)
+	if !isUpperRune(r) {
+		return false, 0
+	}
+	if !hasLeftContext(t, nt[ci].start, nameContext, 30) {
+		return false, 0
+	}
+	seq := []nameToken{nt[ci], next}
+	if d.isFamous(seq) {
+		return false, 0
+	}
+	*spans = append(
+		*spans,
+		pii.Span{Start: seq[0].start, End: seq[1].end, Category: pii.CatFullName, Detector: d.Name(), Confidence: 0.9},
+	)
+	covered[ci] = true
+	covered[ci+1] = true
+	return true, 1
+}
+
 func (d *namesDetector) validSeq(seq []nameToken, t pii.Text) (bool, float64) {
 	if d.isFamous(seq) {
 		return false, 0
@@ -509,12 +558,20 @@ func (d *namesDetector) seq2SurnameName(seq []nameToken) bool {
 }
 
 // seq2NamePatr reports whether the sequence is "name patronymic" with a name
-// context keyword to the left.
+// context keyword to the left, or a name+patronymic signature at the end of the
+// text (e.g. "Роза Мусаевна."). A famous person's name+patronymic (e.g. "Фёдор
+// Михайлович") is not PII.
 func (d *namesDetector) seq2NamePatr(seq []nameToken, t pii.Text) bool {
 	if !seq[0].isName || !seq[1].isPatr || !d.hasDictOrPatr(seq) {
 		return false
 	}
-	return hasLeftContext(t, seq[0].start, nameContext, 30)
+	if hasLeftContext(t, seq[0].start, nameContext, 30) {
+		return true
+	}
+	if !endsPhrase(t.Raw, seq[1].end) {
+		return false
+	}
+	return !famousPatronymics[normalizeWord(seq[0].lower)+" "+normalizeWord(seq[1].lower)]
 }
 
 func (d *namesDetector) hasDictOrPatr(seq []nameToken) bool {

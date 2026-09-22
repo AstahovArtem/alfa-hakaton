@@ -257,3 +257,74 @@ func TestFullNameMaidenSurnameInParens(t *testing.T) {
 		assertSpanValue(t, runPipeline(t, c.in), pii.CatFullName, c.in, c.want)
 	}
 }
+
+// Point 12: "ДАТА РОЖДЕНИЯ" / "МЕСТО РОЖДЕНИЯ" in upper and mixed case are not
+// full names.
+func TestFullNameBirthPlaceLabelsNegative(t *testing.T) {
+	cases := []string{
+		"ДАТА РОЖДЕНИЯ: 14.07.1979",
+		"ДаТа РоЖдЕнИя: 19.09.1988",
+		"МЕСТО РОЖДЕНИЯ: КОПЕЙСК",
+		"Дата рождения: 05.03.1985",
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c)
+		if hasCategory(t, res, pii.CatFullName) {
+			t.Errorf("full_name should not detect label %q, got %+v", c, res.Spans)
+		}
+	}
+}
+
+// Point 12: a famous person in the genitive case with a patronymic is not PII.
+func TestFullNameFamousGenitiveWithPatronymic(t *testing.T) {
+	cases := []string{
+		"Гагарина Юрия Алексеевича",
+		"Фёдора Михайловича",
+		"Пётр Андреевич",
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c)
+		if hasCategory(t, res, pii.CatFullName) {
+			t.Errorf("famous person should not be PII: %q, got %+v", c, res.Spans)
+		}
+	}
+}
+
+// Point 13: surname + unknown given name with a "зовут" context.
+func TestFullNameSurnameUnknownNameWithZovut(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"зовут Каримов Бахтиёр", "Каримов Бахтиёр"},
+	}
+	for _, c := range cases {
+		assertSpanValue(t, runPipeline(t, c.in), pii.CatFullName, c.in, c.want)
+	}
+}
+
+// Point 13: foreign name after "для" / "на имя" context.
+func TestFullNameForeignAfterDlya(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"доставка карты для Нгуен Тхи Лан", "Нгуен Тхи Лан"},
+	}
+	for _, c := range cases {
+		assertSpanValue(t, runPipeline(t, c.in), pii.CatFullName, c.in, c.want)
+	}
+}
+
+// Point 13: name + patronymic without a surname as a signature.
+func TestFullNameNamePatronymicSignature(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"Бабушка написала в чат: внучок, я забыла, пин-код от карты 5536 9104 6872 0190 это 4071 или 4017? Роза Мусаевна.", "Роза Мусаевна"},
+	}
+	for _, c := range cases {
+		assertSpanValue(t, runPipeline(t, c.in), pii.CatFullName, c.in, c.want)
+	}
+}

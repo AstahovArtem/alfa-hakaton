@@ -192,6 +192,25 @@ func TestCVVDetect(t *testing.T) {
 	}
 }
 
+// Point 9: CVV forms with "на обороте", "код с обратной стороны", "три цифры
+// на обороте" and a colon/newline after the label.
+func TestCVVBackOfCardForms(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"три цифры на обороте — 921", "921"},
+		{"На обороте: 507", "507"},
+		{"код с обратной стороны 604", "604"},
+		{"CVC: 043", "043"},
+		{"код CVV 772", "772"},
+		{"CVV2: 186", "186"},
+	}
+	for _, c := range cases {
+		assertSpanValue(t, runPipeline(t, c.in), pii.CatCVV, c.in, c.want)
+	}
+}
+
 func TestPINDetect(t *testing.T) {
 	cases := []struct {
 		name string
@@ -210,6 +229,34 @@ func TestPINDetect(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Point 10: PIN forms with "код от карты" and two candidates after the label.
+func TestPINCardCodeForms(t *testing.T) {
+	cases := []struct {
+		in   string
+		want []string
+	}{
+		{"код от карты — 2580", []string{"2580"}},
+		{"пин-код от карты 5536 9104 6872 0190 это 4071 или 4017", []string{"4071", "4017"}},
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c.in)
+		for _, want := range c.want {
+			assertPinValue(t, res, c.in, want)
+		}
+	}
+}
+
+// assertPinValue checks that res contains a pin span equal to want.
+func assertPinValue(t *testing.T, res pii.Result, in, want string) {
+	t.Helper()
+	for _, s := range res.Spans {
+		if s.Category == pii.CatPIN && in[s.Start:s.End] == want {
+			return
+		}
+	}
+	t.Errorf("no pin span %q in %q, got %+v", want, in, res.Spans)
 }
 
 func TestPassportDetect(t *testing.T) {
