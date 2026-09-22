@@ -163,7 +163,11 @@ func TestFullStrategy(t *testing.T) {
 		{pii.CatPassport, "4509 123456", "**** ******"},
 		{pii.CatPhone, "+7 (916) 123-45-67", "+* (***) ***-**-**"},
 		{pii.CatEmail, "ivan@mail.ru", "****@****.**"},
-		{pii.CatBirthDate, "12 мая 1990 года", "** *** **** ****"},
+		{pii.CatBirthDate, "12 мая 1990 года", "** *** **** года"},
+		{pii.CatAddress, "г. Казани", "г. ******"},
+		{pii.CatAddress, "ул. Ленина, д. 5, кв. 12", "ул. ******, д. *, кв. **"},
+		{pii.CatPassportIssuer, "ОУФМС России по г. Москве", "ОУФМС России по г. ******"},
+		{pii.CatPassport, "серия 4509 номер 123456", "серия **** номер ******"},
 	}
 	for _, tc := range cases {
 		got := s.Mask(tc.value, tc.cat, doc)

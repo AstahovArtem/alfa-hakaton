@@ -250,29 +250,99 @@ func synthPassport(value string, rng *rand.Rand) string {
 	return applyDigits(value, synth.Passport(rng))
 }
 
-// synthDate builds a random valid date in 1950-2005 in the same format.
-func synthDate(value string, rng *rand.Rand) string {
-	// Word form: "12 мая 1990 года".
-	if strings.ContainsAny(value, "аяеёиюя") && !strings.ContainsAny(value, "0123456789./-") {
-		words := strings.Fields(value)
-		if len(words) >= 3 {
-			return synth.DateWord(rng) + " " + trailingWord(value)
-		}
-	}
-	// Numeric form: replace digits keeping separators.
-	return applyDigits(value, synth.Date(rng))
+// monthWords are the genitive month names used to detect word-form dates.
+var monthWords = []string{
+	"января", "февраля", "марта", "апреля", "мая", "июня",
+	"июля", "августа", "сентября", "октября", "ноября", "декабря",
 }
 
-func trailingWord(value string) string {
-	words := strings.Fields(value)
-	if len(words) == 0 {
-		return ""
+// isWordDate reports whether value is a date written in words (contains a
+// genitive month name).
+func isWordDate(value string) bool {
+	lower := strings.ToLower(value)
+	for _, m := range monthWords {
+		if strings.Contains(lower, m) {
+			return true
+		}
 	}
-	last := words[len(words)-1]
-	if strings.ContainsAny(last, "0123456789") {
-		return ""
+	return false
+}
+
+// synthDate builds a random valid date in 1950-2005 in the same format.
+func synthDate(value string, rng *rand.Rand) string {
+	if isWordDate(value) {
+		return synthDateWord(value, rng)
 	}
-	return last
+	return synthDateNumeric(value, rng)
+}
+
+// synthDateWord builds a word-form date "<day> <month genitive> <year>
+// [года|г.]", preserving the tail of the source.
+func synthDateWord(value string, rng *rand.Rand) string {
+	year := 1950 + rng.Intn(56)
+	month := 1 + rng.Intn(12)
+	day := 1 + rng.Intn(daysInMonth(year, month))
+	tail := "года"
+	if strings.HasSuffix(strings.ToLower(value), "г.") {
+		tail = "г."
+	}
+	return itoa(day) + " " + monthWords[month-1] + " " + itoa(year) + " " + tail
+}
+
+// synthDateNumeric builds a numeric date in the same format and with the same
+// separators as the source. Supported formats: dd.mm.yyyy, dd/mm/yyyy,
+// dd-mm-yyyy, yyyy-mm-dd, yyyy.mm.dd and dd.mm.yy.
+func synthDateNumeric(value string, rng *rand.Rand) string {
+	sep := byte(0)
+	for i := 0; i < len(value); i++ {
+		if value[i] < '0' || value[i] > '9' {
+			sep = value[i]
+			break
+		}
+	}
+	if sep == 0 {
+		return value
+	}
+	digits := digitsOnly(value)
+	year := 1950 + rng.Intn(56)
+	month := 1 + rng.Intn(12)
+	day := 1 + rng.Intn(daysInMonth(year, month))
+	dd := twoDigits(day)
+	mm := twoDigits(month)
+	yy := itoa(year)
+	switch len(digits) {
+	case 6:
+		return dd + string(sep) + mm + string(sep) + itoa(year%100)
+	case 8:
+		if strings.IndexByte(value, sep) == 4 {
+			return yy + string(sep) + mm + string(sep) + dd
+		}
+		return dd + string(sep) + mm + string(sep) + yy
+	default:
+		return value
+	}
+}
+
+// daysInMonth returns the number of days in the given month of the given year.
+func daysInMonth(year, month int) int {
+	dm := []int{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+	if month == 2 && isLeapYear(year) {
+		return 29
+	}
+	return dm[month-1]
+}
+
+// isLeapYear reports whether y is a leap year.
+func isLeapYear(y int) bool {
+	return y%4 == 0 && (y%100 != 0 || y%400 == 0)
+}
+
+// twoDigits formats n as a zero-padded two-digit string.
+func twoDigits(n int) string {
+	if n < 10 {
+		return "0" + itoa(n)
+	}
+	return itoa(n)
 }
 
 // synthEmail builds user<hash6>@example.com.

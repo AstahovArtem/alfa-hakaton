@@ -1,6 +1,7 @@
 package mask
 
 import (
+	"strings"
 	"testing"
 
 	"pdn-shield/internal/pii"
@@ -91,5 +92,44 @@ func TestSyntheticFallbackToken(t *testing.T) {
 	got := s.Mask("г. Москва", pii.CatBirthPlace, doc)
 	if got != "[BIRTH_PLACE_1]" {
 		t.Errorf("synthetic fallback = %q, want [BIRTH_PLACE_1]", got)
+	}
+}
+
+func TestSyntheticDate(t *testing.T) {
+	s := NewSynthetic()
+	doc := NewDocState()
+	wordCases := []string{
+		"12 мая 1990 года",
+		"1 января 2000 года",
+		"31 декабря 1985 года",
+		"15 сентября 2005 года",
+	}
+	for _, value := range wordCases {
+		got := s.Mask(value, pii.CatBirthDate, doc)
+		if !isWordDate(got) {
+			t.Errorf("word date %q -> %q: missing month word", value, got)
+		}
+		words := strings.Fields(got)
+		if len(words) != 4 || words[3] != "года" {
+			t.Errorf("word date %q -> %q: want 4 words ending in года", value, got)
+		}
+		if len(words[2]) != 4 {
+			t.Errorf("word date %q -> %q: year %q not 4 digits", value, got, words[2])
+		}
+	}
+	numericCases := []string{
+		"12.05.1990",
+		"01.01.2000",
+		"31.12.1985",
+		"15.09.2005",
+	}
+	for _, value := range numericCases {
+		got := s.Mask(value, pii.CatBirthDate, doc)
+		if isWordDate(got) {
+			t.Errorf("numeric date %q -> %q: unexpected month word", value, got)
+		}
+		if len(digitsOnly(got)) != 8 {
+			t.Errorf("numeric date %q -> %q: want 8 digits", value, got)
+		}
 	}
 }

@@ -12,6 +12,20 @@ import (
 // place. It fully hides the value while preserving its shape.
 type fullStrategy struct{}
 
+// fullServiceWords are the words kept intact by the full strategy: the shared
+// serviceWords plus short function words ("по", "в", "и") and the "ОУФМС"
+// abbreviation. Keys are lowercase.
+var fullServiceWords = func() map[string]bool {
+	m := make(map[string]bool, len(serviceWords)+4)
+	for sw := range serviceWords {
+		m[sw] = true
+	}
+	for _, sw := range []string{"по", "в", "и", "оуфмс"} {
+		m[sw] = true
+	}
+	return m
+}()
+
 // NewFull builds the full strategy.
 func NewFull() Strategy {
 	return &fullStrategy{}
@@ -33,18 +47,62 @@ func (s *fullStrategy) Mask(value string, cat pii.Category, doc *DocState) strin
 }
 
 // maskFull replaces every letter and digit with "*", preserving all other
-// characters in place.
+// characters in place. The value is tokenized into words (sequences of letters
+// and digits, with a hyphen allowed inside a word); everything between words is
+// copied verbatim. A word whose lowercase form (without a trailing dot) is a
+// service word (see serviceWords) is kept intact, otherwise every letter and
+// digit in it is replaced with "*". Abbreviations with a dot ("г.", "ул.",
+// "д.", "кв.", "обл.", "корп.", "стр.", "пр-т") are preserved together with
+// the dot.
 func maskFull(value string) string {
 	var b strings.Builder
 	b.Grow(len(value))
-	for i := 0; i < len(value); {
+	i := 0
+	n := len(value)
+	for i < n {
 		r, size := utf8.DecodeRuneInString(value[i:])
-		if isLetter(r) || (r >= '0' && r <= '9') {
-			b.WriteByte('*')
-		} else {
+		if !isWordRune(r) {
 			b.WriteRune(r)
+			i += size
+			continue
 		}
-		i += size
+		start := i
+		for i < n {
+			r, size = utf8.DecodeRuneInString(value[i:])
+			if isWordRune(r) {
+				i += size
+				continue
+			}
+			if r == '-' && i+size < n {
+				nr, _ := utf8.DecodeRuneInString(value[i+size:])
+				if isWordRune(nr) {
+					i += size
+					continue
+				}
+			}
+			break
+		}
+		word := value[start:i]
+		lookup := word
+		if strings.HasSuffix(word, ".") {
+			lookup = word[:len(word)-1]
+		}
+		if fullServiceWords[strings.ToLower(lookup)] {
+			b.WriteString(word)
+			continue
+		}
+		for _, wr := range word {
+			if isWordRune(wr) {
+				b.WriteByte('*')
+			} else {
+				b.WriteRune(wr)
+			}
+		}
 	}
 	return b.String()
+}
+
+// isWordRune reports whether r is a letter or digit that can be part of a word.
+func isWordRune(r rune) bool {
+	return isLetter(r) || (r >= '0' && r <= '9')
 }

@@ -264,16 +264,6 @@ func maskEmail(value string, char string) string {
 	return string(first) + strings.Repeat(char, utf8.RuneCountInString(local)-1) + domain
 }
 
-// serviceWords are abbreviations kept intact in words mode so the structure of
-// an address or issuing authority stays readable.
-var serviceWords = map[string]bool{
-	"ул": true, "д": true, "кв": true, "г": true, "гор": true, "обл": true,
-	"корп": true, "стр": true, "пр-т": true, "пер": true, "овд": true,
-	"уфмс": true, "мвд": true, "гу": true, "россии": true, "рф": true,
-	"республика": true, "область": true, "край": true, "район": true,
-	"отделом": true, "отделением": true, "управлением": true,
-}
-
 // maskWords keeps the first letter of each word longer than one rune and masks
 // the rest; service abbreviations are kept whole. Digit runs are fully masked.
 // Punctuation is preserved.
