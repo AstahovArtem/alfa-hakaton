@@ -1,0 +1,19 @@
+services:
+  pdn-shield:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      PDN_ENC_KEY: ${PDN_ENC_KEY}
+      MODEL_KEY: ${MODEL_KEY}
+      PDN_DEMO_KEY: ${PDN_DEMO_KEY}
+      PDN_CHATBOT_KEY: ${PDN_CHATBOT_KEY}
+    volumes:
+      - ./configs/compose.yaml:/etc/pdn-shield/config.yaml:ro
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"

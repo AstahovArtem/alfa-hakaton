@@ -1,0 +1,72 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pdn-shield
+  labels:
+    app: pdn-shield
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.middlewares: pdn-https-redirect@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - alfa-hakaton-prod.ru
+        - www.alfa-hakaton-prod.ru
+      secretName: pdn-shield-tls
+  rules:
+    - host: alfa-hakaton-prod.ru
+      http:
+        paths: &paths
+          - path: /
+            pathType: Exact
+            backend:
+              service:
+                name: pdn-shield
+                port:
+                  name: http
+          - path: /process
+            pathType: Prefix
+            backend:
+              service:
+                name: pdn-shield
+                port:
+                  name: http
+          - path: /mask
+            pathType: Prefix
+            backend:
+              service:
+                name: pdn-shield
+                port:
+                  name: http
+          - path: /unmask
+            pathType: Prefix
+            backend:
+              service:
+                name: pdn-shield
+                port:
+                  name: http
+          - path: /v1/
+            pathType: Prefix
+            backend:
+              service:
+                name: pdn-shield
+                port:
+                  name: http
+          - path: /healthz
+            pathType: Prefix
+            backend:
+              service:
+                name: pdn-shield
+                port:
+                  name: http
+          - path: /readyz
+            pathType: Prefix
+            backend:
+              service:
+                name: pdn-shield
+                port:
+                  name: http
+    - host: www.alfa-hakaton-prod.ru
+      http:
+        paths: *paths

@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pdn-shield
+  labels:
+    app: pdn-shield
+spec:
+  type: ClusterIP
+  selector:
+    app: pdn-shield
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
