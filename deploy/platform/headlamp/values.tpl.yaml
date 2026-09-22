@@ -1,0 +1,32 @@
+# Headlamp Helm values — hackathon k3s stand
+# Chart: headlamp/headlamp (repo https://kubernetes-sigs.github.io/headlamp/)
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 300m
+    memory: 256Mi
+
+ingress:
+  enabled: true
+  ingressClassName: traefik
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.middlewares: headlamp-headlamp-https-redirect@kubernetescrd
+  hosts:
+    - host: k8s.${DOMAIN}
+      paths:
+        - path: /
+          type: ImplementationSpecific
+  tls:
+    - secretName: headlamp-tls
+      hosts:
+        - k8s.${DOMAIN}
+
+# chart's own serviceAccount + clusterRoleBinding left at defaults (create: true,
+# clusterRoleName: cluster-admin) — needed for the Headlamp backend pod itself to
+# talk to the API server in-cluster. A SEPARATE ServiceAccount `headlamp-admin`
+# with its own ClusterRoleBinding + long-lived token Secret was created outside
+# this chart for the login token handed to the browser (see headlamp/admin.yaml).

@@ -1,0 +1,14 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: pdn-shield-tls
+  namespace: pdn
+spec:
+  secretName: pdn-shield-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+    group: cert-manager.io
+  dnsNames:
+    - ${DOMAIN}
+    - www.${DOMAIN}

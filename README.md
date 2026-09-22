@@ -68,7 +68,7 @@ curl -s -X POST localhost:8080/v1/chat/completions \
 
 ## Настройка систем-потребителей
 
-Каждая система описана в `configs/config.yaml` в блоке `systems`. Чтобы добавить систему, добавьте блок с уникальным `id` и включите её через `enabled: true`. Ключ задаётся переменной окружения через `api_key_env`, пустое значение означает, что ключ не требуется. Список `categories` ограничивает, какие типы ПД маскируются, пустой список означает все типы. Стратегия `strategy` выбирает вид замены: `partial`, `token` или `synthetic`. Флаг `unmask` разрешает системе демаскировать ответ, по умолчанию он выключен.
+Каждая система описана в `configs/config.yaml` в блоке `systems`. Чтобы добавить систему, добавьте блок с уникальным `id` и включите её через `enabled: true`. Ключ задаётся переменной окружения через `api_key_env`, пустое значение означает, что ключ не требуется. Список `categories` ограничивает, какие типы ПД маскируются, пустой список разрешает все типы. Стратегия `strategy` выбирает вид замены: `partial`, `token` или `synthetic`. Флаг `unmask` разрешает системе демаскировать ответ, по умолчанию он выключен.
 
 ## Добавление нового типа ПД
 
@@ -120,12 +120,24 @@ make compose-up
 make compose-down
 ```
 
+### Стенд с нуля
+
+Весь стенд (k3s, cert-manager, Redis, мониторинг, Headlamp и сам сервис) поднимается
+одной командой с чистого Ubuntu 24.04. Подробности, требования и переменные описаны в
+[deploy/platform/README.md](deploy/platform/README.md).
+
+```bash
+make platform-bootstrap REMOTE=root@SERVER_IP \
+     DOMAIN=alfa-hakaton-prod.ru ACME_EMAIL=you@example.com \
+     GRAFANA_ADMIN_PASSWORD='сложный-пароль'
+```
+
 ### Сборка образа и деплой в k3s
 
 Образ собирается локально и грузится в k3s через `docker save`. Реестра образов нет, поэтому `imagePullPolicy` стоит `IfNotPresent`.
 
 ```bash
-export SERVER=root@62.109.26.223
+export SERVER=root@SERVER_IP
 make deploy
 ```
 
@@ -175,7 +187,7 @@ make load-test URL=http://localhost:8080/process RPS=200 DURATION=10s
 go run ./loadtest -url http://localhost:8080/process -rps 200 -duration 10s
 ```
 
-Опциональные флаги `-system` и `-api-key` задают заголовки `X-System-Id` и `X-API-Key` для прогонов от имени других систем; по умолчанию они пустые.
+Опциональные флаги `-system` и `-api-key` подставляют заголовки `X-System-Id` и `X-API-Key` для прогонов от имени других систем; по умолчанию они пустые.
 
 ```bash
 go run ./loadtest -url http://localhost:8080/process -rps 200 -duration 10s -system demo -api-key "$PDN_DEMO_KEY"

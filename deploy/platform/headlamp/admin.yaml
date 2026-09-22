@@ -1,0 +1,31 @@
+# Long-lived admin access for the Headlamp UI login screen (paste-a-token flow).
+# Single-node hackathon demo stand — owner accepts cluster-admin scope for this.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: headlamp-admin
+  namespace: headlamp
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  # named distinctly from the chart's own "headlamp-admin" ClusterRoleBinding
+  # (which binds the pod's SA "headlamp") to avoid a Helm ownership collision
+  name: headlamp-admin-login
+subjects:
+  - kind: ServiceAccount
+    name: headlamp-admin
+    namespace: headlamp
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: headlamp-admin-token
+  namespace: headlamp
+  annotations:
+    kubernetes.io/service-account.name: headlamp-admin
+type: kubernetes.io/service-account-token

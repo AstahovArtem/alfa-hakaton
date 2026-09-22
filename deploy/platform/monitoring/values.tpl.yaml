@@ -1,0 +1,75 @@
+# kube-prometheus-stack values for the 4 CPU / 8 GB hackathon node.
+# Grafana admin password is NOT stored here — it's passed at install/upgrade time via
+# `--set grafana.adminPassword=$GRAFANA_ADMIN_PASSWORD` so it never lands in this file.
+
+alertmanager:
+  enabled: false
+
+nodeExporter:
+  enabled: true
+
+kubeStateMetrics:
+  enabled: true
+
+prometheus:
+  prometheusSpec:
+    retention: 2d
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 1.5Gi
+    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelector: {}
+    serviceMonitorNamespaceSelector: {}
+    podMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelector: {}
+    podMonitorNamespaceSelector: {}
+
+grafana:
+  enabled: true
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+  grafana.ini:
+    server:
+      root_url: https://grafana.${DOMAIN}
+    security:
+      # cookie_secure requires TLS, which is terminated at the Traefik ingress below
+      cookie_secure: true
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - grafana.${DOMAIN}
+    tls:
+      - secretName: grafana-tls
+        hosts:
+          - grafana.${DOMAIN}
+
+# Keep the stack light: disable extra scrape targets/receivers we don't use.
+defaultRules:
+  create: true
+
+prometheusOperator:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
