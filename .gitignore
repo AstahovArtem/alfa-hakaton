@@ -3,4 +3,5 @@
 bin/
 *.zip
 coverage.out
-loadtest/report-*.md.idea/
+loadtest/report-*.md
+.idea/
