@@ -217,17 +217,7 @@ rules:
     validator: date
     confidence: 0.85
     match_lower: true
-    reclassify:
-      - context: [г.р., г. р., д.р., др]
-        context_after: [г.р., г. р., года рождения, р.]
-        context_window: 15
-        context_after_window: 15
-        category: birth_date
-      - context: [родился, родилась, родился, родились, родил, рожден, рождён, дата рождения, дату рождения, уроженец, уроженка]
-        context_after: [место рождения, уроженец, уроженка]
-        context_window: 120
-        context_after_window: 40
-        category: birth_date
+    reclassify_date: true
 
   - name: date_short_year
     category: date
@@ -235,14 +225,4 @@ rules:
     validator: date_short_year
     confidence: 0.85
     match_lower: true
-    reclassify:
-      - context: [г.р., г. р., д.р., др]
-        context_after: [г.р., г. р., года рождения, р.]
-        context_window: 15
-        context_after_window: 15
-        category: birth_date
-      - context: [родился, родилась, родился, родились, родил, рожден, рождён, дата рождения, дату рождения, уроженец, уроженка]
-        context_after: [место рождения, уроженец, уроженка]
-        context_window: 120
-        context_after_window: 40
-        category: birth_date
+    reclassify_date: true

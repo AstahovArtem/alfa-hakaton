@@ -11,6 +11,7 @@ func Default() []pii.Detector {
 	}
 	return []pii.Detector{
 		NewRegexDetector(rules),
+		NewDateWordsDetector(),
 		NewNamesDetector(),
 		NewCardholderDetector(),
 		NewAddressDetector(),

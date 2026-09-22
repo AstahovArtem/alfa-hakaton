@@ -94,8 +94,9 @@ func followsPassportIssuer(spans []Span, i int) bool {
 	return false
 }
 
-// birthContexts are keywords that mark a birth date.
-var birthContexts = []string{
+// BirthContexts are keywords that mark a birth date. Exported so the
+// dateWords detector reuses the same birth-date reclassification.
+var BirthContexts = []string{
 	"родился", "родилась", "родился", "родились", "родил", "рожден", "рождён",
 	"дата рождения", "дату рождения", "уроженец", "уроженка", "г.р.", "г. р.", "д.р.", "др",
 }
@@ -112,7 +113,7 @@ func isPassportDate(t Text, s Span) bool {
 	}
 	// Nearest context wins: if a birth context is nearer than the passport
 	// issue context, keep the birth classification.
-	birthDist := nearestContext(t, s.Start, 160, birthContexts)
+	birthDist := nearestContext(t, s.Start, 160, BirthContexts)
 	passDist := nearestContext(t, s.Start, 160, issueContexts)
 	if birthDist >= 0 && (passDist < 0 || birthDist < passDist) {
 		return false

@@ -47,6 +47,11 @@ type Rule struct {
 	ContextAfterWindow int              `yaml:"context_after_window"`
 	Group              int              `yaml:"group"`
 	Reclassify         []ReclassifyRule `yaml:"reclassify"`
+	// ReclassifyDate, when true, applies the shared date birth_date
+	// reclassification (dateBirthReclassify) instead of the data-driven
+	// Reclassify rules. Used by the date and date_short_year rules so they share
+	// the same logic as the dateWords detector.
+	ReclassifyDate bool `yaml:"reclassify_date"`
 	// RejectContext, when non-empty, suppresses a match when any keyword appears
 	// within RejectContextWindow runes to the left or right. Used to exclude
 	// values that are not personal data (e.g. a PIN for a door intercom).
@@ -434,6 +439,9 @@ func (r Rule) rejectedByContext(t pii.Text, start, end int) bool {
 // reclassify returns the category of a match, applying context-based
 // reclassification rules.
 func reclassify(t pii.Text, start, end int, r Rule) pii.Category {
+	if r.ReclassifyDate {
+		return dateBirthReclassify(t, start, end)
+	}
 	cat := r.Category
 	for _, rc := range r.Reclassify {
 		win := rc.ContextWindow

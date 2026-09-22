@@ -282,3 +282,9 @@
 {"id":"birthplace-date-001","text":"родился 5 марта 1985 г. в г. Казани","spans":[{"value":"5 марта 1985 г","category":"birth_date"},{"value":"г. Казани","category":"birth_place"}]}
 {"id":"birthplace-date-002","text":"родилась 05.03.1985 г. в г. Казани","spans":[{"value":"05.03.1985","category":"birth_date"},{"value":"г. Казани","category":"birth_place"}]}
 {"id":"birthplace-date-003","text":"родился в 1985 году в г. Казани","spans":[{"value":"г. Казани","category":"birth_place"}]}
+{"id":"dateword-001","text":"пятого марта 1985 года","spans":[{"value":"пятого марта 1985 года","category":"date"}]}
+{"id":"dateword-002","text":"пятое марта 1985","spans":[{"value":"пятое марта 1985","category":"date"}]}
+{"id":"dateword-003","text":"двенадцатого мая тысяча девятьсот девяностого года","spans":[{"value":"двенадцатого мая тысяча девятьсот девяностого года","category":"date"}]}
+{"id":"dateword-004","text":"двадцать первого августа две тысячи девятнадцатого года","spans":[{"value":"двадцать первого августа две тысячи девятнадцатого года","category":"date"}]}
+{"id":"dateword-005","text":"ПЯТОГО МАРТА 1985 ГОДА","spans":[{"value":"ПЯТОГО МАРТА 1985 ГОДА","category":"date"}]}
+{"id":"dateword-006","text":"родился пятого марта 1985 года","spans":[{"value":"пятого марта 1985 года","category":"birth_date"}]}
