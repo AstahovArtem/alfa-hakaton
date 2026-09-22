@@ -1,0 +1,180 @@
+rules:
+  - name: phone_ru
+    category: phone
+    pattern: '(?i)(?:\+7|8|7)[\s(-]*\d{3}[\s)-]*\d{3}[\s-]*\d{2}[\s-]*\d{2}'
+    validator: phone
+    confidence: 0.9
+    context:
+      - телефон
+      - тел
+
+  - name: email
+    category: email
+    pattern: '(?i)[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}'
+    confidence: 0.95
+
+  - name: inn
+    category: inn
+    pattern: '(?i)\b\d{12}\b'
+    validator: inn
+    confidence: 0.9
+    context:
+      - инн
+
+  - name: inn_legal
+    category: inn
+    pattern: '(?i)\b\d{10}\b'
+    validator: inn
+    require_context: true
+    context_window: 40
+    confidence: 0.9
+    context:
+      - инн
+      - юрлицо
+      - организация
+      - ип
+
+  - name: card_number
+    category: card_number
+    pattern: '(?i)(?:\d[ -]?){13,19}'
+    validator: luhn
+    confidence: 0.9
+    context:
+      - карта
+      - card
+      - номер карты
+
+  - name: cvv
+    category: cvv
+    pattern: '(?i)\b\d{3,4}\b'
+    require_context: true
+    context_window: 30
+    confidence: 0.9
+    not_in_digit_sequence: true
+    context:
+      - cvv
+      - cvc
+      - cvv2
+      - cvc2
+      - код безопасности
+    context_after:
+      - cvv
+      - cvc
+      - cvv2
+      - cvc2
+      - код безопасности
+
+  - name: pin
+    category: pin
+    pattern: '(?i)\b\d{4}\b'
+    require_context: true
+    context_window: 30
+    confidence: 0.9
+    not_in_digit_sequence: true
+    context:
+      - pin
+      - пин
+      - пин-код
+      - pin-код
+    context_after:
+      - pin
+      - пин
+      - пин-код
+      - pin-код
+
+  - name: passport
+    category: passport
+    pattern: '(?i)(?:серия\s*:?\s*(\d{4})[\s,]*номер\s*:?\s*(\d{6})|паспорт\s*(\d{4})\s*№?\s*(\d{6})|\b(\d{4})\s+(\d{6})\b|\b(\d{2}\s\d{2})\s(\d{6})\b)'
+    validator: passport
+    confidence: 0.9
+
+  - name: passport_bare
+    category: passport
+    pattern: '(?i)\b\d{10}\b'
+    validator: passport
+    require_context: true
+    context_window: 40
+    confidence: 0.9
+    context:
+      - паспорт
+      - серия
+      - серия и номер
+      - паспортные данные
+
+  - name: division_code
+    category: division_code
+    pattern: '(?i)\b\d{3}-\d{3}\b'
+    require_context: true
+    context_window: 40
+    confidence: 0.9
+    context:
+      - код подразделения
+      - к/п
+      - код подр
+    context_after:
+      - код подразделения
+      - к/п
+      - код подр
+
+  - name: driver_license
+    category: driver_license
+    pattern: '(?i)(?:\b\d{2}\s\d{2}\s\d{6}\b|\b\d{4}\s\d{6}\b|\b\d{2}[а-яё]{2}\s\d{6}\b)'
+    require_context: true
+    context_window: 40
+    confidence: 0.9
+    context:
+      - водительское
+      - в/у
+      - ву
+      - права
+      - удостоверение
+    context_after:
+      - водительское
+      - в/у
+      - ву
+      - права
+      - удостоверение
+
+  - name: snils
+    category: snils
+    pattern: '(?i)(?:\b\d{3}-\d{3}-\d{3}\s\d{2}\b|\b\d{11}\b)'
+    validator: snils
+    require_context: true
+    context_window: 40
+    confidence: 0.9
+    context:
+      - снилс
+    context_after:
+      - снилс
+
+  - name: foreign_passport
+    category: foreign_passport
+    pattern: '(?i)\b\d{2}\s\d{7}\b'
+    require_context: true
+    context_window: 40
+    confidence: 0.9
+    context:
+      - загранпаспорт
+      - загран
+      - заграничный паспорт
+    context_after:
+      - загранпаспорт
+      - загран
+      - заграничный паспорт
+
+  - name: date
+    category: date
+    pattern: '(?i)(?:\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b|\b\d{4}[./-]\d{1,2}[./-]\d{1,2}\b|\b\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+\d{4}\b(?:\s+(?:года|г\.|г))?)'
+    validator: date
+    confidence: 0.85
+    reclassify:
+      - context: [родил, рожден, рождён, дата рождения, д.р., др]
+        category: birth_date
+      - context: [выдан, дата выдачи]
+        category: passport_date
+
+  - name: citizenship
+    category: citizenship
+    pattern: '(?i)(?:гражданство\s*:?\s*|гражданин\s+|гражданка\s+)([а-яёА-ЯЁ\s]+)'
+    group: 1
+    confidence: 0.9

@@ -1,0 +1,142 @@
+{"id":"phone-001","text":"Перезвоните по номеру +7 (916) 123-45-67","spans":[{"value":"+7 (916) 123-45-67","category":"phone"}]}
+{"id":"phone-002","text":"Мой номер 89161234567","spans":[{"value":"89161234567","category":"phone"}]}
+{"id":"phone-003","text":"тел: 8 903 555 12 34","spans":[{"value":"8 903 555 12 34","category":"phone"}]}
+{"id":"phone-004","text":"Телефон +7-495-123-45-67","spans":[{"value":"+7-495-123-45-67","category":"phone"}]}
+{"id":"phone-005","text":"свяжитесь со мной 8(921)987-65-43","spans":[{"value":"8(921)987-65-43","category":"phone"}]}
+{"id":"phone-006","text":"номер телефона 7 916 111 22 33","spans":[{"value":"7 916 111 22 33","category":"phone"}]}
+{"id":"phone-007","text":"Позвоните 8 800 555 35 35","spans":[{"value":"8 800 555 35 35","category":"phone"}]}
+{"id":"phone-008","text":"мобильный +7 999 000 11 22","spans":[{"value":"+7 999 000 11 22","category":"phone"}]}
+{"id":"email-001","text":"Напишите на IVAN.Petrov@Example.com","spans":[{"value":"IVAN.Petrov@Example.com","category":"email"}]}
+{"id":"email-002","text":"почта user_name+tag@mail.ru","spans":[{"value":"user_name+tag@mail.ru","category":"email"}]}
+{"id":"email-003","text":"контакт: a.b-c@sub.domain.org","spans":[{"value":"a.b-c@sub.domain.org","category":"email"}]}
+{"id":"email-004","text":"мой e-mail petrov@yandex.ru","spans":[{"value":"petrov@yandex.ru","category":"email"}]}
+{"id":"email-005","text":"адрес почты ivanov@company.com","spans":[{"value":"ivanov@company.com","category":"email"}]}
+{"id":"email-006","text":"напишите на support@bank.ru","spans":[{"value":"support@bank.ru","category":"email"}]}
+{"id":"email-007","text":"электронная почта test@example.io","spans":[{"value":"test@example.io","category":"email"}]}
+{"id":"email-008","text":"почта для связи info@mail.com","spans":[{"value":"info@mail.com","category":"email"}]}
+{"id":"inn-001","text":"Мой ИНН 500100732259","spans":[{"value":"500100732259","category":"inn"}]}
+{"id":"inn-002","text":"ИНН физического лица 3664069397","spans":[{"value":"3664069397","category":"inn"}]}
+{"id":"inn-003","text":"ИНН организации 7707083893","spans":[{"value":"7707083893","category":"inn"}]}
+{"id":"inn-004","text":"инн 500100732259","spans":[{"value":"500100732259","category":"inn"}]}
+{"id":"inn-005","text":"ИНН 3664069397","spans":[{"value":"3664069397","category":"inn"}]}
+{"id":"inn-006","text":"ИНН юрлица 7707083893","spans":[{"value":"7707083893","category":"inn"}]}
+{"id":"inn-007","text":"ИНН 500100732259","spans":[{"value":"500100732259","category":"inn"}]}
+{"id":"inn-008","text":"ИНН 3664069397","spans":[{"value":"3664069397","category":"inn"}]}
+{"id":"card-001","text":"Номер карты 4111 1111 1111 1111","spans":[{"value":"4111 1111 1111 1111","category":"card_number"}]}
+{"id":"card-002","text":"карта 4111111111111111","spans":[{"value":"4111111111111111","category":"card_number"}]}
+{"id":"card-003","text":"номер карты 5500 0000 0000 0004","spans":[{"value":"5500 0000 0000 0004","category":"card_number"}]}
+{"id":"card-004","text":"платёжная карта 4111-1111-1111-1111","spans":[{"value":"4111-1111-1111-1111","category":"card_number"}]}
+{"id":"card-005","text":"карта 5555 5555 5555 4444","spans":[{"value":"5555 5555 5555 4444","category":"card_number"}]}
+{"id":"card-006","text":"номер карты 4111 1111 1111 1111","spans":[{"value":"4111 1111 1111 1111","category":"card_number"}]}
+{"id":"card-007","text":"карта 4012 8888 8888 1881","spans":[{"value":"4012 8888 8888 1881","category":"card_number"}]}
+{"id":"card-008","text":"номер карты 5105 1051 0510 5100","spans":[{"value":"5105 1051 0510 5100","category":"card_number"}]}
+{"id":"cvv-001","text":"CVV код 123","spans":[{"value":"123","category":"cvv"}]}
+{"id":"cvv-002","text":"cvc 456","spans":[{"value":"456","category":"cvv"}]}
+{"id":"cvv-003","text":"код безопасности 789","spans":[{"value":"789","category":"cvv"}]}
+{"id":"cvv-004","text":"CVV2 1234","spans":[{"value":"1234","category":"cvv"}]}
+{"id":"cvv-005","text":"Код безопасности карты 123","spans":[{"value":"123","category":"cvv"}]}
+{"id":"cvv-006","text":"cvc2 567","spans":[{"value":"567","category":"cvv"}]}
+{"id":"cvv-007","text":"CVV 890","spans":[{"value":"890","category":"cvv"}]}
+{"id":"cvv-008","text":"код безопасности 234","spans":[{"value":"234","category":"cvv"}]}
+{"id":"pin-001","text":"ПИН-код 1234","spans":[{"value":"1234","category":"pin"}]}
+{"id":"pin-002","text":"pin 5678","spans":[{"value":"5678","category":"pin"}]}
+{"id":"pin-003","text":"пин-код карты 4321","spans":[{"value":"4321","category":"pin"}]}
+{"id":"pin-004","text":"1234 — это пин-код карты","spans":[{"value":"1234","category":"pin"}]}
+{"id":"pin-005","text":"ПИН 9876","spans":[{"value":"9876","category":"pin"}]}
+{"id":"pin-006","text":"pin-код 1111","spans":[{"value":"1111","category":"pin"}]}
+{"id":"pin-007","text":"пин 2222","spans":[{"value":"2222","category":"pin"}]}
+{"id":"pin-008","text":"ПИН-код 3333","spans":[{"value":"3333","category":"pin"}]}
+{"id":"passport-001","text":"паспорт 4509 123456","spans":[{"value":"4509 123456","category":"passport"}]}
+{"id":"passport-002","text":"серия 4509 номер 123456","spans":[{"value":"4509 номер 123456","category":"passport"}]}
+{"id":"passport-003","text":"паспорт 4509123456","spans":[{"value":"4509123456","category":"passport"}]}
+{"id":"passport-004","text":"серия 4509 номер 123456","spans":[{"value":"4509 номер 123456","category":"passport"}]}
+{"id":"passport-005","text":"паспорт 45 09 123456","spans":[{"value":"45 09 123456","category":"passport"}]}
+{"id":"passport-006","text":"паспортные данные 4509 123456","spans":[{"value":"4509 123456","category":"passport"}]}
+{"id":"passport-007","text":"паспорт 4509 123456","spans":[{"value":"4509 123456","category":"passport"}]}
+{"id":"passport-008","text":"серия 4509 номер 123456","spans":[{"value":"4509 номер 123456","category":"passport"}]}
+{"id":"division-001","text":"код подразделения 770-001","spans":[{"value":"770-001","category":"division_code"}]}
+{"id":"division-002","text":"к/п 770-001","spans":[{"value":"770-001","category":"division_code"}]}
+{"id":"division-003","text":"код подр 123-456","spans":[{"value":"123-456","category":"division_code"}]}
+{"id":"division-004","text":"код подразделения 770-001","spans":[{"value":"770-001","category":"division_code"}]}
+{"id":"division-005","text":"к/п 456-789","spans":[{"value":"456-789","category":"division_code"}]}
+{"id":"division-006","text":"код подразделения 123-456","spans":[{"value":"123-456","category":"division_code"}]}
+{"id":"division-007","text":"к/п 789-012","spans":[{"value":"789-012","category":"division_code"}]}
+{"id":"division-008","text":"код подр 345-678","spans":[{"value":"345-678","category":"division_code"}]}
+{"id":"driver-001","text":"водительское удостоверение 77 12 345678","spans":[{"value":"77 12 345678","category":"driver_license"}]}
+{"id":"driver-002","text":"права 77АА 123456","spans":[{"value":"77АА 123456","category":"driver_license"}]}
+{"id":"driver-003","text":"водительское 77 12 345678","spans":[{"value":"77 12 345678","category":"driver_license"}]}
+{"id":"driver-004","text":"в/у 77 12 345678","spans":[{"value":"77 12 345678","category":"driver_license"}]}
+{"id":"driver-005","text":"права 77АА 123456","spans":[{"value":"77АА 123456","category":"driver_license"}]}
+{"id":"driver-006","text":"водительское удостоверение 77 12 345678","spans":[{"value":"77 12 345678","category":"driver_license"}]}
+{"id":"driver-007","text":"в/у 77 12 345678","spans":[{"value":"77 12 345678","category":"driver_license"}]}
+{"id":"driver-008","text":"права 77АА 123456","spans":[{"value":"77АА 123456","category":"driver_license"}]}
+{"id":"snils-001","text":"СНИЛС 112-233-445 95","spans":[{"value":"112-233-445 95","category":"snils"}]}
+{"id":"snils-002","text":"снилс 11223344595","spans":[{"value":"11223344595","category":"snils"}]}
+{"id":"snils-003","text":"СНИЛС 112-233-445 95","spans":[{"value":"112-233-445 95","category":"snils"}]}
+{"id":"snils-004","text":"снилс 11223344595","spans":[{"value":"11223344595","category":"snils"}]}
+{"id":"snils-005","text":"СНИЛС 112-233-445 95","spans":[{"value":"112-233-445 95","category":"snils"}]}
+{"id":"snils-006","text":"снилс 11223344595","spans":[{"value":"11223344595","category":"snils"}]}
+{"id":"snils-007","text":"СНИЛС 112-233-445 95","spans":[{"value":"112-233-445 95","category":"snils"}]}
+{"id":"snils-008","text":"снилс 11223344595","spans":[{"value":"11223344595","category":"snils"}]}
+{"id":"foreign-001","text":"загранпаспорт 71 1234567","spans":[{"value":"71 1234567","category":"foreign_passport"}]}
+{"id":"foreign-002","text":"загран 71 1234567","spans":[{"value":"71 1234567","category":"foreign_passport"}]}
+{"id":"foreign-003","text":"заграничный паспорт 71 1234567","spans":[{"value":"71 1234567","category":"foreign_passport"}]}
+{"id":"foreign-004","text":"загранпаспорт 71 1234567","spans":[{"value":"71 1234567","category":"foreign_passport"}]}
+{"id":"foreign-005","text":"загран 71 1234567","spans":[{"value":"71 1234567","category":"foreign_passport"}]}
+{"id":"foreign-006","text":"заграничный паспорт 71 1234567","spans":[{"value":"71 1234567","category":"foreign_passport"}]}
+{"id":"foreign-007","text":"загранпаспорт 71 1234567","spans":[{"value":"71 1234567","category":"foreign_passport"}]}
+{"id":"foreign-008","text":"загран 71 1234567","spans":[{"value":"71 1234567","category":"foreign_passport"}]}
+{"id":"birth-001","text":"дата рождения 12.05.1990","spans":[{"value":"12.05.1990","category":"birth_date"}]}
+{"id":"birth-002","text":"родился 12 мая 1990 года","spans":[{"value":"12 мая 1990 года","category":"birth_date"}]}
+{"id":"birth-003","text":"дата рождения 1990-05-12","spans":[{"value":"1990-05-12","category":"birth_date"}]}
+{"id":"birth-004","text":"д.р. 12.05.1990","spans":[{"value":"12.05.1990","category":"birth_date"}]}
+{"id":"birth-005","text":"рождён 12 МАЯ 1990","spans":[{"value":"12 МАЯ 1990","category":"birth_date"}]}
+{"id":"birth-006","text":"дата рождения 05.12.1990","spans":[{"value":"05.12.1990","category":"birth_date"}]}
+{"id":"birth-007","text":"родился 12 мая 1990","spans":[{"value":"12 мая 1990","category":"birth_date"}]}
+{"id":"birth-008","text":"дата рождения 12.05.1990","spans":[{"value":"12.05.1990","category":"birth_date"}]}
+{"id":"passdate-001","text":"паспорт выдан 12.05.1990","spans":[{"value":"12.05.1990","category":"passport_date"}]}
+{"id":"passdate-002","text":"дата выдачи 1990-05-12","spans":[{"value":"1990-05-12","category":"passport_date"}]}
+{"id":"passdate-003","text":"выдан 12 мая 1990 года","spans":[{"value":"12 мая 1990 года","category":"passport_date"}]}
+{"id":"passdate-004","text":"дата выдачи 12.05.1990","spans":[{"value":"12.05.1990","category":"passport_date"}]}
+{"id":"passdate-005","text":"паспорт выдан 05.12.1990","spans":[{"value":"05.12.1990","category":"passport_date"}]}
+{"id":"passdate-006","text":"дата выдачи 1990-05-12","spans":[{"value":"1990-05-12","category":"passport_date"}]}
+{"id":"passdate-007","text":"выдан 12 мая 1990","spans":[{"value":"12 мая 1990","category":"passport_date"}]}
+{"id":"passdate-008","text":"дата выдачи 12.05.1990","spans":[{"value":"12.05.1990","category":"passport_date"}]}
+{"id":"date-001","text":"событие 12.05.1990","spans":[{"value":"12.05.1990","category":"date"}]}
+{"id":"date-002","text":"дата 1990-05-12","spans":[{"value":"1990-05-12","category":"date"}]}
+{"id":"date-003","text":"встреча 05.12.1990","spans":[{"value":"05.12.1990","category":"date"}]}
+{"id":"date-004","text":"12 мая 1990 года","spans":[{"value":"12 мая 1990 года","category":"date"}]}
+{"id":"date-005","text":"дата 12/05/1990","spans":[{"value":"12/05/1990","category":"date"}]}
+{"id":"date-006","text":"срок 1990-05-12","spans":[{"value":"1990-05-12","category":"date"}]}
+{"id":"date-007","text":"12 МАЯ 1990","spans":[{"value":"12 МАЯ 1990","category":"date"}]}
+{"id":"date-008","text":"дата 12.05.1990","spans":[{"value":"12.05.1990","category":"date"}]}
+{"id":"citizen-001","text":"гражданство РФ","spans":[{"value":"РФ","category":"citizenship"}]}
+{"id":"citizen-002","text":"гражданство: Российская Федерация","spans":[{"value":"Российская Федерация","category":"citizenship"}]}
+{"id":"citizen-003","text":"гражданин России","spans":[{"value":"России","category":"citizenship"}]}
+{"id":"citizen-004","text":"гражданство Республики Казахстан","spans":[{"value":"Республики Казахстан","category":"citizenship"}]}
+{"id":"citizen-005","text":"гражданка Беларуси","spans":[{"value":"Беларуси","category":"citizenship"}]}
+{"id":"citizen-006","text":"гражданство РФ","spans":[{"value":"РФ","category":"citizenship"}]}
+{"id":"citizen-007","text":"гражданин Узбекистана","spans":[{"value":"Узбекистана","category":"citizenship"}]}
+{"id":"citizen-008","text":"гражданство: Российская Федерация","spans":[{"value":"Российская Федерация","category":"citizenship"}]}
+{"id":"neg-001","text":"Номер заказа 1234567890","spans":[]}
+{"id":"neg-002","text":"поэт Александр Пушкин родился в 1799 году","spans":[]}
+{"id":"neg-003","text":"отделение банка по адресу ул. Ленина, 1","spans":[]}
+{"id":"neg-004","text":"число 1234 без контекста","spans":[]}
+{"id":"neg-005","text":"код 1234567890","spans":[]}
+{"id":"neg-006","text":"сумма 15000 рублей","spans":[]}
+{"id":"neg-007","text":"версия 1.2.3","spans":[]}
+{"id":"neg-008","text":"дата 31.02.2020","spans":[]}
+{"id":"neg-009","text":"ИНН 500100732258","spans":[]}
+{"id":"neg-010","text":"карта 4111 1111 1111 1112","spans":[]}
+{"id":"neg-011","text":"номер 1234567890","spans":[]}
+{"id":"neg-012","text":"телефон 1234567890","spans":[]}
+{"id":"neg-013","text":"паспорт 0000 123456","spans":[]}
+{"id":"neg-014","text":"снилс 112-233-445 96","spans":[]}
+{"id":"neg-015","text":"загранпаспорт 71 123456","spans":[]}
+{"id":"neg-016","text":"код 1234","spans":[]}
+{"id":"neg-017","text":"дата 32.01.2020","spans":[]}
+{"id":"neg-018","text":"ИНН 3664069398","spans":[]}
+{"id":"neg-019","text":"счёт 40817810099910004312","spans":[]}
+{"id":"cvv-009","text":"Код безопасности карты 123, 4321 это пин-код","spans":[{"value":"123","category":"cvv"},{"value":"4321","category":"pin"}]}
+{"id":"cvv-010","text":"карта 5536 9138 1234 5678 cvv 123","spans":[{"start":35,"end":38,"category":"cvv"}]}
+{"id":"date-009","text":"событие 2020.15.03","spans":[{"value":"2020.15.03","category":"date"}]}
