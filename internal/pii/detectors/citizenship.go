@@ -3,6 +3,8 @@ package detectors
 import (
 	"regexp"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"pdn-shield/internal/pii"
 )
@@ -317,6 +319,9 @@ func (d *citizenshipDetector) matchValue(t pii.Text, lower string, after int) (p
 		rest = rest[m[1]:]
 	}
 	bestLen := longestCountryPrefix(rest)
+	if bestLen > 0 && !labeled && ambiguousCountryWord(t, rest[:bestLen], after+skipped) {
+		bestLen = 0
+	}
 	if bestLen == 0 && labeled {
 		bestLen = citizenshipFallbackLen(rest)
 	}
@@ -444,4 +449,26 @@ func (d *citizenshipDetector) matchDialogNext(next string, lineStart int) []pii.
 		}
 	}
 	return nil
+}
+
+// commonWordCountries are country names that are also ordinary Russian words
+// ("того" is a pronoun, "мали" a verb form). Without a label they count as a
+// country only when written with a capital letter.
+var commonWordCountries = map[string]bool{
+	"того": true, "мали": true, "чад": true, "чада": true, "гана": true, "гане": true,
+	"гану": true, "куба": true, "кубы": true, "кубе": true, "нигер": true, "оман": true,
+	"омана": true, "перу": true, "чили": true, "фиджи": true, "самоа": true, "тонга": true,
+}
+
+// ambiguousCountryWord reports whether the matched country form is a common
+// word written in lowercase in the raw text.
+func ambiguousCountryWord(t pii.Text, form string, rawStart int) bool {
+	if !commonWordCountries[form] {
+		return false
+	}
+	if rawStart < 0 || rawStart >= len(t.Raw) {
+		return true
+	}
+	r, _ := utf8.DecodeRuneInString(t.Raw[rawStart:])
+	return !unicode.IsUpper(r)
 }

@@ -174,3 +174,18 @@ func TestReviewIssuerStopsBeforeDateAndCode(t *testing.T) {
 	in := "Паспорт выдан Консульством России во Франции 12.05.2010, код подразделения 770-001."
 	assertSpanValue(t, runPipeline(t, in), pii.CatPassportIssuer, in, "Консульством России во Франции")
 }
+
+func TestCitizenshipCommonWordCountries(t *testing.T) {
+	neg := []string{"Гражданин того государства", "гражданство того же", "гражданин того самого банка"}
+	for _, s := range neg {
+		if hasCategory(t, runPipeline(t, s), pii.CatCitizenship) {
+			t.Errorf("%q: common word taken as citizenship", s)
+		}
+	}
+	pos := []string{"Гражданство: Того", "гражданин Мали", "гражданка Кубы", "гражданин Франции"}
+	for _, s := range pos {
+		if !hasCategory(t, runPipeline(t, s), pii.CatCitizenship) {
+			t.Errorf("%q: citizenship not detected", s)
+		}
+	}
+}

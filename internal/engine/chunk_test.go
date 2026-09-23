@@ -313,9 +313,14 @@ func TestChunkLargeTextPerformance(t *testing.T) {
 	t.Logf("mask took %v", elapsed)
 	t.Logf("heap grew by %.1f MiB (alloc %d -> %d)", float64(msAfter.HeapAlloc-msBefore.HeapAlloc)/(1<<20), msBefore.HeapAlloc, msAfter.HeapAlloc)
 
-	const budget = 900 * time.Millisecond
+	// The budget is loose on purpose: the 10 s client timeout is the hard
+	// limit, and a single-core pod or the race detector is several times slower.
+	budget := 5 * time.Second
+	if raceEnabled {
+		budget = 60 * time.Second
+	}
 	if elapsed > budget {
-		t.Errorf("mask took %v, want well under 1s (budget %v)", elapsed, budget)
+		t.Errorf("mask took %v, want under budget %v", elapsed, budget)
 	}
 	if found[pii.CatFullName] == 0 || found[pii.CatPassport] == 0 || found[pii.CatPhone] == 0 ||
 		found[pii.CatEmail] == 0 || found[pii.CatCardNumber] == 0 || found[pii.CatPIN] == 0 {
