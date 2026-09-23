@@ -277,16 +277,33 @@ func TestFullNameBirthPlaceLabelsNegative(t *testing.T) {
 
 // Point 12: a famous person in the genitive case with a patronymic is not PII.
 func TestFullNameFamousGenitiveWithPatronymic(t *testing.T) {
-	cases := []string{
-		"Гагарина Юрия Алексеевича",
-		"Фёдора Михайловича",
-		"Пётр Андреевич",
+	// The surname is present right before the name+patronymic pair, so the
+	// famous-person exception applies to the full three-word name.
+	res := runPipeline(t, "Гагарина Юрия Алексеевича")
+	if hasCategory(t, res, pii.CatFullName) {
+		t.Errorf("famous person should not be PII: %q, got %+v", "Гагарина Юрия Алексеевича", res.Spans)
+	}
+}
+
+// A bare name+patronymic pair without a surname is always PII: the
+// famous-person exception requires the surname to be present too (see
+// TestFullNameFamousGenitiveWithPatronymic, TestFullNameFamousWithPatronymic).
+func TestFullNameBarePatronymicNoFamousException(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+	}{
+		{"endOfPhrase", "Фёдора Михайловича"},
+		{"endOfPhraseNominative", "Пётр Андреевич"},
+		{"actionVerbRight", "Александр Сергеевич позвонил вчера"},
 	}
 	for _, c := range cases {
-		res := runPipeline(t, c)
-		if hasCategory(t, res, pii.CatFullName) {
-			t.Errorf("famous person should not be PII: %q, got %+v", c, res.Spans)
-		}
+		t.Run(c.name, func(t *testing.T) {
+			res := runPipeline(t, c.in)
+			if !hasCategory(t, res, pii.CatFullName) {
+				t.Errorf("bare name+patronymic without surname should be PII: %q, got %+v", c.in, res.Spans)
+			}
+		})
 	}
 }
 

@@ -146,6 +146,7 @@ func (d *namesDetector) DetectLower(t pii.Text) []pii.Span {
 		i += d.processCandidate(text, nt, cands, i, t, covered, &spans)
 	}
 	spans = append(spans, d.detectLatinNames(t, toks, covered)...)
+	spans = append(spans, d.detectLowercaseLatinNames(t, toks, covered)...)
 	spans = append(spans, d.detectForeignNames(t, nt, covered)...)
 	return spans
 }
@@ -294,6 +295,16 @@ func (d *namesDetector) twoTokenName(
 	}
 	seq := []nameToken{nt[cands[i]], nt[cands[i+1]]}
 	ok, conf := d.validSeq(seq, t)
+	if ok && seq[0].isName && seq[1].isPatr && d.surnamePrecedesFamousPatr(t, nt, cands[i], seq) {
+		// The name+patronymic pair is the tail of a famous person's full name
+		// whose surname sits right before it (e.g. "Гагарина Юрия
+		// Алексеевича"): the famous-person exception already covers the full
+		// name, so the trailing pair must not be re-emitted as a separate PII
+		// span. Without this check a name+patronymic pair at the end of a
+		// phrase would be treated as PII on its own, even though the
+		// three-token sequence right before it was correctly suppressed.
+		ok = false
+	}
 	if !ok {
 		return false, 0
 	}
@@ -304,6 +315,24 @@ func (d *namesDetector) twoTokenName(
 	covered[cands[i]] = true
 	covered[cands[i+1]] = true
 	return true, 2
+}
+
+// surnamePrecedesFamousPatr reports whether the token immediately before
+// seq[0] (the nameToken at nt index ci) is a surname-like token that, combined
+// with seq (a name+patronymic pair), forms a famous person's full name (e.g.
+// "Гагарина" before "Юрия Алексеевича"). The famous-person subject-marker,
+// family-relation and other-PII overrides in isFamous still apply to the
+// combined three-token check, so a client-role marker nearby still forces the
+// pair to be masked.
+func (d *namesDetector) surnamePrecedesFamousPatr(t pii.Text, nt []nameToken, ci int, seq []nameToken) bool {
+	if ci == 0 || !nt[ci-1].isSurnameLike() {
+		return false
+	}
+	if !onlyWhitespace(t.Raw, nt[ci-1].end, nt[ci].start) {
+		return false
+	}
+	full := []nameToken{nt[ci-1], seq[0], seq[1]}
+	return d.isFamous(t, full)
 }
 
 // threeWhitespaceSeparated reports whether the three candidate tokens at
@@ -581,9 +610,13 @@ func (d *namesDetector) seq2SurnameName(seq []nameToken) bool {
 }
 
 // seq2NamePatr reports whether the sequence is "name patronymic" with a name
-// context keyword to the left, or a name+patronymic signature at the end of the
-// text (e.g. "Роза Мусаевна."). A famous person's name+patronymic (e.g. "Фёдор
-// Михайлович") is not PII.
+// context keyword to the left, a person-action verb to the right (e.g.
+// "Александр Сергеевич позвонил вчера"), or a name+patronymic signature at the
+// end of the text (e.g. "Роза Мусаевна."). Unlike a full name+surname match, a
+// bare name+patronymic pair is never suppressed as a famous person: the
+// famous-person exception requires the surname to be present too (see
+// isFamous), so e.g. "Александр Сергеевич" alone is always treated as PII once
+// one of these contexts confirms it names a person.
 func (d *namesDetector) seq2NamePatr(seq []nameToken, t pii.Text) bool {
 	if !seq[0].isName || !seq[1].isPatr || !d.hasDictOrPatr(seq) {
 		return false
@@ -591,10 +624,10 @@ func (d *namesDetector) seq2NamePatr(seq []nameToken, t pii.Text) bool {
 	if hasLeftContext(t, seq[0].start, nameContext, 30) {
 		return true
 	}
-	if !endsPhrase(t.Raw, seq[1].end) {
-		return false
+	if hasRightContext(t, seq[1].end, personActionContext, 30) {
+		return true
 	}
-	return !famousPatronymics[normalizeWord(seq[0].lower)+" "+normalizeWord(seq[1].lower)]
+	return endsPhrase(t.Raw, seq[1].end)
 }
 
 func (d *namesDetector) hasDictOrPatr(seq []nameToken) bool {
@@ -626,15 +659,23 @@ func (d *namesDetector) isFamous(t pii.Text, seq []nameToken) bool {
 	if !famous {
 		return false
 	}
-	// Suppression by famous.txt is not applied when a subject marker appears
-	// within 30 runes to the left (e.g. "клиент Лев Толстой") or when another
-	// PII span is present in the same line (e.g. a phone or birth date next to
-	// the name). In those cases the famous person's name is the client's own
-	// name and must be masked.
-	if hasLeftContext(t, seq[0].start, famousSubjectMarkers, 30) {
+	// Suppression by famous.txt is not applied when a client/role subject
+	// marker appears within 30 runes on either side of the name (e.g. "клиент
+	// Лев Толстой", "Лев Толстой — мой поручитель", "поручитель — Лев
+	// Толстой"), when a possessive family-relation phrase is nearby (e.g. "мой
+	// брат Лев Толстой"), or when another PII span is present in the same line
+	// (e.g. a phone or birth date next to the name). In those cases the famous
+	// person's name is the client's own name (or another real person's name)
+	// and must be masked.
+	start, end := seq[0].start, seq[len(seq)-1].end
+	if hasLeftContext(t, start, famousSubjectMarkers, 30) || hasRightContext(t, end, famousSubjectMarkers, 30) {
 		return false
 	}
-	if famousOtherPIISameLine(t, seq[0].start, seq[len(seq)-1].end) {
+	if familyRelationRe.MatchString(runeWindowBefore(t, start, 30)) ||
+		familyRelationRe.MatchString(runeWindowAfter(t, end, 30)) {
+		return false
+	}
+	if famousOtherPIISameLine(t, start, end) {
 		return false
 	}
 	return true

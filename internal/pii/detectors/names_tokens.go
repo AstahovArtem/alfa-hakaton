@@ -2,6 +2,7 @@ package detectors
 
 import (
 	"embed"
+	"regexp"
 	"strings"
 	"sync"
 	"unicode/utf8"
@@ -261,13 +262,39 @@ var nameContext = []string{
 	ctxFIO, ctxImya, ctxZovut, "меня зовут", "сотрудник", "менеджер",
 }
 
-// famousSubjectMarkers are the subject markers that, when present within 30
-// runes to the left of a famous person's name, disable the famous-person
-// suppression: the name then belongs to the client and is PII.
+// famousSubjectMarkers are the client/role subject markers that, when present
+// within a short window on either side of a famous person's name, disable the
+// famous-person suppression: the name then belongs to a client (or another
+// person the client is transacting with) and is PII, not a historical
+// reference (e.g. "клиент Лев Толстой", "Лев Толстой — мой поручитель",
+// "поручитель — Лев Толстой").
 var famousSubjectMarkers = []string{
-	ctxClient, "клиентка", "заёмщик", "заемщик", ctxZayavitel, stopWordGrazhdanin,
-	stopWordGrazhdanka, ctxFIO, ctxFIOAbbrev, ctxImya, ctxZovut, ctxNaImya, ctxDlya,
-	ctxPasport, "тел",
+	ctxClient, "клиентка", "заёмщик", "заемщик", "созаёмщик", "созаемщик", ctxZayavitel,
+	stopWordGrazhdanin, stopWordGrazhdanka, ctxFIO, ctxFIOAbbrev, ctxImya, ctxZovut, ctxNaImya,
+	ctxDlya, ctxPasport, "тел.", "тел:", "телефон", "поручитель", "получатель", "отправитель", "держатель",
+	"вкладчик", "владелец счета", "владелец счёта", "представитель", "доверенное лицо",
+	"позвонил", "позвонила", "звонил", "звонила", "обратился", "обратилась", "пришёл", "пришла",
+}
+
+// familyRelationRe matches a possessive pronoun ("мой", "моя", "моего", "мою")
+// directly followed by a close-family relation word (e.g. "мой брат", "моя
+// жена"). It disables the famous-person suppression the same way
+// famousSubjectMarkers does, but only for the possessive+relation phrase, so a
+// bare relation word (e.g. "брат Толстого" about the historical figure's own
+// brother) does not trigger it. Cyrillic letters are matched with an explicit
+// character class, not \w or \b, since Go's regexp treats those as ASCII-only
+// and would misclassify Cyrillic text.
+var familyRelationRe = regexp.MustCompile(
+	`(?:^|[^а-яёА-ЯЁ])мо(?:й|я|его|ю)\s+(?:брат|муж|жен|сын|доч|отц|отец|матер|мать)[а-яё]*`,
+)
+
+// personActionContext are verbs describing an action performed by a person,
+// checked to the right of a bare name+patronymic pair (no surname) to confirm
+// it names a real person acting as a client, e.g. "Александр Сергеевич
+// позвонил вчера" (a first name + patronymic alone, without a surname, always
+// names a person and must be masked once such a context confirms it).
+var personActionContext = []string{
+	"позвонил", "позвонила", "звонил", "звонила", "обратился", "обратилась", "пришёл", "пришла",
 }
 
 // lowercaseNameContext are keywords that, when present to the left, allow a
@@ -282,71 +309,6 @@ var lowercaseNameContext = []string{
 // given name to form a patronymic (e.g. "Фарид кызы", "Али оглы").
 var patrMarkers = map[string]bool{
 	"кызы": true, "оглы": true, "улы": true,
-}
-
-// famousPatronymicPairs lists "given name patronymic" pairs that identify a
-// specific famous person (e.g. "фёдор михайлович" = Достоевский). A
-// name+patronymic pair in this set is not PII. Keys are normalised with
-// normalizeWord so inflected forms (e.g. "Фёдора Михайловича") match.
-var famousPatronymicPairs = []string{
-	"александр сергеевич",
-	"лев николаевич",
-	"фёдор михайлович",
-	"юрий алексеевич",
-	"пётр андреевич",
-	"сергей александрович",
-	"михаил васильевич",
-	"иван сергеевич",
-	"антон павлович",
-	"николай васильевич",
-	"владимир владимирович",
-	"дмитрий иванович",
-	"алексей архипович",
-	"валентина владимировна",
-	"алла борисовна",
-	"марина ивановна",
-	"анна андреевна",
-	"борис леонидович",
-	"иосиф виссарионович",
-	"никита сергеевич",
-	"леонид ильич",
-	"георгий константинович",
-	"илья ефимович",
-	"казимир северинович",
-	"василий васильевич",
-	"андрей дмитриевич",
-	"игорь васильевич",
-	"виктор робертович",
-	"константин эдуардович",
-	"сергей павлович",
-	"дмитрий менделеевич",
-	"михаил иванович",
-	"иван петрович",
-	"екатерина вторая",
-	"владимир ильич",
-	"михаил сергеевич",
-	"дмитрий анатольевич",
-	"сергей викторович",
-	"александр васильевич",
-	"михаил иларионович",
-	"лев давидович",
-	"николай иванович",
-	"владимир семёнович",
-}
-
-// famousPatronymics is the normalised lookup set built from
-// famousPatronymicPairs.
-var famousPatronymics = buildFamousPatronymics()
-
-func buildFamousPatronymics() map[string]bool {
-	m := make(map[string]bool, len(famousPatronymicPairs))
-	for _, p := range famousPatronymicPairs {
-		words := strings.Fields(p)
-		if len(words) == 2 {
-			m[normalizeWord(words[0])+" "+normalizeWord(words[1])] = true
-		}
-	}
-	return m
 }
 
 func (d *namesDetector) classify(
