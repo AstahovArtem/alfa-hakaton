@@ -6,6 +6,22 @@
 Система -> pdn-shield [детект -> маска] -> LLM -> [демаска] -> Система
 ```
 
+```mermaid
+flowchart LR
+    A[Система-потребитель] --> B[pdn-shield]
+    B -->|идентификация, маскирование| C[LLM]
+    C --> D[pdn-shield]
+    D -->|демаскирование| A
+```
+
+```mermaid
+flowchart LR
+    CFG[config.yaml] --> SYS[systems]
+    SYS -->|id, ключ, categories, strategy, unmask, combo_rules| RULES[rules.yaml]
+    RULES -->|регулярки, валидаторы, контекст| DICT[словари]
+    DICT -->|имена, города, известные люди| SYS
+```
+
 Сервис находит ПД в тексте, заменяет их на безопасные значения и сохраняет соответствие. Ответ модели сервис восстанавливает обратно. Исходные данные не покидают сервис и не попадают в логи.
 
 ## Быстрый старт
@@ -40,10 +56,13 @@ curl -s -X POST localhost:8080/process \
   -d '{"payload":"<замаскированный текст>","payload_id":"doc1"}'
 ```
 
+Ключ демо-системы задаётся переменной окружения `PDN_DEMO_KEY` при запуске, для стенда его выдаём отдельно.
+
 Маскирование с генерацией id.
 
 ```bash
 curl -s -X POST localhost:8080/mask \
+  -H 'X-System-Id: demo' -H "X-API-Key: $PDN_DEMO_KEY" \
   -H 'Content-Type: application/json' \
   -d '{"text":"Клиент Иванов Иван Иванович, тел +7 (916) 123-45-67"}'
 ```
@@ -52,6 +71,7 @@ curl -s -X POST localhost:8080/mask \
 
 ```bash
 curl -s -X POST localhost:8080/unmask \
+  -H 'X-System-Id: demo' -H "X-API-Key: $PDN_DEMO_KEY" \
   -H 'Content-Type: application/json' \
   -d '{"id":"<id из /mask>","text":"<замаскированный текст>"}'
 ```
@@ -60,6 +80,7 @@ curl -s -X POST localhost:8080/unmask \
 
 ```bash
 curl -s -X POST localhost:8080/v1/chat/completions \
+  -H 'X-System-Id: demo' -H "X-API-Key: $PDN_DEMO_KEY" \
   -H 'Content-Type: application/json' \
   -d '{"messages":[{"role":"user","content":"Клиент Иванов Иван Иванович, тел +7 (916) 123-45-67"}]}'
 ```
@@ -80,6 +101,8 @@ curl -s -X POST https://alfa-hakaton-prod.ru/process \
 
 Ответ содержит замаскированный текст. Повторите запрос с тем же `payload_id` и замаскированным текстом, сервис вернёт исходник. Ловушки не маскируются: «Пушкин» остаётся именем, «отделение банка» не считается адресом.
 
+`/process` без ключа открыт только ради проверяющей системы организаторов. В реальной эксплуатации система `checker` выключается или получает ключ, демаскирование через `/process` доступно только системам с `unmask: true`.
+
 Переключение систем. `chatbot` маскирует, но не демаскирует: `/unmask` вернёт 403. `legacy_crm` выключен, любой запрос вернёт 403.
 
 ```bash
@@ -99,14 +122,17 @@ kubectl -n pdn logs -l app=pdn-shield --tail=20
 
 Мониторинг: дашборд «pdn-shield» в Grafana https://grafana.alfa-hakaton-prod.ru, кластер в Headlamp https://k8s.alfa-hakaton-prod.ru.
 
-Новый тип ПД добавляется одной строкой YAML в `internal/pii/detectors/rules.yaml`. Пример полиса ОМС: 16 цифр с контекстом «полис» или «омс`.
+Новый тип ПД добавляется правилом в `internal/pii/detectors/rules.yaml`. Пример полиса ОМС: 16 цифр с контекстом «полис» или «омс».
 
 ```yaml
 - name: oms_policy
-  category: document
-  pattern: '(?i)(полис|омс)\s+(\d{16})'
-  validator: checksum
+  category: id_document
+  pattern: '(?i)\b\d{16}\b'
+  require_context: true
+  context: [полис, омс]
 ```
+
+Валидатор из списка (luhn, inn, snils, passport, phone, date) необязателен, неизвестный валидатор останавливает запуск. Файл правил встроен в образ, новое правило требует пересборки образа (одна команда деплоя). Это ограничение отмечено в плане развития (внешний файл правил через `PDN_RULES`).
 
 ## Какие данные находит сервис
 
@@ -139,7 +165,11 @@ kubectl -n pdn logs -l app=pdn-shield --tail=20
 
 ## Настройка систем-потребителей
 
-Каждая система описана в `configs/config.yaml` в блоке `systems`. Чтобы добавить систему, добавьте блок с уникальным `id` и включите её через `enabled: true`. Ключ задаётся переменной окружения через `api_key_env`, пустое значение означает, что ключ не требуется. Список `categories` ограничивает, какие типы ПД маскируются, пустой список разрешает все типы. Стратегия `strategy` выбирает вид замены, а флаг `unmask` разрешает системе демаскировать ответ, по умолчанию он выключен, а флаг `allow_strategy_override: true` разрешает переопределять стратегию на каждый запрос полем `strategy` в `/mask` и в прокси `/v1/chat/completions`, по умолчанию он тоже выключен.
+Каждая система описана в `configs/config.yaml` в блоке `systems`. Чтобы добавить систему, добавьте блок с уникальным `id` и `enabled: true`. Ключ задаётся переменной окружения через `api_key_env`, пустое значение означает, что ключ не нужен. Список `categories` ограничивает типы ПД, а `strategy` выбирает вид замены. Флаг `unmask` разрешает демаскирование, флаг `allow_strategy_override` разрешает менять стратегию в запросе.
+
+### Подробнее о полях
+
+Пустой список `categories` разрешает все типы ПД. Флаг `unmask` по умолчанию выключен, флаг `allow_strategy_override: true` даёт переопределять стратегию на каждый запрос полем `strategy` в `/mask` и в прокси `/v1/chat/completions`, по умолчанию он тоже выключен.
 
 Поле `combo_rules` включает контекстное маскирование: категория маскируется только если в том же тексте найдена одна из категорий из `requires_any`. Например, в `configs/config.yaml` для системы `chatbot` задано правило, что `pin` маскируется только вместе с `card_number`. Запрос к `https://alfa-hakaton-prod.ru/mask` с заголовком `X-System-Id: chatbot` и текстом «пин-код 1234» без карты вернётся без маски, а текст «карта 4111 1111 1111 1111, пин-код 1234» замаскирует и карту, и PIN.
 
