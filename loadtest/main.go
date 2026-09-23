@@ -187,14 +187,16 @@ func main() {
 		}()
 	}
 
-	interval := time.Second / time.Duration(*rps)
-	ticker := time.NewTicker(interval)
+	// Tick every 5 ms and catch up by elapsed time: a fine-grained ticker
+	// silently loses ticks when the generator host is busy, which would
+	// lower the offered load.
+	ticker := time.NewTicker(5 * time.Millisecond)
 	defer ticker.Stop()
 
 	// generateJobs is the sole sender on jobs and closes it once ctx is
 	// done, so workers (ranging over jobs) drain cleanly and exit on their
 	// own — no separate close-from-main step that could race with a send.
-	go generateJobs(ctx, ticker, jobs, &c)
+	go generateJobs(ctx, ticker, *rps, jobs, &c)
 
 	wg.Wait()
 	c.done = time.Now()
@@ -202,29 +204,30 @@ func main() {
 	report(&c, *rps, *duration, *url, *dataset, *workers, *retry, *reportPath)
 }
 
-// generateJobs emits one job every two ticks (a mask+unmask pair) until ctx
-// is done, then closes jobs. It never blocks: a full buffer means the pair
-// is dropped and counted rather than back-pressuring the ticker.
-func generateJobs(ctx context.Context, ticker *time.Ticker, jobs chan<- int, c *counters) {
+// generateJobs emits mask+unmask pairs at rps/2 pairs per second until ctx
+// is done, then closes jobs. On every tick it emits as many pairs as the
+// elapsed time calls for, so lost ticks never lower the offered load. It
+// never blocks: a full buffer means the pair is dropped and counted rather
+// than back-pressuring the generator.
+func generateJobs(ctx context.Context, ticker *time.Ticker, rps int, jobs chan<- int, c *counters) {
 	defer close(jobs)
+	start := time.Now()
 	seq := int64(0)
-	ticks := int64(0)
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
-			ticks++
-			// A pair is two HTTP requests = two ticks.
-			if ticks%2 != 0 {
-				continue
-			}
-			seq++
-			c.offeredPairs.Add(1)
-			select {
-			case jobs <- int(seq):
-			default:
-				c.droppedPairs.Add(1)
+		case now := <-ticker.C:
+			// A pair is two HTTP requests.
+			due := int64(now.Sub(start).Seconds() * float64(rps) / 2)
+			for seq < due {
+				seq++
+				c.offeredPairs.Add(1)
+				select {
+				case jobs <- int(seq):
+				default:
+					c.droppedPairs.Add(1)
+				}
 			}
 		}
 	}
@@ -259,6 +262,11 @@ func worker(ctx context.Context, jobs <-chan int, items []datasetItem, cfg worke
 		mStart := time.Now()
 		masked, mCode, mErr := sendWithRetry(ctx, cfg.client, cfg.url, cfg.system, cfg.apiKey, id, item.Text, cfg.retry)
 		c.record(kindMask, time.Since(mStart), mCode, mErr, mErr != nil && ctx.Err() != nil)
+		if mErr != nil && ctx.Err() != nil {
+			// Cut off by the end of the run, not a service failure.
+			c.pairs.Add(-1)
+			continue
+		}
 		if mErr != nil || mCode != http.StatusOK {
 			// The pair never got a masked payload to unmask: it failed.
 			c.badRound.Add(1)
@@ -269,6 +277,10 @@ func worker(ctx context.Context, jobs <-chan int, items []datasetItem, cfg worke
 		uStart := time.Now()
 		restored, uCode, uErr := sendWithRetry(ctx, cfg.client, cfg.url, cfg.system, cfg.apiKey, id, masked, cfg.retry)
 		c.record(kindUnmask, time.Since(uStart), uCode, uErr, uErr != nil && ctx.Err() != nil)
+		if uErr != nil && ctx.Err() != nil {
+			c.pairs.Add(-1)
+			continue
+		}
 		ok := uErr == nil && uCode == http.StatusOK && restored == item.Text
 		if !ok {
 			c.badRound.Add(1)
