@@ -394,3 +394,55 @@ func processOrFail(t *testing.T, ctx context.Context, e *Engine, id, text string
 	}
 	return res
 }
+
+// TestEngineIDDocumentRoundTrip verifies that masking an id_document value with
+// each strategy and unmasking restores the original text.
+func TestEngineIDDocumentRoundTrip(t *testing.T) {
+	e := testEngine(t)
+	ctx := context.Background()
+	texts := []string{
+		"военный билет АБ 1234567",
+		"вид на жительство 82 №1234567",
+		"свидетельство о рождении II-МЮ №123456",
+	}
+	for _, strategy := range []string{"partial", "full", "token", "synthetic"} {
+		for i, text := range texts {
+			roundTripIDDocument(t, ctx, e, strategy, itoa(i), text)
+		}
+	}
+}
+
+// roundTripIDDocument masks text with strategy, unmasks it and verifies the
+// original is restored with no misses.
+func roundTripIDDocument(t *testing.T, ctx context.Context, e *Engine, strategy, id, text string) {
+	t.Helper()
+	masked, counts, err := e.Mask(ctx, id, text, Options{Strategy: strategy, TTL: time.Minute})
+	if err != nil {
+		t.Fatalf("Mask(%s): %v", strategy, err)
+	}
+	if counts[pii.CatIDDocument] != 1 {
+		t.Errorf("Mask(%s) counts = %v, want id_document=1", strategy, counts)
+	}
+	restored, misses, err := e.Unmask(ctx, id, masked)
+	if err != nil {
+		t.Fatalf("Unmask(%s): %v", strategy, err)
+	}
+	if misses != 0 {
+		t.Errorf("Unmask(%s) reported %d misses", strategy, misses)
+	}
+	if restored != text {
+		t.Errorf("round-trip(%s) failed:\n got %q\nwant %q", strategy, restored, text)
+	}
+}
+
+func itoa(n int) string {
+	if n == 0 {
+		return "0"
+	}
+	var b []byte
+	for n > 0 {
+		b = append([]byte{byte('0' + n%10)}, b...)
+		n /= 10
+	}
+	return string(b)
+}

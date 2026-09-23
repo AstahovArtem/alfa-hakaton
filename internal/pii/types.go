@@ -23,6 +23,7 @@ const (
 	CatCardHolder      Category = "card_holder"
 	CatSNILS           Category = "snils"            // доп. документ
 	CatForeignPassport Category = "foreign_passport" // загранпаспорт, доп. документ
+	CatIDDocument      Category = "id_document"      // военный билет, ВНЖ, свидетельство о рождении, удостоверение военнослужащего, паспорт моряка
 	CatDate            Category = "date"             // дата без контекста; уточняется до birth_date/passport_date
 )
 

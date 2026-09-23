@@ -9,6 +9,7 @@ categories:
   snils:        { mode: digits, keep_head: 2, keep_tail: 2 }
   driver_license: { mode: digits, keep_head: 2, keep_tail: 2 }
   foreign_passport: { mode: digits, keep_head: 2, keep_tail: 2 }
+  id_document: { mode: digits, keep_head: 2, keep_tail: 2 }
   division_code: { mode: digits, keep_head: 0, keep_tail: 0 }
   cvv:          { mode: digits, keep_head: 0, keep_tail: 0 }
   pin:          { mode: digits, keep_head: 0, keep_tail: 0 }

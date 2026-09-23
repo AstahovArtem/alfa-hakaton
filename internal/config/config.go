@@ -105,7 +105,7 @@ var validCategories = map[pii.Category]bool{
 	pii.CatDivisionCode: true, pii.CatPassportDate: true, pii.CatDriverLicense: true,
 	pii.CatAddress: true, pii.CatEmail: true, pii.CatPhone: true, pii.CatINN: true,
 	pii.CatCardNumber: true, pii.CatCVV: true, pii.CatPIN: true, pii.CatCardHolder: true,
-	pii.CatSNILS: true, pii.CatForeignPassport: true, pii.CatDate: true,
+	pii.CatSNILS: true, pii.CatForeignPassport: true, pii.CatIDDocument: true, pii.CatDate: true,
 }
 
 // Load reads and validates the config from path.

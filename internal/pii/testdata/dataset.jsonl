@@ -1,359 +1,366 @@
-{"id":"phone-001","text":"Перезвоните по номеру +7 (916) 123-45-67","spans":[{"value":"+7 (916) 123-45-67","category":"phone"}]}
-{"id":"phone-002","text":"Мой номер 89161234567","spans":[{"value":"89161234567","category":"phone"}]}
-{"id":"phone-003","text":"тел: 8 903 555 12 34","spans":[{"value":"8 903 555 12 34","category":"phone"}]}
-{"id":"phone-004","text":"Телефон +7-495-123-45-67","spans":[{"value":"+7-495-123-45-67","category":"phone"}]}
-{"id":"phone-005","text":"свяжитесь со мной 8(921)987-65-43","spans":[{"value":"8(921)987-65-43","category":"phone"}]}
-{"id":"phone-006","text":"номер телефона 7 916 111 22 33","spans":[{"value":"7 916 111 22 33","category":"phone"}]}
-{"id":"phone-007","text":"Позвоните 8 800 555 35 35","spans":[]}
-{"id":"phone-008","text":"мобильный +7 999 000 11 22","spans":[{"value":"+7 999 000 11 22","category":"phone"}]}
-{"id":"email-001","text":"Напишите на IVAN.Petrov@Example.com","spans":[{"value":"IVAN.Petrov@Example.com","category":"email"}]}
-{"id":"email-002","text":"почта user_name+tag@mail.ru","spans":[{"value":"user_name+tag@mail.ru","category":"email"}]}
-{"id":"email-003","text":"контакт: a.b-c@sub.domain.org","spans":[{"value":"a.b-c@sub.domain.org","category":"email"}]}
-{"id":"email-004","text":"мой e-mail petrov@yandex.ru","spans":[{"value":"petrov@yandex.ru","category":"email"}]}
-{"id":"email-005","text":"адрес почты ivanov@company.com","spans":[{"value":"ivanov@company.com","category":"email"}]}
-{"id":"email-006","text":"напишите на support@bank.ru","spans":[{"value":"support@bank.ru","category":"email"}]}
-{"id":"email-007","text":"электронная почта test@example.io","spans":[{"value":"test@example.io","category":"email"}]}
-{"id":"email-008","text":"почта для связи info@mail.com","spans":[{"value":"info@mail.com","category":"email"}]}
-{"id":"inn-001","text":"Мой ИНН 500100732259","spans":[{"value":"500100732259","category":"inn"}]}
-{"id":"inn-002","text":"ИНН физического лица 3664069397","spans":[{"value":"3664069397","category":"inn"}]}
-{"id":"inn-003","text":"ИНН организации 7707083893","spans":[]}
-{"id":"inn-org-002","text":"ИНН организации 7707083893","spans":[]}
-{"id":"inn-004","text":"инн 500100732259","spans":[{"value":"500100732259","category":"inn"}]}
-{"id":"inn-005","text":"ИНН 3664069397","spans":[{"value":"3664069397","category":"inn"}]}
-{"id":"inn-006","text":"ИНН юрлица 7707083893","spans":[{"value":"7707083893","category":"inn"}]}
-{"id":"inn-007","text":"ИНН 500100732259","spans":[{"value":"500100732259","category":"inn"}]}
-{"id":"inn-008","text":"ИНН 3664069397","spans":[{"value":"3664069397","category":"inn"}]}
-{"id":"card-001","text":"Номер карты 4111 1111 1111 1111","spans":[{"value":"4111 1111 1111 1111","category":"card_number"}]}
-{"id":"card-002","text":"карта 4111111111111111","spans":[{"value":"4111111111111111","category":"card_number"}]}
-{"id":"card-003","text":"номер карты 5500 0000 0000 0004","spans":[{"value":"5500 0000 0000 0004","category":"card_number"}]}
-{"id":"card-004","text":"платёжная карта 4111-1111-1111-1111","spans":[{"value":"4111-1111-1111-1111","category":"card_number"}]}
-{"id":"card-005","text":"карта 5555 5555 5555 4444","spans":[{"value":"5555 5555 5555 4444","category":"card_number"}]}
-{"id":"card-006","text":"номер карты 4111 1111 1111 1111","spans":[{"value":"4111 1111 1111 1111","category":"card_number"}]}
-{"id":"card-007","text":"карта 4012 8888 8888 1881","spans":[{"value":"4012 8888 8888 1881","category":"card_number"}]}
-{"id":"card-008","text":"номер карты 5105 1051 0510 5100","spans":[{"value":"5105 1051 0510 5100","category":"card_number"}]}
-{"id":"cvv-001","text":"CVV код 123","spans":[{"value":"123","category":"cvv"}]}
-{"id":"cvv-002","text":"cvc 456","spans":[{"value":"456","category":"cvv"}]}
-{"id":"cvv-003","text":"код безопасности 789","spans":[{"value":"789","category":"cvv"}]}
-{"id":"cvv-004","text":"CVV2 1234","spans":[{"value":"1234","category":"cvv"}]}
-{"id":"cvv-005","text":"Код безопасности карты 123","spans":[{"value":"123","category":"cvv"}]}
-{"id":"cvv-006","text":"cvc2 567","spans":[{"value":"567","category":"cvv"}]}
-{"id":"cvv-007","text":"CVV 890","spans":[{"value":"890","category":"cvv"}]}
-{"id":"cvv-008","text":"код безопасности 234","spans":[{"value":"234","category":"cvv"}]}
-{"id":"pin-001","text":"ПИН-код 1234","spans":[{"value":"1234","category":"pin"}]}
-{"id":"pin-002","text":"pin 5678","spans":[{"value":"5678","category":"pin"}]}
-{"id":"pin-003","text":"пин-код карты 4321","spans":[{"value":"4321","category":"pin"}]}
-{"id":"pin-004","text":"1234 — это пин-код карты","spans":[{"value":"1234","category":"pin"}]}
-{"id":"pin-005","text":"ПИН 9876","spans":[{"value":"9876","category":"pin"}]}
-{"id":"pin-006","text":"pin-код 1111","spans":[{"value":"1111","category":"pin"}]}
-{"id":"pin-007","text":"пин 2222","spans":[{"value":"2222","category":"pin"}]}
-{"id":"pin-008","text":"ПИН-код 3333","spans":[{"value":"3333","category":"pin"}]}
-{"id":"passport-001","text":"паспорт 4509 123456","spans":[{"value":"4509 123456","category":"passport"}]}
-{"id":"passport-002","text":"серия 4509 номер 123456","spans":[{"value":"4509 номер 123456","category":"passport"}]}
-{"id":"passport-003","text":"паспорт 4509123456","spans":[{"value":"4509123456","category":"passport"}]}
-{"id":"passport-004","text":"серия 4509 номер 123456","spans":[{"value":"4509 номер 123456","category":"passport"}]}
-{"id":"passport-005","text":"паспорт 45 09 123456","spans":[{"value":"45 09 123456","category":"passport"}]}
-{"id":"passport-006","text":"паспортные данные 4509 123456","spans":[{"value":"4509 123456","category":"passport"}]}
-{"id":"passport-007","text":"паспорт 4509 123456","spans":[{"value":"4509 123456","category":"passport"}]}
-{"id":"passport-008","text":"серия 4509 номер 123456","spans":[{"value":"4509 номер 123456","category":"passport"}]}
-{"id":"division-001","text":"код подразделения 770-001","spans":[{"value":"770-001","category":"division_code"}]}
-{"id":"division-002","text":"к/п 770-001","spans":[{"value":"770-001","category":"division_code"}]}
-{"id":"division-003","text":"код подр 123-456","spans":[{"value":"123-456","category":"division_code"}]}
-{"id":"division-004","text":"код подразделения 770-001","spans":[{"value":"770-001","category":"division_code"}]}
-{"id":"division-005","text":"к/п 456-789","spans":[{"value":"456-789","category":"division_code"}]}
-{"id":"division-006","text":"код подразделения 123-456","spans":[{"value":"123-456","category":"division_code"}]}
-{"id":"division-007","text":"к/п 789-012","spans":[{"value":"789-012","category":"division_code"}]}
-{"id":"division-008","text":"код подр 345-678","spans":[{"value":"345-678","category":"division_code"}]}
-{"id":"driver-001","text":"водительское удостоверение 77 12 345678","spans":[{"value":"77 12 345678","category":"driver_license"}]}
-{"id":"driver-002","text":"права 77АА 123456","spans":[{"value":"77АА 123456","category":"driver_license"}]}
-{"id":"driver-003","text":"водительское 77 12 345678","spans":[{"value":"77 12 345678","category":"driver_license"}]}
-{"id":"driver-004","text":"в/у 77 12 345678","spans":[{"value":"77 12 345678","category":"driver_license"}]}
-{"id":"driver-005","text":"права 77АА 123456","spans":[{"value":"77АА 123456","category":"driver_license"}]}
-{"id":"driver-006","text":"водительское удостоверение 77 12 345678","spans":[{"value":"77 12 345678","category":"driver_license"}]}
-{"id":"driver-007","text":"в/у 77 12 345678","spans":[{"value":"77 12 345678","category":"driver_license"}]}
-{"id":"driver-008","text":"права 77АА 123456","spans":[{"value":"77АА 123456","category":"driver_license"}]}
-{"id":"snils-001","text":"СНИЛС 112-233-445 95","spans":[{"value":"112-233-445 95","category":"snils"}]}
-{"id":"snils-002","text":"снилс 11223344595","spans":[{"value":"11223344595","category":"snils"}]}
-{"id":"snils-003","text":"СНИЛС 112-233-445 95","spans":[{"value":"112-233-445 95","category":"snils"}]}
-{"id":"snils-004","text":"снилс 11223344595","spans":[{"value":"11223344595","category":"snils"}]}
-{"id":"snils-005","text":"СНИЛС 112-233-445 95","spans":[{"value":"112-233-445 95","category":"snils"}]}
-{"id":"snils-006","text":"снилс 11223344595","spans":[{"value":"11223344595","category":"snils"}]}
-{"id":"snils-007","text":"СНИЛС 112-233-445 95","spans":[{"value":"112-233-445 95","category":"snils"}]}
-{"id":"snils-008","text":"снилс 11223344595","spans":[{"value":"11223344595","category":"snils"}]}
-{"id":"foreign-001","text":"загранпаспорт 71 1234567","spans":[{"value":"71 1234567","category":"foreign_passport"}]}
-{"id":"foreign-002","text":"загран 71 1234567","spans":[{"value":"71 1234567","category":"foreign_passport"}]}
-{"id":"foreign-003","text":"заграничный паспорт 71 1234567","spans":[{"value":"71 1234567","category":"foreign_passport"}]}
-{"id":"foreign-004","text":"загранпаспорт 71 1234567","spans":[{"value":"71 1234567","category":"foreign_passport"}]}
-{"id":"foreign-005","text":"загран 71 1234567","spans":[{"value":"71 1234567","category":"foreign_passport"}]}
-{"id":"foreign-006","text":"заграничный паспорт 71 1234567","spans":[{"value":"71 1234567","category":"foreign_passport"}]}
-{"id":"foreign-007","text":"загранпаспорт 71 1234567","spans":[{"value":"71 1234567","category":"foreign_passport"}]}
-{"id":"foreign-008","text":"загран 71 1234567","spans":[{"value":"71 1234567","category":"foreign_passport"}]}
-{"id":"birth-001","text":"дата рождения 12.05.1990","spans":[{"value":"12.05.1990","category":"birth_date"}]}
-{"id":"birth-002","text":"родился 12 мая 1990 года","spans":[{"value":"12 мая 1990 года","category":"birth_date"}]}
-{"id":"birth-003","text":"дата рождения 1990-05-12","spans":[{"value":"1990-05-12","category":"birth_date"}]}
-{"id":"birth-004","text":"д.р. 12.05.1990","spans":[{"value":"12.05.1990","category":"birth_date"}]}
-{"id":"birth-005","text":"рождён 12 МАЯ 1990","spans":[{"value":"12 МАЯ 1990","category":"birth_date"}]}
-{"id":"birth-006","text":"дата рождения 05.12.1990","spans":[{"value":"05.12.1990","category":"birth_date"}]}
-{"id":"birth-007","text":"родился 12 мая 1990","spans":[{"value":"12 мая 1990","category":"birth_date"}]}
-{"id":"birth-008","text":"дата рождения 12.05.1990","spans":[{"value":"12.05.1990","category":"birth_date"}]}
-{"id":"passdate-001","text":"паспорт выдан 12.05.1990","spans":[{"value":"12.05.1990","category":"passport_date"}]}
-{"id":"passdate-002","text":"дата выдачи 1990-05-12","spans":[{"value":"1990-05-12","category":"passport_date"}]}
-{"id":"passdate-003","text":"выдан 12 мая 1990 года","spans":[{"value":"12 мая 1990 года","category":"passport_date"}]}
-{"id":"passdate-004","text":"дата выдачи 12.05.1990","spans":[{"value":"12.05.1990","category":"passport_date"}]}
-{"id":"passdate-005","text":"паспорт выдан 05.12.1990","spans":[{"value":"05.12.1990","category":"passport_date"}]}
-{"id":"passdate-006","text":"дата выдачи 1990-05-12","spans":[{"value":"1990-05-12","category":"passport_date"}]}
-{"id":"passdate-007","text":"выдан 12 мая 1990","spans":[{"value":"12 мая 1990","category":"passport_date"}]}
-{"id":"passdate-008","text":"дата выдачи 12.05.1990","spans":[{"value":"12.05.1990","category":"passport_date"}]}
-{"id":"date-001","text":"событие 12.05.1990","spans":[{"value":"12.05.1990","category":"date"}]}
-{"id":"date-002","text":"дата 1990-05-12","spans":[{"value":"1990-05-12","category":"date"}]}
-{"id":"date-003","text":"встреча 05.12.1990","spans":[{"value":"05.12.1990","category":"date"}]}
-{"id":"date-004","text":"12 мая 1990 года","spans":[{"value":"12 мая 1990 года","category":"date"}]}
-{"id":"date-005","text":"дата 12/05/1990","spans":[{"value":"12/05/1990","category":"date"}]}
-{"id":"date-006","text":"срок 1990-05-12","spans":[{"value":"1990-05-12","category":"date"}]}
-{"id":"date-007","text":"12 МАЯ 1990","spans":[{"value":"12 МАЯ 1990","category":"date"}]}
-{"id":"date-008","text":"дата 12.05.1990","spans":[{"value":"12.05.1990","category":"date"}]}
-{"id":"citizen-001","text":"гражданство РФ","spans":[{"value":"РФ","category":"citizenship"}]}
-{"id":"citizen-002","text":"гражданство: Российская Федерация","spans":[{"value":"Российская Федерация","category":"citizenship"}]}
-{"id":"citizen-003","text":"гражданин России","spans":[{"value":"России","category":"citizenship"}]}
-{"id":"citizen-004","text":"гражданство Республики Казахстан","spans":[{"value":"Республики Казахстан","category":"citizenship"}]}
-{"id":"citizen-005","text":"гражданка Беларуси","spans":[{"value":"Беларуси","category":"citizenship"}]}
-{"id":"citizen-006","text":"гражданство РФ","spans":[{"value":"РФ","category":"citizenship"}]}
-{"id":"citizen-007","text":"гражданин Узбекистана","spans":[{"value":"Узбекистана","category":"citizenship"}]}
-{"id":"citizen-008","text":"гражданство: Российская Федерация","spans":[{"value":"Российская Федерация","category":"citizenship"}]}
-{"id":"neg-001","text":"Номер заказа 1234567890","spans":[]}
-{"id":"neg-002","text":"поэт Александр Пушкин родился в 1799 году","spans":[]}
-{"id":"neg-003","text":"отделение банка по адресу ул. Ленина, 1","spans":[]}
-{"id":"neg-004","text":"число 1234 без контекста","spans":[]}
-{"id":"neg-005","text":"код 1234567890","spans":[]}
-{"id":"neg-006","text":"сумма 15000 рублей","spans":[]}
-{"id":"neg-007","text":"версия 1.2.3","spans":[]}
-{"id":"neg-008","text":"дата 31.02.2020","spans":[]}
-{"id":"neg-009","text":"ИНН 500100732258","spans":[{"value":"500100732258","category":"inn"}]}
-{"id":"neg-010","text":"карта 4111 1111 1111 1112","spans":[{"value":"4111 1111 1111 1112","category":"card_number"}]}
-{"id":"neg-011","text":"номер 1234567890","spans":[]}
-{"id":"neg-012","text":"телефон 1234567890","spans":[]}
-{"id":"neg-013","text":"паспорт 0000 123456","spans":[]}
-{"id":"neg-014","text":"снилс 112-233-445 96","spans":[{"value":"112-233-445 96","category":"snils"}]}
-{"id":"neg-015","text":"загранпаспорт 71 123456","spans":[]}
-{"id":"neg-016","text":"код 1234","spans":[]}
-{"id":"neg-017","text":"дата 32.01.2020","spans":[]}
-{"id":"neg-018","text":"ИНН 3664069398","spans":[]}
-{"id":"neg-019","text":"счёт 40817810099910004312","spans":[]}
-{"id":"cvv-009","text":"Код безопасности карты 123, 4321 это пин-код","spans":[{"value":"123","category":"cvv"},{"value":"4321","category":"pin"}]}
-{"id":"cvv-010","text":"карта 5536 9138 1234 5678 cvv 123","spans":[{"value":"5536 9138 1234 5678","category":"card_number"},{"start":35,"end":38,"category":"cvv"}]}
-{"id":"date-009","text":"событие 2020.15.03","spans":[{"value":"2020.15.03","category":"date"}]}
-{"id":"name-001","text":"ИВАНОВ ИВАН ИВАНОВИЧ","spans":[{"value":"ИВАНОВ ИВАН ИВАНОВИЧ","category":"full_name"}]}
-{"id":"name-002","text":"иванов иван иванович","spans":[{"value":"иванов иван иванович","category":"full_name"}]}
-{"id":"name-003","text":"Иван Петров","spans":[{"value":"Иван Петров","category":"full_name"}]}
-{"id":"name-004","text":"Петров Иван","spans":[{"value":"Петров Иван","category":"full_name"}]}
-{"id":"name-005","text":"Иванов И. О.","spans":[{"value":"Иванов И. О.","category":"full_name"}]}
-{"id":"name-006","text":"И. О. Иванов","spans":[{"value":"И. О. Иванов","category":"full_name"}]}
-{"id":"name-007","text":"паспорт Иванова Ивана Ивановича","spans":[{"value":"Иванова Ивана Ивановича","category":"full_name"}]}
-{"id":"name-008","text":"клиент Иван","spans":[{"value":"Иван","category":"full_name"}]}
-{"id":"name-009","text":"клиент Иван Иванович","spans":[{"value":"Иван Иванович","category":"full_name"}]}
-{"id":"name-010","text":"Иван Иванович Иванов","spans":[{"value":"Иван Иванович Иванов","category":"full_name"}]}
-{"id":"name-011","text":"Иванов И.О.","spans":[{"value":"Иванов И.О.","category":"full_name"}]}
-{"id":"name-012","text":"И.О. Иванов","spans":[{"value":"И.О. Иванов","category":"full_name"}]}
-{"id":"name-013","text":"Заявление от Петровой Марии Сергеевны","spans":[{"value":"Петровой Марии Сергеевны","category":"full_name"}]}
-{"id":"name-014","text":"Заявитель: Ахметов Руслан Маратович","spans":[{"value":"Ахметов Руслан Маратович","category":"full_name"}]}
-{"id":"holder-001","text":"держатель карты IVAN IVANOV","spans":[{"value":"IVAN IVANOV","category":"card_holder"}]}
-{"id":"holder-002","text":"IVAN IVANOV 4111 1111 1111 1111","spans":[{"value":"IVAN IVANOV","category":"card_holder"},{"value":"4111 1111 1111 1111","category":"card_number"}]}
-{"id":"holder-003","text":"IVAN I IVANOV 4111 1111 1111 1111","spans":[{"value":"IVAN I IVANOV","category":"card_holder"},{"value":"4111 1111 1111 1111","category":"card_number"}]}
-{"id":"holder-004","text":"cardholder IVAN IVANOV","spans":[{"value":"IVAN IVANOV","category":"card_holder"}]}
-{"id":"holder-005","text":"name on card IVAN IVANOV","spans":[{"value":"IVAN IVANOV","category":"card_holder"}]}
-{"id":"holder-006","text":"держатель карты Ivan Ivanov","spans":[{"value":"Ivan Ivanov","category":"card_holder"}]}
-{"id":"holder-007","text":"IVAN IVANOV держатель карты","spans":[{"value":"IVAN IVANOV","category":"card_holder"}]}
-{"id":"holder-008","text":"имя на карте IVAN IVANOV","spans":[{"value":"IVAN IVANOV","category":"card_holder"}]}
-{"id":"negname-001","text":"поэт Александр Пушкин родился в 1799 году","spans":[]}
-{"id":"negname-002","text":"стихи Александра Пушкина","spans":[]}
-{"id":"negname-003","text":"улица Иванова","spans":[]}
-{"id":"negname-004","text":"Москва — столица","spans":[]}
-{"id":"negholder-001","text":"IVAN IVANOV","spans":[]}
-{"id":"negholder-002","text":"держатель карты VISA MASTERCARD","spans":[]}
-{"id":"complex-001","text":"Иванов Иван Иванович, паспорт 4509 123456, телефон +7 (916) 123-45-67, дата рождения 12.05.1990","spans":[{"value":"Иванов Иван Иванович","category":"full_name"},{"value":"4509 123456","category":"passport"},{"value":"+7 (916) 123-45-67","category":"phone"},{"value":"12.05.1990","category":"birth_date"}]}
-{"id":"complex-002","text":"держатель карты IVAN IVANOV, карта 4111 1111 1111 1111, CVV 123","spans":[{"value":"IVAN IVANOV","category":"card_holder"},{"value":"4111 1111 1111 1111","category":"card_number"},{"value":"123","category":"cvv"}]}
-{"id":"complex-003","text":"клиент Петров Пётр Петрович, паспорт 4509 123456, дата рождения 05.12.1990","spans":[{"value":"Петров Пётр Петрович","category":"full_name"},{"value":"4509 123456","category":"passport"},{"value":"05.12.1990","category":"birth_date"}]}
-{"id":"complex-004","text":"IVAN IVANOV 4111 1111 1111 1111, телефон +7 916 123 45 67","spans":[{"value":"IVAN IVANOV","category":"card_holder"},{"value":"4111 1111 1111 1111","category":"card_number"},{"value":"+7 916 123 45 67","category":"phone"}]}
-{"id":"address-001","text":"адрес регистрации: 123456, г. Москва, ул. Ленина, д. 5, кв. 12","spans":[{"value":"123456, г. Москва, ул. Ленина, д. 5, кв. 12","category":"address"}]}
-{"id":"address-002","text":"проживает по адресу: г. Казань, ул. Пушкина, д. 3, кв. 45","spans":[{"value":"г. Казань, ул. Пушкина, д. 3, кв. 45","category":"address"}]}
-{"id":"address-003","text":"доставка: г. Санкт-Петербург, Невский проспект, д. 20","spans":[{"value":"г. Санкт-Петербург, Невский проспект, д. 20","category":"address"}]}
-{"id":"address-004","text":"зарегистрирован: г. Новосибирск, ул. Советская, д. 7, кв. 3","spans":[{"value":"г. Новосибирск, ул. Советская, д. 7, кв. 3","category":"address"}]}
-{"id":"address-005","text":"адрес: г. Краснодар, Краснодарский край, ул. Красная, д. 1","spans":[{"value":"г. Краснодар, Краснодарский край, ул. Красная, д. 1","category":"address"}]}
-{"id":"address-006","text":"место жительства: г. Екатеринбург, ул. Малышева, д. 10, кв. 2","spans":[{"value":"г. Екатеринбург, ул. Малышева, д. 10, кв. 2","category":"address"}]}
-{"id":"address-007","text":"прописан по адресу: г. Уфа, проспект Октября, д. 15","spans":[{"value":"г. Уфа, проспект Октября, д. 15","category":"address"}]}
-{"id":"address-008","text":"адрес проживания: г. Воронеж, ул. Кирова, д. 8","spans":[{"value":"г. Воронеж, ул. Кирова, д. 8","category":"address"}]}
-{"id":"address-009","text":"доставить по адресу: г. Самара, ул. Ленинградская, д. 12, кв. 7","spans":[{"value":"г. Самара, ул. Ленинградская, д. 12, кв. 7","category":"address"}]}
-{"id":"address-010","text":"живу по адресу: г. Челябинск, ул. Ленина, д. 30","spans":[{"value":"г. Челябинск, ул. Ленина, д. 30","category":"address"}]}
-{"id":"birthplace-001","text":"место рождения: г. Москва","spans":[{"value":"г. Москва","category":"birth_place"}]}
-{"id":"birthplace-002","text":"родился в Москве","spans":[{"value":"Москве","category":"birth_place"}]}
-{"id":"birthplace-003","text":"родился 12.05.1990 в Казани","spans":[{"value":"12.05.1990","category":"birth_date"},{"value":"Казани","category":"birth_place"}]}
-{"id":"birthplace-004","text":"родилась в г. Санкт-Петербург","spans":[{"value":"г. Санкт-Петербург","category":"birth_place"}]}
-{"id":"birthplace-005","text":"уроженец города Новосибирска","spans":[{"value":"города Новосибирска","category":"birth_place"}]}
-{"id":"birthplace-006","text":"уроженка города Екатеринбурга","spans":[{"value":"города Екатеринбурга","category":"birth_place"}]}
-{"id":"birthplace-007","text":"родился в г. Краснодар, Краснодарский край","spans":[{"value":"Краснодар, Краснодарский край","category":"birth_place"}]}
-{"id":"birthplace-008","text":"место рождения: г. Уфа, Республика Башкортостан","spans":[{"value":"г. Уфа, Республика Башкортостан","category":"birth_place"}]}
-{"id":"issuer-001","text":"паспорт выдан ОУФМС России по г. Москве, отделом по району Хамовники","spans":[{"value":"ОУФМС России по г. Москве, отделом по району Хамовники","category":"passport_issuer"}]}
-{"id":"issuer-002","text":"выдан ГУ МВД России по г. Москве","spans":[{"value":"ГУ МВД России по г. Москве","category":"passport_issuer"}]}
-{"id":"issuer-003","text":"кем выдан: ОВД района Хамовники","spans":[{"value":"ОВД района Хамовники","category":"passport_issuer"}]}
-{"id":"issuer-004","text":"орган выдачи: УФМС России по г. Казани","spans":[{"value":"УФМС России по г. Казани","category":"passport_issuer"}]}
-{"id":"issuer-005","text":"паспорт выдан Отделом УФМС России по г. Москве","spans":[{"value":"Отделом УФМС России по г. Москве","category":"passport_issuer"}]}
-{"id":"issuer-006","text":"выдан Управлением МВД России по г. Москве","spans":[{"value":"Управлением МВД России по г. Москве","category":"passport_issuer"}]}
-{"id":"issuer-007","text":"паспорт выдан ОМВД России по району Хамовники","spans":[{"value":"ОМВД России по району Хамовники","category":"passport_issuer"}]}
-{"id":"issuer-008","text":"выдан МВД России по г. Санкт-Петербургу","spans":[{"value":"МВД России по г. Санкт-Петербургу","category":"passport_issuer"}]}
-{"id":"negaddr-001","text":"отделение банка по адресу ул. Ленина, 1","spans":[]}
-{"id":"negaddr-002","text":"филиал банка: г. Москва, ул. Тверская, д. 10","spans":[]}
-{"id":"negaddr-003","text":"банкомат по адресу: г. Москва, ул. Ленина, д. 5","spans":[]}
-{"id":"negaddr-004","text":"доп. офис: г. Москва, ул. Ленина, д. 5","spans":[]}
-{"id":"negaddr-005","text":"головной офис: г. Москва, ул. Ленина, д. 5","spans":[]}
-{"id":"negaddr-006","text":"ул. Иванова","spans":[]}
+{"id": "phone-001", "text": "Перезвоните по номеру +7 (916) 123-45-67", "spans": [{"value": "+7 (916) 123-45-67", "category": "phone"}]}
+{"id": "phone-002", "text": "Мой номер 89161234567", "spans": [{"value": "89161234567", "category": "phone"}]}
+{"id": "phone-003", "text": "тел: 8 903 555 12 34", "spans": [{"value": "8 903 555 12 34", "category": "phone"}]}
+{"id": "phone-004", "text": "Телефон +7-495-123-45-67", "spans": [{"value": "+7-495-123-45-67", "category": "phone"}]}
+{"id": "phone-005", "text": "свяжитесь со мной 8(921)987-65-43", "spans": [{"value": "8(921)987-65-43", "category": "phone"}]}
+{"id": "phone-006", "text": "номер телефона 7 916 111 22 33", "spans": [{"value": "7 916 111 22 33", "category": "phone"}]}
+{"id": "phone-007", "text": "Позвоните 8 800 555 35 35", "spans": []}
+{"id": "phone-008", "text": "мобильный +7 999 000 11 22", "spans": [{"value": "+7 999 000 11 22", "category": "phone"}]}
+{"id": "email-001", "text": "Напишите на IVAN.Petrov@Example.com", "spans": [{"value": "IVAN.Petrov@Example.com", "category": "email"}]}
+{"id": "email-002", "text": "почта user_name+tag@mail.ru", "spans": [{"value": "user_name+tag@mail.ru", "category": "email"}]}
+{"id": "email-003", "text": "контакт: a.b-c@sub.domain.org", "spans": [{"value": "a.b-c@sub.domain.org", "category": "email"}]}
+{"id": "email-004", "text": "мой e-mail petrov@yandex.ru", "spans": [{"value": "petrov@yandex.ru", "category": "email"}]}
+{"id": "email-005", "text": "адрес почты ivanov@company.com", "spans": [{"value": "ivanov@company.com", "category": "email"}]}
+{"id": "email-006", "text": "напишите на support@bank.ru", "spans": [{"value": "support@bank.ru", "category": "email"}]}
+{"id": "email-007", "text": "электронная почта test@example.io", "spans": [{"value": "test@example.io", "category": "email"}]}
+{"id": "email-008", "text": "почта для связи info@mail.com", "spans": [{"value": "info@mail.com", "category": "email"}]}
+{"id": "inn-001", "text": "Мой ИНН 500100732259", "spans": [{"value": "500100732259", "category": "inn"}]}
+{"id": "inn-002", "text": "ИНН физического лица 3664069397", "spans": [{"value": "3664069397", "category": "inn"}]}
+{"id": "inn-003", "text": "ИНН организации 7707083893", "spans": []}
+{"id": "inn-org-002", "text": "ИНН организации 7707083893", "spans": []}
+{"id": "inn-004", "text": "инн 500100732259", "spans": [{"value": "500100732259", "category": "inn"}]}
+{"id": "inn-005", "text": "ИНН 3664069397", "spans": [{"value": "3664069397", "category": "inn"}]}
+{"id": "inn-006", "text": "ИНН юрлица 7707083893", "spans": [{"value": "7707083893", "category": "inn"}]}
+{"id": "inn-007", "text": "ИНН 500100732259", "spans": [{"value": "500100732259", "category": "inn"}]}
+{"id": "inn-008", "text": "ИНН 3664069397", "spans": [{"value": "3664069397", "category": "inn"}]}
+{"id": "card-001", "text": "Номер карты 4111 1111 1111 1111", "spans": [{"value": "4111 1111 1111 1111", "category": "card_number"}]}
+{"id": "card-002", "text": "карта 4111111111111111", "spans": [{"value": "4111111111111111", "category": "card_number"}]}
+{"id": "card-003", "text": "номер карты 5500 0000 0000 0004", "spans": [{"value": "5500 0000 0000 0004", "category": "card_number"}]}
+{"id": "card-004", "text": "платёжная карта 4111-1111-1111-1111", "spans": [{"value": "4111-1111-1111-1111", "category": "card_number"}]}
+{"id": "card-005", "text": "карта 5555 5555 5555 4444", "spans": [{"value": "5555 5555 5555 4444", "category": "card_number"}]}
+{"id": "card-006", "text": "номер карты 4111 1111 1111 1111", "spans": [{"value": "4111 1111 1111 1111", "category": "card_number"}]}
+{"id": "card-007", "text": "карта 4012 8888 8888 1881", "spans": [{"value": "4012 8888 8888 1881", "category": "card_number"}]}
+{"id": "card-008", "text": "номер карты 5105 1051 0510 5100", "spans": [{"value": "5105 1051 0510 5100", "category": "card_number"}]}
+{"id": "cvv-001", "text": "CVV код 123", "spans": [{"value": "123", "category": "cvv"}]}
+{"id": "cvv-002", "text": "cvc 456", "spans": [{"value": "456", "category": "cvv"}]}
+{"id": "cvv-003", "text": "код безопасности 789", "spans": [{"value": "789", "category": "cvv"}]}
+{"id": "cvv-004", "text": "CVV2 1234", "spans": [{"value": "1234", "category": "cvv"}]}
+{"id": "cvv-005", "text": "Код безопасности карты 123", "spans": [{"value": "123", "category": "cvv"}]}
+{"id": "cvv-006", "text": "cvc2 567", "spans": [{"value": "567", "category": "cvv"}]}
+{"id": "cvv-007", "text": "CVV 890", "spans": [{"value": "890", "category": "cvv"}]}
+{"id": "cvv-008", "text": "код безопасности 234", "spans": [{"value": "234", "category": "cvv"}]}
+{"id": "pin-001", "text": "ПИН-код 1234", "spans": [{"value": "1234", "category": "pin"}]}
+{"id": "pin-002", "text": "pin 5678", "spans": [{"value": "5678", "category": "pin"}]}
+{"id": "pin-003", "text": "пин-код карты 4321", "spans": [{"value": "4321", "category": "pin"}]}
+{"id": "pin-004", "text": "1234 — это пин-код карты", "spans": [{"value": "1234", "category": "pin"}]}
+{"id": "pin-005", "text": "ПИН 9876", "spans": [{"value": "9876", "category": "pin"}]}
+{"id": "pin-006", "text": "pin-код 1111", "spans": [{"value": "1111", "category": "pin"}]}
+{"id": "pin-007", "text": "пин 2222", "spans": [{"value": "2222", "category": "pin"}]}
+{"id": "pin-008", "text": "ПИН-код 3333", "spans": [{"value": "3333", "category": "pin"}]}
+{"id": "passport-001", "text": "паспорт 4509 123456", "spans": [{"value": "4509 123456", "category": "passport"}]}
+{"id": "passport-002", "text": "серия 4509 номер 123456", "spans": [{"value": "4509 номер 123456", "category": "passport"}]}
+{"id": "passport-003", "text": "паспорт 4509123456", "spans": [{"value": "4509123456", "category": "passport"}]}
+{"id": "passport-004", "text": "серия 4509 номер 123456", "spans": [{"value": "4509 номер 123456", "category": "passport"}]}
+{"id": "passport-005", "text": "паспорт 45 09 123456", "spans": [{"value": "45 09 123456", "category": "passport"}]}
+{"id": "passport-006", "text": "паспортные данные 4509 123456", "spans": [{"value": "4509 123456", "category": "passport"}]}
+{"id": "passport-007", "text": "паспорт 4509 123456", "spans": [{"value": "4509 123456", "category": "passport"}]}
+{"id": "passport-008", "text": "серия 4509 номер 123456", "spans": [{"value": "4509 номер 123456", "category": "passport"}]}
+{"id": "division-001", "text": "код подразделения 770-001", "spans": [{"value": "770-001", "category": "division_code"}]}
+{"id": "division-002", "text": "к/п 770-001", "spans": [{"value": "770-001", "category": "division_code"}]}
+{"id": "division-003", "text": "код подр 123-456", "spans": [{"value": "123-456", "category": "division_code"}]}
+{"id": "division-004", "text": "код подразделения 770-001", "spans": [{"value": "770-001", "category": "division_code"}]}
+{"id": "division-005", "text": "к/п 456-789", "spans": [{"value": "456-789", "category": "division_code"}]}
+{"id": "division-006", "text": "код подразделения 123-456", "spans": [{"value": "123-456", "category": "division_code"}]}
+{"id": "division-007", "text": "к/п 789-012", "spans": [{"value": "789-012", "category": "division_code"}]}
+{"id": "division-008", "text": "код подр 345-678", "spans": [{"value": "345-678", "category": "division_code"}]}
+{"id": "driver-001", "text": "водительское удостоверение 77 12 345678", "spans": [{"value": "77 12 345678", "category": "driver_license"}]}
+{"id": "driver-002", "text": "права 77АА 123456", "spans": [{"value": "77АА 123456", "category": "driver_license"}]}
+{"id": "driver-003", "text": "водительское 77 12 345678", "spans": [{"value": "77 12 345678", "category": "driver_license"}]}
+{"id": "driver-004", "text": "в/у 77 12 345678", "spans": [{"value": "77 12 345678", "category": "driver_license"}]}
+{"id": "driver-005", "text": "права 77АА 123456", "spans": [{"value": "77АА 123456", "category": "driver_license"}]}
+{"id": "driver-006", "text": "водительское удостоверение 77 12 345678", "spans": [{"value": "77 12 345678", "category": "driver_license"}]}
+{"id": "driver-007", "text": "в/у 77 12 345678", "spans": [{"value": "77 12 345678", "category": "driver_license"}]}
+{"id": "driver-008", "text": "права 77АА 123456", "spans": [{"value": "77АА 123456", "category": "driver_license"}]}
+{"id": "snils-001", "text": "СНИЛС 112-233-445 95", "spans": [{"value": "112-233-445 95", "category": "snils"}]}
+{"id": "snils-002", "text": "снилс 11223344595", "spans": [{"value": "11223344595", "category": "snils"}]}
+{"id": "snils-003", "text": "СНИЛС 112-233-445 95", "spans": [{"value": "112-233-445 95", "category": "snils"}]}
+{"id": "snils-004", "text": "снилс 11223344595", "spans": [{"value": "11223344595", "category": "snils"}]}
+{"id": "snils-005", "text": "СНИЛС 112-233-445 95", "spans": [{"value": "112-233-445 95", "category": "snils"}]}
+{"id": "snils-006", "text": "снилс 11223344595", "spans": [{"value": "11223344595", "category": "snils"}]}
+{"id": "snils-007", "text": "СНИЛС 112-233-445 95", "spans": [{"value": "112-233-445 95", "category": "snils"}]}
+{"id": "snils-008", "text": "снилс 11223344595", "spans": [{"value": "11223344595", "category": "snils"}]}
+{"id": "foreign-001", "text": "загранпаспорт 71 1234567", "spans": [{"value": "71 1234567", "category": "foreign_passport"}]}
+{"id": "foreign-002", "text": "загран 71 1234567", "spans": [{"value": "71 1234567", "category": "foreign_passport"}]}
+{"id": "foreign-003", "text": "заграничный паспорт 71 1234567", "spans": [{"value": "71 1234567", "category": "foreign_passport"}]}
+{"id": "foreign-004", "text": "загранпаспорт 71 1234567", "spans": [{"value": "71 1234567", "category": "foreign_passport"}]}
+{"id": "foreign-005", "text": "загран 71 1234567", "spans": [{"value": "71 1234567", "category": "foreign_passport"}]}
+{"id": "foreign-006", "text": "заграничный паспорт 71 1234567", "spans": [{"value": "71 1234567", "category": "foreign_passport"}]}
+{"id": "foreign-007", "text": "загранпаспорт 71 1234567", "spans": [{"value": "71 1234567", "category": "foreign_passport"}]}
+{"id": "foreign-008", "text": "загран 71 1234567", "spans": [{"value": "71 1234567", "category": "foreign_passport"}]}
+{"id": "birth-001", "text": "дата рождения 12.05.1990", "spans": [{"value": "12.05.1990", "category": "birth_date"}]}
+{"id": "birth-002", "text": "родился 12 мая 1990 года", "spans": [{"value": "12 мая 1990 года", "category": "birth_date"}]}
+{"id": "birth-003", "text": "дата рождения 1990-05-12", "spans": [{"value": "1990-05-12", "category": "birth_date"}]}
+{"id": "birth-004", "text": "д.р. 12.05.1990", "spans": [{"value": "12.05.1990", "category": "birth_date"}]}
+{"id": "birth-005", "text": "рождён 12 МАЯ 1990", "spans": [{"value": "12 МАЯ 1990", "category": "birth_date"}]}
+{"id": "birth-006", "text": "дата рождения 05.12.1990", "spans": [{"value": "05.12.1990", "category": "birth_date"}]}
+{"id": "birth-007", "text": "родился 12 мая 1990", "spans": [{"value": "12 мая 1990", "category": "birth_date"}]}
+{"id": "birth-008", "text": "дата рождения 12.05.1990", "spans": [{"value": "12.05.1990", "category": "birth_date"}]}
+{"id": "passdate-001", "text": "паспорт выдан 12.05.1990", "spans": [{"value": "12.05.1990", "category": "passport_date"}]}
+{"id": "passdate-002", "text": "дата выдачи 1990-05-12", "spans": [{"value": "1990-05-12", "category": "passport_date"}]}
+{"id": "passdate-003", "text": "выдан 12 мая 1990 года", "spans": [{"value": "12 мая 1990 года", "category": "passport_date"}]}
+{"id": "passdate-004", "text": "дата выдачи 12.05.1990", "spans": [{"value": "12.05.1990", "category": "passport_date"}]}
+{"id": "passdate-005", "text": "паспорт выдан 05.12.1990", "spans": [{"value": "05.12.1990", "category": "passport_date"}]}
+{"id": "passdate-006", "text": "дата выдачи 1990-05-12", "spans": [{"value": "1990-05-12", "category": "passport_date"}]}
+{"id": "passdate-007", "text": "выдан 12 мая 1990", "spans": [{"value": "12 мая 1990", "category": "passport_date"}]}
+{"id": "passdate-008", "text": "дата выдачи 12.05.1990", "spans": [{"value": "12.05.1990", "category": "passport_date"}]}
+{"id": "date-001", "text": "событие 12.05.1990", "spans": [{"value": "12.05.1990", "category": "date"}]}
+{"id": "date-002", "text": "дата 1990-05-12", "spans": [{"value": "1990-05-12", "category": "date"}]}
+{"id": "date-003", "text": "встреча 05.12.1990", "spans": [{"value": "05.12.1990", "category": "date"}]}
+{"id": "date-004", "text": "12 мая 1990 года", "spans": [{"value": "12 мая 1990 года", "category": "date"}]}
+{"id": "date-005", "text": "дата 12/05/1990", "spans": [{"value": "12/05/1990", "category": "date"}]}
+{"id": "date-006", "text": "срок 1990-05-12", "spans": [{"value": "1990-05-12", "category": "date"}]}
+{"id": "date-007", "text": "12 МАЯ 1990", "spans": [{"value": "12 МАЯ 1990", "category": "date"}]}
+{"id": "date-008", "text": "дата 12.05.1990", "spans": [{"value": "12.05.1990", "category": "date"}]}
+{"id": "citizen-001", "text": "гражданство РФ", "spans": [{"value": "РФ", "category": "citizenship"}]}
+{"id": "citizen-002", "text": "гражданство: Российская Федерация", "spans": [{"value": "Российская Федерация", "category": "citizenship"}]}
+{"id": "citizen-003", "text": "гражданин России", "spans": [{"value": "России", "category": "citizenship"}]}
+{"id": "citizen-004", "text": "гражданство Республики Казахстан", "spans": [{"value": "Республики Казахстан", "category": "citizenship"}]}
+{"id": "citizen-005", "text": "гражданка Беларуси", "spans": [{"value": "Беларуси", "category": "citizenship"}]}
+{"id": "citizen-006", "text": "гражданство РФ", "spans": [{"value": "РФ", "category": "citizenship"}]}
+{"id": "citizen-007", "text": "гражданин Узбекистана", "spans": [{"value": "Узбекистана", "category": "citizenship"}]}
+{"id": "citizen-008", "text": "гражданство: Российская Федерация", "spans": [{"value": "Российская Федерация", "category": "citizenship"}]}
+{"id": "neg-001", "text": "Номер заказа 1234567890", "spans": []}
+{"id": "neg-002", "text": "поэт Александр Пушкин родился в 1799 году", "spans": []}
+{"id": "neg-003", "text": "отделение банка по адресу ул. Ленина, 1", "spans": []}
+{"id": "neg-004", "text": "число 1234 без контекста", "spans": []}
+{"id": "neg-005", "text": "код 1234567890", "spans": []}
+{"id": "neg-006", "text": "сумма 15000 рублей", "spans": []}
+{"id": "neg-007", "text": "версия 1.2.3", "spans": []}
+{"id": "neg-008", "text": "дата 31.02.2020", "spans": []}
+{"id": "neg-009", "text": "ИНН 500100732258", "spans": [{"value": "500100732258", "category": "inn"}]}
+{"id": "neg-010", "text": "карта 4111 1111 1111 1112", "spans": [{"value": "4111 1111 1111 1112", "category": "card_number"}]}
+{"id": "neg-011", "text": "номер 1234567890", "spans": []}
+{"id": "neg-012", "text": "телефон 1234567890", "spans": []}
+{"id": "neg-013", "text": "паспорт 0000 123456", "spans": []}
+{"id": "neg-014", "text": "снилс 112-233-445 96", "spans": [{"value": "112-233-445 96", "category": "snils"}]}
+{"id": "neg-015", "text": "загранпаспорт 71 123456", "spans": []}
+{"id": "neg-016", "text": "код 1234", "spans": []}
+{"id": "neg-017", "text": "дата 32.01.2020", "spans": []}
+{"id": "neg-018", "text": "ИНН 3664069398", "spans": []}
+{"id": "neg-019", "text": "счёт 40817810099910004312", "spans": []}
+{"id": "cvv-009", "text": "Код безопасности карты 123, 4321 это пин-код", "spans": [{"value": "123", "category": "cvv"}, {"value": "4321", "category": "pin"}]}
+{"id": "cvv-010", "text": "карта 5536 9138 1234 5678 cvv 123", "spans": [{"value": "5536 9138 1234 5678", "category": "card_number"}, {"start": 35, "end": 38, "category": "cvv"}]}
+{"id": "date-009", "text": "событие 2020.15.03", "spans": [{"value": "2020.15.03", "category": "date"}]}
+{"id": "name-001", "text": "ИВАНОВ ИВАН ИВАНОВИЧ", "spans": [{"value": "ИВАНОВ ИВАН ИВАНОВИЧ", "category": "full_name"}]}
+{"id": "name-002", "text": "иванов иван иванович", "spans": [{"value": "иванов иван иванович", "category": "full_name"}]}
+{"id": "name-003", "text": "Иван Петров", "spans": [{"value": "Иван Петров", "category": "full_name"}]}
+{"id": "name-004", "text": "Петров Иван", "spans": [{"value": "Петров Иван", "category": "full_name"}]}
+{"id": "name-005", "text": "Иванов И. О.", "spans": [{"value": "Иванов И. О.", "category": "full_name"}]}
+{"id": "name-006", "text": "И. О. Иванов", "spans": [{"value": "И. О. Иванов", "category": "full_name"}]}
+{"id": "name-007", "text": "паспорт Иванова Ивана Ивановича", "spans": [{"value": "Иванова Ивана Ивановича", "category": "full_name"}]}
+{"id": "name-008", "text": "клиент Иван", "spans": [{"value": "Иван", "category": "full_name"}]}
+{"id": "name-009", "text": "клиент Иван Иванович", "spans": [{"value": "Иван Иванович", "category": "full_name"}]}
+{"id": "name-010", "text": "Иван Иванович Иванов", "spans": [{"value": "Иван Иванович Иванов", "category": "full_name"}]}
+{"id": "name-011", "text": "Иванов И.О.", "spans": [{"value": "Иванов И.О.", "category": "full_name"}]}
+{"id": "name-012", "text": "И.О. Иванов", "spans": [{"value": "И.О. Иванов", "category": "full_name"}]}
+{"id": "name-013", "text": "Заявление от Петровой Марии Сергеевны", "spans": [{"value": "Петровой Марии Сергеевны", "category": "full_name"}]}
+{"id": "name-014", "text": "Заявитель: Ахметов Руслан Маратович", "spans": [{"value": "Ахметов Руслан Маратович", "category": "full_name"}]}
+{"id": "holder-001", "text": "держатель карты IVAN IVANOV", "spans": [{"value": "IVAN IVANOV", "category": "card_holder"}]}
+{"id": "holder-002", "text": "IVAN IVANOV 4111 1111 1111 1111", "spans": [{"value": "IVAN IVANOV", "category": "card_holder"}, {"value": "4111 1111 1111 1111", "category": "card_number"}]}
+{"id": "holder-003", "text": "IVAN I IVANOV 4111 1111 1111 1111", "spans": [{"value": "IVAN I IVANOV", "category": "card_holder"}, {"value": "4111 1111 1111 1111", "category": "card_number"}]}
+{"id": "holder-004", "text": "cardholder IVAN IVANOV", "spans": [{"value": "IVAN IVANOV", "category": "card_holder"}]}
+{"id": "holder-005", "text": "name on card IVAN IVANOV", "spans": [{"value": "IVAN IVANOV", "category": "card_holder"}]}
+{"id": "holder-006", "text": "держатель карты Ivan Ivanov", "spans": [{"value": "Ivan Ivanov", "category": "card_holder"}]}
+{"id": "holder-007", "text": "IVAN IVANOV держатель карты", "spans": [{"value": "IVAN IVANOV", "category": "card_holder"}]}
+{"id": "holder-008", "text": "имя на карте IVAN IVANOV", "spans": [{"value": "IVAN IVANOV", "category": "card_holder"}]}
+{"id": "negname-001", "text": "поэт Александр Пушкин родился в 1799 году", "spans": []}
+{"id": "negname-002", "text": "стихи Александра Пушкина", "spans": []}
+{"id": "negname-003", "text": "улица Иванова", "spans": []}
+{"id": "negname-004", "text": "Москва — столица", "spans": []}
+{"id": "negholder-001", "text": "IVAN IVANOV", "spans": []}
+{"id": "negholder-002", "text": "держатель карты VISA MASTERCARD", "spans": []}
+{"id": "complex-001", "text": "Иванов Иван Иванович, паспорт 4509 123456, телефон +7 (916) 123-45-67, дата рождения 12.05.1990", "spans": [{"value": "Иванов Иван Иванович", "category": "full_name"}, {"value": "4509 123456", "category": "passport"}, {"value": "+7 (916) 123-45-67", "category": "phone"}, {"value": "12.05.1990", "category": "birth_date"}]}
+{"id": "complex-002", "text": "держатель карты IVAN IVANOV, карта 4111 1111 1111 1111, CVV 123", "spans": [{"value": "IVAN IVANOV", "category": "card_holder"}, {"value": "4111 1111 1111 1111", "category": "card_number"}, {"value": "123", "category": "cvv"}]}
+{"id": "complex-003", "text": "клиент Петров Пётр Петрович, паспорт 4509 123456, дата рождения 05.12.1990", "spans": [{"value": "Петров Пётр Петрович", "category": "full_name"}, {"value": "4509 123456", "category": "passport"}, {"value": "05.12.1990", "category": "birth_date"}]}
+{"id": "complex-004", "text": "IVAN IVANOV 4111 1111 1111 1111, телефон +7 916 123 45 67", "spans": [{"value": "IVAN IVANOV", "category": "card_holder"}, {"value": "4111 1111 1111 1111", "category": "card_number"}, {"value": "+7 916 123 45 67", "category": "phone"}]}
+{"id": "address-001", "text": "адрес регистрации: 123456, г. Москва, ул. Ленина, д. 5, кв. 12", "spans": [{"value": "123456, г. Москва, ул. Ленина, д. 5, кв. 12", "category": "address"}]}
+{"id": "address-002", "text": "проживает по адресу: г. Казань, ул. Пушкина, д. 3, кв. 45", "spans": [{"value": "г. Казань, ул. Пушкина, д. 3, кв. 45", "category": "address"}]}
+{"id": "address-003", "text": "доставка: г. Санкт-Петербург, Невский проспект, д. 20", "spans": [{"value": "г. Санкт-Петербург, Невский проспект, д. 20", "category": "address"}]}
+{"id": "address-004", "text": "зарегистрирован: г. Новосибирск, ул. Советская, д. 7, кв. 3", "spans": [{"value": "г. Новосибирск, ул. Советская, д. 7, кв. 3", "category": "address"}]}
+{"id": "address-005", "text": "адрес: г. Краснодар, Краснодарский край, ул. Красная, д. 1", "spans": [{"value": "г. Краснодар, Краснодарский край, ул. Красная, д. 1", "category": "address"}]}
+{"id": "address-006", "text": "место жительства: г. Екатеринбург, ул. Малышева, д. 10, кв. 2", "spans": [{"value": "г. Екатеринбург, ул. Малышева, д. 10, кв. 2", "category": "address"}]}
+{"id": "address-007", "text": "прописан по адресу: г. Уфа, проспект Октября, д. 15", "spans": [{"value": "г. Уфа, проспект Октября, д. 15", "category": "address"}]}
+{"id": "address-008", "text": "адрес проживания: г. Воронеж, ул. Кирова, д. 8", "spans": [{"value": "г. Воронеж, ул. Кирова, д. 8", "category": "address"}]}
+{"id": "address-009", "text": "доставить по адресу: г. Самара, ул. Ленинградская, д. 12, кв. 7", "spans": [{"value": "г. Самара, ул. Ленинградская, д. 12, кв. 7", "category": "address"}]}
+{"id": "address-010", "text": "живу по адресу: г. Челябинск, ул. Ленина, д. 30", "spans": [{"value": "г. Челябинск, ул. Ленина, д. 30", "category": "address"}]}
+{"id": "birthplace-001", "text": "место рождения: г. Москва", "spans": [{"value": "г. Москва", "category": "birth_place"}]}
+{"id": "birthplace-002", "text": "родился в Москве", "spans": [{"value": "Москве", "category": "birth_place"}]}
+{"id": "birthplace-003", "text": "родился 12.05.1990 в Казани", "spans": [{"value": "12.05.1990", "category": "birth_date"}, {"value": "Казани", "category": "birth_place"}]}
+{"id": "birthplace-004", "text": "родилась в г. Санкт-Петербург", "spans": [{"value": "г. Санкт-Петербург", "category": "birth_place"}]}
+{"id": "birthplace-005", "text": "уроженец города Новосибирска", "spans": [{"value": "города Новосибирска", "category": "birth_place"}]}
+{"id": "birthplace-006", "text": "уроженка города Екатеринбурга", "spans": [{"value": "города Екатеринбурга", "category": "birth_place"}]}
+{"id": "birthplace-007", "text": "родился в г. Краснодар, Краснодарский край", "spans": [{"value": "Краснодар, Краснодарский край", "category": "birth_place"}]}
+{"id": "birthplace-008", "text": "место рождения: г. Уфа, Республика Башкортостан", "spans": [{"value": "г. Уфа, Республика Башкортостан", "category": "birth_place"}]}
+{"id": "issuer-001", "text": "паспорт выдан ОУФМС России по г. Москве, отделом по району Хамовники", "spans": [{"value": "ОУФМС России по г. Москве, отделом по району Хамовники", "category": "passport_issuer"}]}
+{"id": "issuer-002", "text": "выдан ГУ МВД России по г. Москве", "spans": [{"value": "ГУ МВД России по г. Москве", "category": "passport_issuer"}]}
+{"id": "issuer-003", "text": "кем выдан: ОВД района Хамовники", "spans": [{"value": "ОВД района Хамовники", "category": "passport_issuer"}]}
+{"id": "issuer-004", "text": "орган выдачи: УФМС России по г. Казани", "spans": [{"value": "УФМС России по г. Казани", "category": "passport_issuer"}]}
+{"id": "issuer-005", "text": "паспорт выдан Отделом УФМС России по г. Москве", "spans": [{"value": "Отделом УФМС России по г. Москве", "category": "passport_issuer"}]}
+{"id": "issuer-006", "text": "выдан Управлением МВД России по г. Москве", "spans": [{"value": "Управлением МВД России по г. Москве", "category": "passport_issuer"}]}
+{"id": "issuer-007", "text": "паспорт выдан ОМВД России по району Хамовники", "spans": [{"value": "ОМВД России по району Хамовники", "category": "passport_issuer"}]}
+{"id": "issuer-008", "text": "выдан МВД России по г. Санкт-Петербургу", "spans": [{"value": "МВД России по г. Санкт-Петербургу", "category": "passport_issuer"}]}
+{"id": "negaddr-001", "text": "отделение банка по адресу ул. Ленина, 1", "spans": []}
+{"id": "negaddr-002", "text": "филиал банка: г. Москва, ул. Тверская, д. 10", "spans": []}
+{"id": "negaddr-003", "text": "банкомат по адресу: г. Москва, ул. Ленина, д. 5", "spans": []}
+{"id": "negaddr-004", "text": "доп. офис: г. Москва, ул. Ленина, д. 5", "spans": []}
+{"id": "negaddr-005", "text": "головной офис: г. Москва, ул. Ленина, д. 5", "spans": []}
+{"id": "negaddr-006", "text": "ул. Иванова", "spans": []}
 {"id": "complex-005", "text": "Иванов Иван Иванович, дата рождения 12.05.1990, место рождения: г. Москва, паспорт 4509 123456, выдан ОУФМС России по г. Москве, код подразделения 770-001, адрес регистрации: г. Москва, ул. Ленина, д. 5, кв. 12, телефон +7 (916) 123-45-67, email ivanov@mail.ru", "spans": [{"start": 0, "end": 38, "category": "full_name"}, {"start": 66, "end": 76, "category": "birth_date"}, {"start": 107, "end": 123, "category": "birth_place"}, {"start": 140, "end": 151, "category": "passport"}, {"start": 164, "end": 209, "category": "passport_issuer"}, {"start": 245, "end": 252, "category": "division_code"}, {"start": 289, "end": 342, "category": "address"}, {"start": 359, "end": 377, "category": "phone"}, {"start": 385, "end": 399, "category": "email"}]}
 {"id": "complex-006", "text": "Петрова Мария Сергеевна, родилась 05.12.1992 в г. Казань, паспорт 4509 654321, выдан ГУ МВД России по г. Казани, код подразделения 160-002, зарегистрирована: г. Казань, ул. Пушкина, д. 3, кв. 45, тел. 8 903 555 12 34, почта maria@yandex.ru", "spans": [{"start": 0, "end": 44, "category": "full_name"}, {"start": 63, "end": 73, "category": "birth_date"}, {"start": 77, "end": 93, "category": "birth_place"}, {"start": 110, "end": 121, "category": "passport"}, {"start": 134, "end": 180, "category": "passport_issuer"}, {"start": 216, "end": 223, "category": "division_code"}, {"start": 259, "end": 314, "category": "address"}, {"start": 324, "end": 339, "category": "phone"}, {"start": 352, "end": 367, "category": "email"}]}
 {"id": "complex-007", "text": "Ахметов Руслан Маратович, дата рождения 15.03.1988, место рождения: г. Уфа, паспорт 8010 123456, кем выдан: ОВД района Хамовники, к/п 770-003, проживает: г. Уфа, проспект Октября, д. 15, телефон +7 999 000 11 22, email ruslan@mail.ru", "spans": [{"start": 0, "end": 46, "category": "full_name"}, {"start": 74, "end": 84, "category": "birth_date"}, {"start": 115, "end": 125, "category": "birth_place"}, {"start": 142, "end": 153, "category": "passport"}, {"start": 174, "end": 212, "category": "passport_issuer"}, {"start": 220, "end": 227, "category": "division_code"}, {"start": 249, "end": 300, "category": "address"}, {"start": 317, "end": 333, "category": "phone"}, {"start": 341, "end": 355, "category": "email"}]}
 {"id": "complex-008", "text": "Смирнова Анна Петровна, родилась 22.07.1995 в г. Новосибирск, паспорт 5009 111222, выдан Отделом УФМС России по г. Новосибирску, код подразделения 540-004, адрес: г. Новосибирск, ул. Советская, д. 7, кв. 3, тел. 8 921 987 65 43, почта anna@example.com", "spans": [{"start": 0, "end": 42, "category": "full_name"}, {"start": 61, "end": 71, "category": "birth_date"}, {"start": 75, "end": 101, "category": "birth_place"}, {"start": 118, "end": 129, "category": "passport"}, {"start": 142, "end": 212, "category": "passport_issuer"}, {"start": 248, "end": 255, "category": "division_code"}, {"start": 269, "end": 337, "category": "address"}, {"start": 347, "end": 362, "category": "phone"}, {"start": 375, "end": 391, "category": "email"}]}
 {"id": "complex-009", "text": "Кузнецов Дмитрий Александрович, дата рождения 01.01.1985, место рождения: г. Екатеринбург, паспорт 6509 333444, выдан Управлением МВД России по г. Екатеринбургу, код подразделения 660-005, адрес регистрации: г. Екатеринбург, ул. Малышева, д. 10, кв. 2, телефон +7 916 111 22 33, email dmitry@mail.ru", "spans": [{"start": 0, "end": 58, "category": "full_name"}, {"start": 86, "end": 96, "category": "birth_date"}, {"start": 127, "end": 155, "category": "birth_place"}, {"start": 172, "end": 183, "category": "passport"}, {"start": 196, "end": 274, "category": "passport_issuer"}, {"start": 310, "end": 317, "category": "division_code"}, {"start": 354, "end": 423, "category": "address"}, {"start": 440, "end": 456, "category": "phone"}, {"start": 464, "end": 478, "category": "email"}]}
 {"id": "complex-010", "text": "Волкова Ольга Игоревна, родилась 30.09.1991 в г. Краснодар, паспорт 0309 555666, выдан ОМВД России по району Хамовники, код подразделения 770-006, проживает: г. Краснодар, ул. Красная, д. 1, тел. 8 800 555 35 35, почта olga@yandex.ru", "spans": [{"start": 0, "end": 42, "category": "full_name"}, {"start": 61, "end": 71, "category": "birth_date"}, {"start": 75, "end": 97, "category": "birth_place"}, {"start": 114, "end": 125, "category": "passport"}, {"start": 138, "end": 196, "category": "passport_issuer"}, {"start": 232, "end": 239, "category": "division_code"}, {"start": 261, "end": 312, "category": "address"}, {"start": 350, "end": 364, "category": "email"}]}
-{"id":"passdate-009","text":"Паспорт 4509 123456 выдан ОУФМС России по г. Москве по району Хамовники 12.05.2010, код подразделения 770-001","spans":[{"value":"4509 123456","category":"passport"},{"value":"ОУФМС России по г. Москве по району Хамовники","category":"passport_issuer"},{"value":"12.05.2010","category":"passport_date"},{"value":"770-001","category":"division_code"}]}
-{"id":"passdate-010","text":"паспорт 4509 123456 выдан 12.05.2010, код подразделения 770-001","spans":[{"value":"4509 123456","category":"passport"},{"value":"12.05.2010","category":"passport_date"},{"value":"770-001","category":"division_code"}]}
-{"id":"birth-009","text":"родился 12.05.1990, место рождения: г. Москва","spans":[{"value":"12.05.1990","category":"birth_date"},{"value":"г. Москва","category":"birth_place"}]}
-{"id":"birthplace-009","text":"Место рождения: с. Ивановка Рязанской области","spans":[{"value":"с. Ивановка Рязанской области","category":"birth_place"}]}
-{"id":"birthplace-010","text":"родился в с. Ивановка Рязанской области","spans":[{"value":"с. Ивановка Рязанской области","category":"birth_place"}]}
-{"id":"address-011","text":"живёт в Казани, Кремлёвская 5","spans":[{"value":"Казани, Кремлёвская 5","category":"address"}]}
-{"id":"address-012","text":"проживает в Москве, Тверская 10","spans":[{"value":"Москве, Тверская 10","category":"address"}]}
-{"id":"defect-email-001","text":"лебедева30@gmail.com","spans":[{"value":"лебедева30@gmail.com","category":"email"}]}
-{"id":"defect-email-002","text":"фeдоров92@gmail.com","spans":[{"value":"фeдоров92@gmail.com","category":"email"}]}
-{"id":"defect-email-003","text":"иван@почта.рф","spans":[{"value":"иван@почта.рф","category":"email"}]}
-{"id":"defect-birth-001","text":"16 июня 1980 года г.р.","spans":[{"value":"16 июня 1980 года","category":"birth_date"}]}
-{"id":"defect-birth-002","text":"22.08.1990 года рождения","spans":[{"value":"22.08.1990","category":"birth_date"}]}
-{"id":"defect-passdate-001","text":"выдан ТП №5 ОУФМС России по Республике Татарстан в г. Казани 18 августа 2019 года","spans":[{"value":"ТП №5 ОУФМС России по Республике Татарстан в г. Казани","category":"passport_issuer"},{"value":"18 августа 2019 года","category":"passport_date"}]}
-{"id":"defect-foreign-001","text":"иностранный паспорт 61 4074552","spans":[{"value":"61 4074552","category":"foreign_passport"}]}
-{"id":"defect-foreign-002","text":"паспорт иностранного гражданина 71 1234567","spans":[{"value":"71 1234567","category":"foreign_passport"}]}
-{"id":"defect-passport-001","text":"серия 45 75 № 841641","spans":[{"value":"45 75 № 841641","category":"passport"}]}
-{"id":"defect-passport-002","text":"45 75 № 841641","spans":[{"value":"45 75 № 841641","category":"passport"}]}
-{"id":"defect-issuer-001","text":"Паспорт выдан ГУ МВД России по г. Санкт-Петербургу и Ленинградской области, копия страницы приложена к делу.","spans":[{"value":"ГУ МВД России по г. Санкт-Петербургу и Ленинградской области","category":"passport_issuer"}]}
-{"id":"defect-birthplace-001","text":"Место рождения: аул Хучни Республики Дагестан","spans":[{"value":"аул Хучни Республики Дагестан","category":"birth_place"}]}
-{"id":"defect-birthplace-002","text":"Место рождения: д. Малиновка Брянской области","spans":[{"value":"д. Малиновка Брянской области","category":"birth_place"}]}
-{"id":"defect-card-001","text":"карта 5536470369258147 ","spans":[{"value":"5536470369258147","category":"card_number"}]}
-{"id":"defect-name-001","text":"ФИО: Ахметова Айгуль Расуловна","spans":[{"value":"Ахметова Айгуль Расуловна","category":"full_name"}]}
-{"id":"defect-name-002","text":"Оганесян Арам Самвелович","spans":[{"value":"Оганесян Арам Самвелович","category":"full_name"}]}
-{"id":"defect-name-003","text":"Мамедова Севиль Рустамовна","spans":[{"value":"Мамедова Севиль Рустамовна","category":"full_name"}]}
-{"id":"defect-name-004","text":"ДОВЕРЕННОСТЬ ВЫДАНА НА ИМЯ КИМ В.С.","spans":[{"value":"КИМ В.С.","category":"full_name"}]}
-{"id":"defect-citizen-001","text":"гражданин Республики Казахстан","spans":[{"value":"Республики Казахстан","category":"citizenship"}]}
-{"id":"defect-citizen-002","text":"гражданство РФ","spans":[{"value":"РФ","category":"citizenship"}]}
-{"id":"defect-citizen-003","text":"гражданка Российской Федерации","spans":[{"value":"Российской Федерации","category":"citizenship"}]}
-{"id":"defect-famous-001","text":"Александр Сергеевич Пушкин","spans":[]}
-{"id":"defect-famous-002","text":"Юрий Алексеевич Гагарин","spans":[]}
-{"id":"hard13b-addr-001","text":"Доставить на улица Гагарина, 5","spans":[{"value":"улица Гагарина, 5","category":"address"}]}
-{"id":"hard13b-addr-002","text":"снимаю на Профсоюзной 96 корпус 2, квартира 15","spans":[{"value":"Профсоюзной 96 корпус 2, квартира 15","category":"address"}]}
-{"id":"hard13b-addr-003","text":"живу на Тверской 5, квартира сорок два","spans":[{"value":"Тверской 5, квартира сорок два","category":"address"}]}
-{"id":"hard13b-addr-004","text":"Прописка: 350000, Краснодарский край, г. Краснодар, ул. Красная, 176, кв. 9. Фактически проживаю по адресу Ленинский пр-т, 10, кв. 300.","spans":[{"value":"350000, Краснодарский край, г. Краснодар, ул. Красная, 176, кв. 9","category":"address"},{"value":"Ленинский пр-т, 10, кв. 300","category":"address"}]}
-{"id":"hard13b-addr-005","text":"630099 Новосибирск, а/я 145","spans":[{"value":"630099 Новосибирск, а/я 145","category":"address"}]}
-{"id":"hard13b-addr-006","text":"Наш офис на ул. Ленина, 1 работает с 9 до 18, банкомат по адресу пр. Мира, 44 доступен круглосуточно.","spans":[]}
-{"id":"hard13b-cit-001","text":"Гражданство: Республика Корея","spans":[{"value":"Республика Корея","category":"citizenship"}]}
-{"id":"hard13b-cit-002","text":"Гражданство — Республика Беларусь","spans":[{"value":"Республика Беларусь","category":"citizenship"}]}
-{"id":"hard13b-cit-003","text":"Гражданство заявителя: Таджикистан","spans":[{"value":"Таджикистан","category":"citizenship"}]}
-{"id":"hard13b-cit-004","text":"гражданка Республики Армения","spans":[{"value":"Республики Армения","category":"citizenship"}]}
-{"id":"hard13b-cit-005","text":"гражданин Узбекистана Юсупов Бахтиёр","spans":[{"value":"Узбекистана","category":"citizenship"},{"value":"Юсупов Бахтиёр","category":"full_name"}]}
-{"id":"hard13b-cit-006","text":"Оператор: Гражданство?\nКлиент: Вьетнам","spans":[{"value":"Вьетнам","category":"citizenship"}]}
-{"id":"hard13b-bp-001","text":"уроженка г. Еревана, гражданка Республики Армения","spans":[{"value":"г. Еревана","category":"birth_place"},{"value":"Республики Армения","category":"citizenship"}]}
-{"id":"hard13b-bp-002","text":"родилась 05 мар 1985 в г. Набережные Челны, паспорт получала уже в Казани","spans":[{"value":"05 мар 1985","category":"birth_date"},{"value":"г. Набережные Челны","category":"birth_place"}]}
-{"id":"hard13b-bp-003","text":"место рожд.: пос. Красный Яр Астраханской обл.","spans":[{"value":"пос. Красный Яр Астраханской обл.","category":"birth_place"}]}
-{"id":"hard13b-bp-004","text":"место рождения — Челябинск","spans":[{"value":"Челябинск","category":"birth_place"}]}
-{"id":"hard13b-bp-005","text":"Родилась я в Ташкенте","spans":[{"value":"Ташкенте","category":"birth_place"}]}
-{"id":"hard13b-bp-006","text":"Она родилась в один день с бабушкой","spans":[]}
-{"id":"hard13b-pin-001","text":"Пароль от Wi-Fi 1234, пин-код от домофона 4321","spans":[]}
-{"id":"hard13b-cvv-001","text":"код с обратной стороны карты 321","spans":[{"value":"321","category":"cvv"}]}
-{"id":"hard13b-inn-001","text":"Организация: ИНН 7707083893, КПП 770701001, ОГРН 1027700132195","spans":[]}
-{"id":"hard13b-email-001","text":"Support: support@alfabank.ru работает круглосуточно","spans":[]}
-{"id":"hard13b-phone-001","text":"Горячая линия банка 8 800 200-00-00, бесплатно по России","spans":[]}
-{"id":"name13e-001","text":"клиент: ахметзянова зульфия ильгизовна","spans":[{"value":"ахметзянова зульфия ильгизовна","category":"full_name"}]}
-{"id":"name13e-002","text":"ФИО: ахметзянова зульфия ильгизовна","spans":[{"value":"ахметзянова зульфия ильгизовна","category":"full_name"}]}
-{"id":"name13e-003","text":"АБДУЛЛАЕВА СЕВИЛЬ ФАРИД КЫЗЫ","spans":[{"value":"АБДУЛЛАЕВА СЕВИЛЬ ФАРИД КЫЗЫ","category":"full_name"}]}
-{"id":"name13e-004","text":"Доверенность выдана Ильгизу Рамилевичу Хабибуллину","spans":[{"value":"Ильгизу Рамилевичу Хабибуллину","category":"full_name"}]}
-{"id":"name13e-005","text":"my name is Tigran Avakyan","spans":[{"value":"Tigran Avakyan","category":"full_name"}]}
-{"id":"name13e-006","text":"name: Ivanov Ivan","spans":[{"value":"Ivanov Ivan","category":"full_name"}]}
-{"id":"name13e-007","text":"Заявитель Nguyen Van Long","spans":[{"value":"Nguyen Van Long","category":"full_name"}]}
-{"id":"name13e-008","text":"Оператор: Как к вам обращаться?\nКлиент: Нгуен Тхи Хоа","spans":[{"value":"Нгуен Тхи Хоа","category":"full_name"}]}
-{"id":"name13e-009","text":"Данные для пропуска: ЛИ ЧЖИ ХУН","spans":[{"value":"ЛИ ЧЖИ ХУН","category":"full_name"}]}
-{"id":"name13e-010","text":"Сафина (Ганиева) Гульнара Ильдаровна","spans":[{"value":"Сафина (Ганиева) Гульнара Ильдаровна","category":"full_name"}]}
-{"id":"name13e-011","text":"компании «Пётр и Павел»","spans":[]}
-{"id":"name13e-012","text":"ООО «Иванов и партнёры»","spans":[]}
-{"id":"name13e-013","text":"Tigran Avakyan","spans":[]}
-{"id":"addr-org-001","text":"Стихи Александра Пушкина читали в отделении банка по адресу ул. Тверская, 12. Заказ 1234567890 на сумму 15000 руб.","spans":[]}
-{"id":"addr-org-002","text":"Отделение банка по адресу ул. Тверская, 12 работает до 20:00","spans":[]}
-{"id":"addr-delivery-001","text":"Доставить: ул. Тверская, 12. Заказ 1234567890","spans":[{"value":"ул. Тверская, 12","category":"address"}]}
-{"id":"birthplace-date-001","text":"родился 5 марта 1985 г. в г. Казани","spans":[{"value":"5 марта 1985 г","category":"birth_date"},{"value":"г. Казани","category":"birth_place"}]}
-{"id":"birthplace-date-002","text":"родилась 05.03.1985 г. в г. Казани","spans":[{"value":"05.03.1985","category":"birth_date"},{"value":"г. Казани","category":"birth_place"}]}
-{"id":"birthplace-date-003","text":"родился в 1985 году в г. Казани","spans":[{"value":"г. Казани","category":"birth_place"}]}
-{"id":"dateword-001","text":"пятого марта 1985 года","spans":[{"value":"пятого марта 1985 года","category":"date"}]}
-{"id":"dateword-002","text":"пятое марта 1985","spans":[{"value":"пятое марта 1985","category":"date"}]}
-{"id":"dateword-003","text":"двенадцатого мая тысяча девятьсот девяностого года","spans":[{"value":"двенадцатого мая тысяча девятьсот девяностого года","category":"date"}]}
-{"id":"dateword-004","text":"двадцать первого августа две тысячи девятнадцатого года","spans":[{"value":"двадцать первого августа две тысячи девятнадцатого года","category":"date"}]}
-{"id":"dateword-005","text":"ПЯТОГО МАРТА 1985 ГОДА","spans":[{"value":"ПЯТОГО МАРТА 1985 ГОДА","category":"date"}]}
-{"id":"dateword-006","text":"родился пятого марта 1985 года","spans":[{"value":"пятого марта 1985 года","category":"birth_date"}]}
-{"id":"ultra-passport-001","text":"Паспорт РФ 0304 № 771562","spans":[{"value":"0304 № 771562","category":"passport"}]}
-{"id":"ultra-passport-002","text":"клиент показал 4509 №123465 — опечатка","spans":[{"value":"4509 №123465","category":"passport"}]}
-{"id":"ultra-passport-003","text":"паспорт: с. 4509 н. 123456","spans":[{"value":"4509 н. 123456","category":"passport"}]}
-{"id":"ultra-passport-004","text":"9203 номер 604718","spans":[{"value":"9203 номер 604718","category":"passport"}]}
-{"id":"ultra-passport-005","text":"Паспорт: 2404 № 318077","spans":[{"value":"2404 № 318077","category":"passport"}]}
-{"id":"ultra-division-001","text":"код подразделения 770001","spans":[{"value":"770001","category":"division_code"}]}
-{"id":"ultra-division-002","text":"выдан, код 372-002","spans":[{"value":"372-002","category":"division_code"}]}
-{"id":"ultra-driver-001","text":"ВУ 7712345678, категории B, C","spans":[{"value":"7712345678","category":"driver_license"}]}
-{"id":"ultra-driver-002","text":"второй водитель — водительское удостоверение 9921087654","spans":[{"value":"9921087654","category":"driver_license"}]}
-{"id":"ultra-foreign-001","text":"паспорт иностранного гражданина AB1234567","spans":[{"value":"AB1234567","category":"foreign_passport"}]}
-{"id":"ultra-foreign-002","text":"паспорт иностранного гражданина C03871265","spans":[{"value":"C03871265","category":"foreign_passport"}]}
-{"id":"ultra-foreign-003","text":"паспорт иностранного гражданина AC4870162","spans":[{"value":"AC4870162","category":"foreign_passport"}]}
-{"id":"ultra-foreign-004","text":"паспорт иностранного гражданина AR0391745","spans":[{"value":"AR0391745","category":"foreign_passport"}]}
-{"id":"ultra-foreign-005","text":"паспорт иностранного гражданина E58329104","spans":[{"value":"E58329104","category":"foreign_passport"}]}
-{"id":"ultra-foreign-006","text":"паспорт иностранного гражданина 533418206","spans":[{"value":"533418206","category":"foreign_passport"}]}
-{"id":"ultra-snils-001","text":"снилс: 145 680 392 80","spans":[{"value":"145 680 392 80","category":"snils"}]}
-{"id":"ultra-snils-002","text":"СНИЛС 201-378-945-49 к заявлению","spans":[{"value":"201-378-945-49","category":"snils"}]}
-{"id":"ultra-inn-001","text":"Её ИНН 7729 0061 4723, запишите","spans":[{"value":"7729 0061 4723","category":"inn"}]}
-{"id":"ultra-phone-001","text":"Перезвоните по номеру (495) 123-45-67 после 18:00","spans":[{"value":"(495) 123-45-67","category":"phone"}]}
-{"id":"ultra-phone-002","text":"Для связи: 8 (4872) 36-01-22","spans":[{"value":"8 (4872) 36-01-22","category":"phone"}]}
-{"id":"ultra-phone-003","text":"рабочий 8 4872 11-22-33 доб. 105","spans":[{"value":"8 4872 11-22-33","category":"phone"}]}
-{"id":"ultra-phone-004","text":"телефон +998 90 123 45 67","spans":[{"value":"+998 90 123 45 67","category":"phone"}]}
-{"id":"ultra-phone-005","text":"телефон +86 138 1234 5678","spans":[{"value":"+86 138 1234 5678","category":"phone"}]}
-{"id":"ultra-phone-006","text":"Телефон: +7 (4932) 41-18-09","spans":[{"value":"+7 (4932) 41-18-09","category":"phone"}]}
-{"id":"ultra-phone-007","text":"звонить на 8-800-200-00-00","spans":[]}
-{"id":"ultra-phone-008","text":"звонить на 8 (800) 555-35-35","spans":[]}
-{"id":"ultra-cvv-001","text":"три цифры на обороте — 921","spans":[{"value":"921","category":"cvv"}]}
-{"id":"ultra-cvv-002","text":"На обороте: 507","spans":[{"value":"507","category":"cvv"}]}
-{"id":"ultra-cvv-003","text":"код с обратной стороны 604","spans":[{"value":"604","category":"cvv"}]}
-{"id":"ultra-cvv-004","text":"CVC: 043","spans":[{"value":"043","category":"cvv"}]}
-{"id":"ultra-pin-001","text":"код от карты — 2580","spans":[{"value":"2580","category":"pin"}]}
-{"id":"ultra-pin-002","text":"пин-код от карты 5536 9104 6872 0190 это 4071 или 4017","spans":[{"value":"5536 9104 6872 0190","category":"card_number"},{"value":"4071","category":"pin"},{"value":"4017","category":"pin"}]}
-{"id":"ultra-holder-001","text":"имя на карте ALEXANDRA VOLKOVA-BRANDT","spans":[{"value":"ALEXANDRA VOLKOVA-BRANDT","category":"card_holder"}]}
-{"id":"ultra-holder-002","text":"CARDHOLDER: OKSANA MELNYK\nCARD NO: 2201 9002 7463 8810","spans":[{"value":"OKSANA MELNYK","category":"card_holder"},{"value":"2201 9002 7463 8810","category":"card_number"}]}
-{"id":"ultra-holder-003","text":"Карта на имя ZULFIYA AKHMEDOVA","spans":[{"value":"ZULFIYA AKHMEDOVA","category":"card_holder"}]}
-{"id":"ultra-holder-004","text":"Эмбоссированное имя: MARIIA KOVALENKO. Номер карты: 4627 7930 0145 5828.","spans":[{"value":"MARIIA KOVALENKO","category":"card_holder"},{"value":"4627 7930 0145 5828","category":"card_number"}]}
-{"id":"ultra-holder-005","text":"На лицевой стороне: 5316 7402 8853 9041, VALID THRU 11/29, RUSLAN GAREEV.","spans":[{"value":"5316 7402 8853 9041","category":"card_number"},{"value":"RUSLAN GAREEV","category":"card_holder"}]}
-{"id":"ultra-name-001","text":"ДАТА РОЖДЕНИЯ: 14.07.1979","spans":[{"value":"14.07.1979","category":"birth_date"}]}
-{"id":"ultra-name-002","text":"ДаТа РоЖдЕнИя: 19.09.1988","spans":[{"value":"19.09.1988","category":"birth_date"}]}
-{"id":"ultra-name-003","text":"МЕСТО РОЖДЕНИЯ: КОПЕЙСК","spans":[{"value":"КОПЕЙСК","category":"birth_place"}]}
-{"id":"ultra-name-004","text":"Гагарина Юрия Алексеевича","spans":[]}
-{"id":"ultra-name-005","text":"зовут Каримов Бахтиёр","spans":[{"value":"Каримов Бахтиёр","category":"full_name"}]}
-{"id":"ultra-name-006","text":"доставка карты для Нгуен Тхи Лан","spans":[{"value":"Нгуен Тхи Лан","category":"full_name"}]}
-{"id":"ultra-name-007","text":"Бабушка написала в чат: внучок, я забыла, пин-код от карты 5536 9104 6872 0190 это 4071 или 4017? Роза Мусаевна.","spans":[{"value":"5536 9104 6872 0190","category":"card_number"},{"value":"4071","category":"pin"},{"value":"4017","category":"pin"},{"value":"Роза Мусаевна","category":"full_name"}]}
-{"id":"ultra-date-014a","text":"род. 12 окт 1969 в г. Орёл","spans":[{"value":"12 окт 1969","category":"birth_date"},{"value":"г. Орёл","category":"birth_place"}]}
-{"id":"ultra-date-014b","text":"{\"birth\": \"1995-02-17\", \"doc_issue\": \"15-03-2015\"}","spans":[{"value":"1995-02-17","category":"birth_date"},{"value":"15-03-2015","category":"passport_date"}]}
-{"id":"ultra-date-015a","text":"Назовите дату рождения.\nКлиент: Двадцать третьего февраля тысяча девятьсот семьдесят шестого.","spans":[{"value":"Двадцать третьего февраля тысяча девятьсот семьдесят шестого","category":"birth_date"}]}
-{"id":"ultra-date-015b","text":"родилась десятого октября тысяча девятьсот шестьдесят второго года в деревне","spans":[{"value":"десятого октября тысяча девятьсот шестьдесят второго года","category":"birth_date"}]}
-{"id":"ultra-date-016","text":"Родился я двенадцатого мая тысяча девятьсот девяностого года, а паспорт мне выдали двадцать первого августа две тысячи девятнадцатого года.","spans":[{"value":"двенадцатого мая тысяча девятьсот девяностого года","category":"birth_date"},{"value":"двадцать первого августа две тысячи девятнадцатого года","category":"passport_date"}]}
-{"id":"ultra-date-017","text":"ВУ 7712345678, категории B, C. Выдано 14.06.2018.","spans":[{"value":"7712345678","category":"driver_license"},{"value":"14.06.2018","category":"date"}]}
-{"id":"ultra-date-018a","text":"issue date 04.28.2011 (месяц.день.год), серия 6008 номер 215734.","spans":[{"value":"04.28.2011","category":"passport_date"},{"value":"6008 номер 215734","category":"passport"}]}
-{"id":"ultra-date-018b","text":"DOB (US format mm.dd.yyyy): 12.31.1975","spans":[{"value":"12.31.1975","category":"birth_date"}]}
-{"id":"task19-addr-001","text":"Страна: Россия\nИндекс: 119034\nГород: Москва\nУлица: Пречистенка\nДом: 17/9\nКвартира: 41","spans":[{"value":"Россия","category":"address"},{"value":"119034","category":"address"},{"value":"Москва","category":"address"},{"value":"Пречистенка","category":"address"},{"value":"17/9","category":"address"},{"value":"41","category":"address"}]}
-{"id":"task19-addr-002","text":"Индекс: 344018, Город: Ростов-на-Дону, Улица: Будённовский проспект, Дом: 97, Квартира: 12.","spans":[{"value":"344018","category":"address"},{"value":"Ростов-на-Дону","category":"address"},{"value":"Будённовский проспект","category":"address"},{"value":"97","category":"address"},{"value":"12","category":"address"}]}
-{"id":"task20-addr-001","text":"я проживаю на тверской 5, квартира 8, это центр","spans":[{"value":"тверской 5, квартира 8","category":"address"}]}
-{"id":"task20-addr-002","text":"регистрации: Республика","spans":[]}
-{"id":"task20-addr-003","text":"Конференция «ФинТех-2026» пройдёт в отеле по адресу: Санкт-Петербург, Невский пр., 57.","spans":[]}
-{"id":"task21-bp-001","text":"родился пятого марта тысяча девятьсот восемьдесят пятого года в городе Тула","spans":[{"value":"Тула","category":"birth_place"},{"value":"пятого марта тысяча девятьсот восемьдесят пятого года","category":"birth_date"}]}
-{"id":"task21-bp-002","text":"родилась десятого октября тысяча девятьсот шестьдесят второго года в деревне Малые Вяземы","spans":[{"value":"Малые Вяземы","category":"birth_place"},{"value":"десятого октября тысяча девятьсот шестьдесят второго года","category":"birth_date"}]}
-{"id":"task21-bp-003","text":"Место рождения: с. Большие Кайбицы Кайбицкого района Татарской АССР.","spans":[{"value":"с. Большие Кайбицы Кайбицкого района Татарской АССР","category":"birth_place"}]}
-{"id":"task22-cit-001","text":"гражданство Великобритании","spans":[{"value":"Великобритании","category":"citizenship"}]}
-{"id":"task22-cit-002","text":"гражданство ФРГ","spans":[{"value":"ФРГ","category":"citizenship"}]}
-{"id":"task22-cit-003","text":"гражданка Азербайджанской Республики","spans":[{"value":"Азербайджанской Республики","category":"citizenship"}]}
-{"id":"task23-iss-001","text":"паспорт 4001 №113578, выдан 31.01.2001 16 о/м Центрального р-на Санкт-Петербурга, код 782-016.","spans":[{"value":"16 о/м Центрального р-на Санкт-Петербурга","category":"passport_issuer"},{"value":"4001 №113578","category":"passport"},{"value":"31.01.2001","category":"passport_date"},{"value":"782-016","category":"division_code"}]}
-{"id":"task23-iss-002","text":"паспорт мне выдали двадцать первого августа две тысячи девятнадцатого года в МВД по Республике Башкортостан","spans":[{"value":"МВД по Республике Башкортостан","category":"passport_issuer"},{"value":"двадцать первого августа две тысячи девятнадцатого года","category":"passport_date"}]}
-{"id":"task23-iss-003","text":"Паспорт получен первого сентября две тысячи шестого года в ОВД района Сокол г. Москвы","spans":[{"value":"ОВД района Сокол г. Москвы","category":"passport_issuer"},{"value":"первого сентября две тысячи шестого года","category":"passport_date"}]}
-{"id":"task24-email-001","text":"To: support@alfabank.ru","spans":[]}
-{"id":"trap-issuer-001","text":"ИНН организации 7707083893. Пушкин написал стихи, отделение банка на Тверской. Иван Петров, паспорт 4509 123456, телефон +7 (916) 123-45-67, email ivan.petrov@mail.ru, СНИЛС 112-233-445 95, карта 4111 1111 1111 1111, дата рождения 12.03.1990, родился двенадцатого марта тысяча девятьсот девяностого года, место рождения: Тула.","spans":[{"value":"Иван Петров","category":"full_name"},{"value":"4509 123456","category":"passport"},{"value":"+7 (916) 123-45-67","category":"phone"},{"value":"ivan.petrov@mail.ru","category":"email"},{"value":"112-233-445 95","category":"snils"},{"value":"4111 1111 1111 1111","category":"card_number"},{"value":"12.03.1990","category":"birth_date"},{"value":"двенадцатого марта тысяча девятьсот девяностого года","category":"birth_date"},{"value":"Тула","category":"birth_place"}]}
+{"id": "passdate-009", "text": "Паспорт 4509 123456 выдан ОУФМС России по г. Москве по району Хамовники 12.05.2010, код подразделения 770-001", "spans": [{"value": "4509 123456", "category": "passport"}, {"value": "ОУФМС России по г. Москве по району Хамовники", "category": "passport_issuer"}, {"value": "12.05.2010", "category": "passport_date"}, {"value": "770-001", "category": "division_code"}]}
+{"id": "passdate-010", "text": "паспорт 4509 123456 выдан 12.05.2010, код подразделения 770-001", "spans": [{"value": "4509 123456", "category": "passport"}, {"value": "12.05.2010", "category": "passport_date"}, {"value": "770-001", "category": "division_code"}]}
+{"id": "birth-009", "text": "родился 12.05.1990, место рождения: г. Москва", "spans": [{"value": "12.05.1990", "category": "birth_date"}, {"value": "г. Москва", "category": "birth_place"}]}
+{"id": "birthplace-009", "text": "Место рождения: с. Ивановка Рязанской области", "spans": [{"value": "с. Ивановка Рязанской области", "category": "birth_place"}]}
+{"id": "birthplace-010", "text": "родился в с. Ивановка Рязанской области", "spans": [{"value": "с. Ивановка Рязанской области", "category": "birth_place"}]}
+{"id": "address-011", "text": "живёт в Казани, Кремлёвская 5", "spans": [{"value": "Казани, Кремлёвская 5", "category": "address"}]}
+{"id": "address-012", "text": "проживает в Москве, Тверская 10", "spans": [{"value": "Москве, Тверская 10", "category": "address"}]}
+{"id": "defect-email-001", "text": "лебедева30@gmail.com", "spans": [{"value": "лебедева30@gmail.com", "category": "email"}]}
+{"id": "defect-email-002", "text": "фeдоров92@gmail.com", "spans": [{"value": "фeдоров92@gmail.com", "category": "email"}]}
+{"id": "defect-email-003", "text": "иван@почта.рф", "spans": [{"value": "иван@почта.рф", "category": "email"}]}
+{"id": "defect-birth-001", "text": "16 июня 1980 года г.р.", "spans": [{"value": "16 июня 1980 года", "category": "birth_date"}]}
+{"id": "defect-birth-002", "text": "22.08.1990 года рождения", "spans": [{"value": "22.08.1990", "category": "birth_date"}]}
+{"id": "defect-passdate-001", "text": "выдан ТП №5 ОУФМС России по Республике Татарстан в г. Казани 18 августа 2019 года", "spans": [{"value": "ТП №5 ОУФМС России по Республике Татарстан в г. Казани", "category": "passport_issuer"}, {"value": "18 августа 2019 года", "category": "passport_date"}]}
+{"id": "defect-foreign-001", "text": "иностранный паспорт 61 4074552", "spans": [{"value": "61 4074552", "category": "foreign_passport"}]}
+{"id": "defect-foreign-002", "text": "паспорт иностранного гражданина 71 1234567", "spans": [{"value": "71 1234567", "category": "foreign_passport"}]}
+{"id": "defect-passport-001", "text": "серия 45 75 № 841641", "spans": [{"value": "45 75 № 841641", "category": "passport"}]}
+{"id": "defect-passport-002", "text": "45 75 № 841641", "spans": [{"value": "45 75 № 841641", "category": "passport"}]}
+{"id": "defect-issuer-001", "text": "Паспорт выдан ГУ МВД России по г. Санкт-Петербургу и Ленинградской области, копия страницы приложена к делу.", "spans": [{"value": "ГУ МВД России по г. Санкт-Петербургу и Ленинградской области", "category": "passport_issuer"}]}
+{"id": "defect-birthplace-001", "text": "Место рождения: аул Хучни Республики Дагестан", "spans": [{"value": "аул Хучни Республики Дагестан", "category": "birth_place"}]}
+{"id": "defect-birthplace-002", "text": "Место рождения: д. Малиновка Брянской области", "spans": [{"value": "д. Малиновка Брянской области", "category": "birth_place"}]}
+{"id": "defect-card-001", "text": "карта 5536470369258147 ", "spans": [{"value": "5536470369258147", "category": "card_number"}]}
+{"id": "defect-name-001", "text": "ФИО: Ахметова Айгуль Расуловна", "spans": [{"value": "Ахметова Айгуль Расуловна", "category": "full_name"}]}
+{"id": "defect-name-002", "text": "Оганесян Арам Самвелович", "spans": [{"value": "Оганесян Арам Самвелович", "category": "full_name"}]}
+{"id": "defect-name-003", "text": "Мамедова Севиль Рустамовна", "spans": [{"value": "Мамедова Севиль Рустамовна", "category": "full_name"}]}
+{"id": "defect-name-004", "text": "ДОВЕРЕННОСТЬ ВЫДАНА НА ИМЯ КИМ В.С.", "spans": [{"value": "КИМ В.С.", "category": "full_name"}]}
+{"id": "defect-citizen-001", "text": "гражданин Республики Казахстан", "spans": [{"value": "Республики Казахстан", "category": "citizenship"}]}
+{"id": "defect-citizen-002", "text": "гражданство РФ", "spans": [{"value": "РФ", "category": "citizenship"}]}
+{"id": "defect-citizen-003", "text": "гражданка Российской Федерации", "spans": [{"value": "Российской Федерации", "category": "citizenship"}]}
+{"id": "defect-famous-001", "text": "Александр Сергеевич Пушкин", "spans": []}
+{"id": "defect-famous-002", "text": "Юрий Алексеевич Гагарин", "spans": []}
+{"id": "hard13b-addr-001", "text": "Доставить на улица Гагарина, 5", "spans": [{"value": "улица Гагарина, 5", "category": "address"}]}
+{"id": "hard13b-addr-002", "text": "снимаю на Профсоюзной 96 корпус 2, квартира 15", "spans": [{"value": "Профсоюзной 96 корпус 2, квартира 15", "category": "address"}]}
+{"id": "hard13b-addr-003", "text": "живу на Тверской 5, квартира сорок два", "spans": [{"value": "Тверской 5, квартира сорок два", "category": "address"}]}
+{"id": "hard13b-addr-004", "text": "Прописка: 350000, Краснодарский край, г. Краснодар, ул. Красная, 176, кв. 9. Фактически проживаю по адресу Ленинский пр-т, 10, кв. 300.", "spans": [{"value": "350000, Краснодарский край, г. Краснодар, ул. Красная, 176, кв. 9", "category": "address"}, {"value": "Ленинский пр-т, 10, кв. 300", "category": "address"}]}
+{"id": "hard13b-addr-005", "text": "630099 Новосибирск, а/я 145", "spans": [{"value": "630099 Новосибирск, а/я 145", "category": "address"}]}
+{"id": "hard13b-addr-006", "text": "Наш офис на ул. Ленина, 1 работает с 9 до 18, банкомат по адресу пр. Мира, 44 доступен круглосуточно.", "spans": []}
+{"id": "hard13b-cit-001", "text": "Гражданство: Республика Корея", "spans": [{"value": "Республика Корея", "category": "citizenship"}]}
+{"id": "hard13b-cit-002", "text": "Гражданство — Республика Беларусь", "spans": [{"value": "Республика Беларусь", "category": "citizenship"}]}
+{"id": "hard13b-cit-003", "text": "Гражданство заявителя: Таджикистан", "spans": [{"value": "Таджикистан", "category": "citizenship"}]}
+{"id": "hard13b-cit-004", "text": "гражданка Республики Армения", "spans": [{"value": "Республики Армения", "category": "citizenship"}]}
+{"id": "hard13b-cit-005", "text": "гражданин Узбекистана Юсупов Бахтиёр", "spans": [{"value": "Узбекистана", "category": "citizenship"}, {"value": "Юсупов Бахтиёр", "category": "full_name"}]}
+{"id": "hard13b-cit-006", "text": "Оператор: Гражданство?\nКлиент: Вьетнам", "spans": [{"value": "Вьетнам", "category": "citizenship"}]}
+{"id": "hard13b-bp-001", "text": "уроженка г. Еревана, гражданка Республики Армения", "spans": [{"value": "г. Еревана", "category": "birth_place"}, {"value": "Республики Армения", "category": "citizenship"}]}
+{"id": "hard13b-bp-002", "text": "родилась 05 мар 1985 в г. Набережные Челны, паспорт получала уже в Казани", "spans": [{"value": "05 мар 1985", "category": "birth_date"}, {"value": "г. Набережные Челны", "category": "birth_place"}]}
+{"id": "hard13b-bp-003", "text": "место рожд.: пос. Красный Яр Астраханской обл.", "spans": [{"value": "пос. Красный Яр Астраханской обл.", "category": "birth_place"}]}
+{"id": "hard13b-bp-004", "text": "место рождения — Челябинск", "spans": [{"value": "Челябинск", "category": "birth_place"}]}
+{"id": "hard13b-bp-005", "text": "Родилась я в Ташкенте", "spans": [{"value": "Ташкенте", "category": "birth_place"}]}
+{"id": "hard13b-bp-006", "text": "Она родилась в один день с бабушкой", "spans": []}
+{"id": "hard13b-pin-001", "text": "Пароль от Wi-Fi 1234, пин-код от домофона 4321", "spans": []}
+{"id": "hard13b-cvv-001", "text": "код с обратной стороны карты 321", "spans": [{"value": "321", "category": "cvv"}]}
+{"id": "hard13b-inn-001", "text": "Организация: ИНН 7707083893, КПП 770701001, ОГРН 1027700132195", "spans": []}
+{"id": "hard13b-email-001", "text": "Support: support@alfabank.ru работает круглосуточно", "spans": []}
+{"id": "hard13b-phone-001", "text": "Горячая линия банка 8 800 200-00-00, бесплатно по России", "spans": []}
+{"id": "name13e-001", "text": "клиент: ахметзянова зульфия ильгизовна", "spans": [{"value": "ахметзянова зульфия ильгизовна", "category": "full_name"}]}
+{"id": "name13e-002", "text": "ФИО: ахметзянова зульфия ильгизовна", "spans": [{"value": "ахметзянова зульфия ильгизовна", "category": "full_name"}]}
+{"id": "name13e-003", "text": "АБДУЛЛАЕВА СЕВИЛЬ ФАРИД КЫЗЫ", "spans": [{"value": "АБДУЛЛАЕВА СЕВИЛЬ ФАРИД КЫЗЫ", "category": "full_name"}]}
+{"id": "name13e-004", "text": "Доверенность выдана Ильгизу Рамилевичу Хабибуллину", "spans": [{"value": "Ильгизу Рамилевичу Хабибуллину", "category": "full_name"}]}
+{"id": "name13e-005", "text": "my name is Tigran Avakyan", "spans": [{"value": "Tigran Avakyan", "category": "full_name"}]}
+{"id": "name13e-006", "text": "name: Ivanov Ivan", "spans": [{"value": "Ivanov Ivan", "category": "full_name"}]}
+{"id": "name13e-007", "text": "Заявитель Nguyen Van Long", "spans": [{"value": "Nguyen Van Long", "category": "full_name"}]}
+{"id": "name13e-008", "text": "Оператор: Как к вам обращаться?\nКлиент: Нгуен Тхи Хоа", "spans": [{"value": "Нгуен Тхи Хоа", "category": "full_name"}]}
+{"id": "name13e-009", "text": "Данные для пропуска: ЛИ ЧЖИ ХУН", "spans": [{"value": "ЛИ ЧЖИ ХУН", "category": "full_name"}]}
+{"id": "name13e-010", "text": "Сафина (Ганиева) Гульнара Ильдаровна", "spans": [{"value": "Сафина (Ганиева) Гульнара Ильдаровна", "category": "full_name"}]}
+{"id": "name13e-011", "text": "компании «Пётр и Павел»", "spans": []}
+{"id": "name13e-012", "text": "ООО «Иванов и партнёры»", "spans": []}
+{"id": "name13e-013", "text": "Tigran Avakyan", "spans": []}
+{"id": "addr-org-001", "text": "Стихи Александра Пушкина читали в отделении банка по адресу ул. Тверская, 12. Заказ 1234567890 на сумму 15000 руб.", "spans": []}
+{"id": "addr-org-002", "text": "Отделение банка по адресу ул. Тверская, 12 работает до 20:00", "spans": []}
+{"id": "addr-delivery-001", "text": "Доставить: ул. Тверская, 12. Заказ 1234567890", "spans": [{"value": "ул. Тверская, 12", "category": "address"}]}
+{"id": "birthplace-date-001", "text": "родился 5 марта 1985 г. в г. Казани", "spans": [{"value": "5 марта 1985 г", "category": "birth_date"}, {"value": "г. Казани", "category": "birth_place"}]}
+{"id": "birthplace-date-002", "text": "родилась 05.03.1985 г. в г. Казани", "spans": [{"value": "05.03.1985", "category": "birth_date"}, {"value": "г. Казани", "category": "birth_place"}]}
+{"id": "birthplace-date-003", "text": "родился в 1985 году в г. Казани", "spans": [{"value": "г. Казани", "category": "birth_place"}]}
+{"id": "dateword-001", "text": "пятого марта 1985 года", "spans": [{"value": "пятого марта 1985 года", "category": "date"}]}
+{"id": "dateword-002", "text": "пятое марта 1985", "spans": [{"value": "пятое марта 1985", "category": "date"}]}
+{"id": "dateword-003", "text": "двенадцатого мая тысяча девятьсот девяностого года", "spans": [{"value": "двенадцатого мая тысяча девятьсот девяностого года", "category": "date"}]}
+{"id": "dateword-004", "text": "двадцать первого августа две тысячи девятнадцатого года", "spans": [{"value": "двадцать первого августа две тысячи девятнадцатого года", "category": "date"}]}
+{"id": "dateword-005", "text": "ПЯТОГО МАРТА 1985 ГОДА", "spans": [{"value": "ПЯТОГО МАРТА 1985 ГОДА", "category": "date"}]}
+{"id": "dateword-006", "text": "родился пятого марта 1985 года", "spans": [{"value": "пятого марта 1985 года", "category": "birth_date"}]}
+{"id": "ultra-passport-001", "text": "Паспорт РФ 0304 № 771562", "spans": [{"value": "0304 № 771562", "category": "passport"}]}
+{"id": "ultra-passport-002", "text": "клиент показал 4509 №123465 — опечатка", "spans": [{"value": "4509 №123465", "category": "passport"}]}
+{"id": "ultra-passport-003", "text": "паспорт: с. 4509 н. 123456", "spans": [{"value": "4509 н. 123456", "category": "passport"}]}
+{"id": "ultra-passport-004", "text": "9203 номер 604718", "spans": [{"value": "9203 номер 604718", "category": "passport"}]}
+{"id": "ultra-passport-005", "text": "Паспорт: 2404 № 318077", "spans": [{"value": "2404 № 318077", "category": "passport"}]}
+{"id": "ultra-division-001", "text": "код подразделения 770001", "spans": [{"value": "770001", "category": "division_code"}]}
+{"id": "ultra-division-002", "text": "выдан, код 372-002", "spans": [{"value": "372-002", "category": "division_code"}]}
+{"id": "ultra-driver-001", "text": "ВУ 7712345678, категории B, C", "spans": [{"value": "7712345678", "category": "driver_license"}]}
+{"id": "ultra-driver-002", "text": "второй водитель — водительское удостоверение 9921087654", "spans": [{"value": "9921087654", "category": "driver_license"}]}
+{"id": "ultra-foreign-001", "text": "паспорт иностранного гражданина AB1234567", "spans": [{"value": "AB1234567", "category": "foreign_passport"}]}
+{"id": "ultra-foreign-002", "text": "паспорт иностранного гражданина C03871265", "spans": [{"value": "C03871265", "category": "foreign_passport"}]}
+{"id": "ultra-foreign-003", "text": "паспорт иностранного гражданина AC4870162", "spans": [{"value": "AC4870162", "category": "foreign_passport"}]}
+{"id": "ultra-foreign-004", "text": "паспорт иностранного гражданина AR0391745", "spans": [{"value": "AR0391745", "category": "foreign_passport"}]}
+{"id": "ultra-foreign-005", "text": "паспорт иностранного гражданина E58329104", "spans": [{"value": "E58329104", "category": "foreign_passport"}]}
+{"id": "ultra-foreign-006", "text": "паспорт иностранного гражданина 533418206", "spans": [{"value": "533418206", "category": "foreign_passport"}]}
+{"id": "ultra-snils-001", "text": "снилс: 145 680 392 80", "spans": [{"value": "145 680 392 80", "category": "snils"}]}
+{"id": "ultra-snils-002", "text": "СНИЛС 201-378-945-49 к заявлению", "spans": [{"value": "201-378-945-49", "category": "snils"}]}
+{"id": "ultra-inn-001", "text": "Её ИНН 7729 0061 4723, запишите", "spans": [{"value": "7729 0061 4723", "category": "inn"}]}
+{"id": "ultra-phone-001", "text": "Перезвоните по номеру (495) 123-45-67 после 18:00", "spans": [{"value": "(495) 123-45-67", "category": "phone"}]}
+{"id": "ultra-phone-002", "text": "Для связи: 8 (4872) 36-01-22", "spans": [{"value": "8 (4872) 36-01-22", "category": "phone"}]}
+{"id": "ultra-phone-003", "text": "рабочий 8 4872 11-22-33 доб. 105", "spans": [{"value": "8 4872 11-22-33", "category": "phone"}]}
+{"id": "ultra-phone-004", "text": "телефон +998 90 123 45 67", "spans": [{"value": "+998 90 123 45 67", "category": "phone"}]}
+{"id": "ultra-phone-005", "text": "телефон +86 138 1234 5678", "spans": [{"value": "+86 138 1234 5678", "category": "phone"}]}
+{"id": "ultra-phone-006", "text": "Телефон: +7 (4932) 41-18-09", "spans": [{"value": "+7 (4932) 41-18-09", "category": "phone"}]}
+{"id": "ultra-phone-007", "text": "звонить на 8-800-200-00-00", "spans": []}
+{"id": "ultra-phone-008", "text": "звонить на 8 (800) 555-35-35", "spans": []}
+{"id": "ultra-cvv-001", "text": "три цифры на обороте — 921", "spans": [{"value": "921", "category": "cvv"}]}
+{"id": "ultra-cvv-002", "text": "На обороте: 507", "spans": [{"value": "507", "category": "cvv"}]}
+{"id": "ultra-cvv-003", "text": "код с обратной стороны 604", "spans": [{"value": "604", "category": "cvv"}]}
+{"id": "ultra-cvv-004", "text": "CVC: 043", "spans": [{"value": "043", "category": "cvv"}]}
+{"id": "ultra-pin-001", "text": "код от карты — 2580", "spans": [{"value": "2580", "category": "pin"}]}
+{"id": "ultra-pin-002", "text": "пин-код от карты 5536 9104 6872 0190 это 4071 или 4017", "spans": [{"value": "5536 9104 6872 0190", "category": "card_number"}, {"value": "4071", "category": "pin"}, {"value": "4017", "category": "pin"}]}
+{"id": "ultra-holder-001", "text": "имя на карте ALEXANDRA VOLKOVA-BRANDT", "spans": [{"value": "ALEXANDRA VOLKOVA-BRANDT", "category": "card_holder"}]}
+{"id": "ultra-holder-002", "text": "CARDHOLDER: OKSANA MELNYK\nCARD NO: 2201 9002 7463 8810", "spans": [{"value": "OKSANA MELNYK", "category": "card_holder"}, {"value": "2201 9002 7463 8810", "category": "card_number"}]}
+{"id": "ultra-holder-003", "text": "Карта на имя ZULFIYA AKHMEDOVA", "spans": [{"value": "ZULFIYA AKHMEDOVA", "category": "card_holder"}]}
+{"id": "ultra-holder-004", "text": "Эмбоссированное имя: MARIIA KOVALENKO. Номер карты: 4627 7930 0145 5828.", "spans": [{"value": "MARIIA KOVALENKO", "category": "card_holder"}, {"value": "4627 7930 0145 5828", "category": "card_number"}]}
+{"id": "ultra-holder-005", "text": "На лицевой стороне: 5316 7402 8853 9041, VALID THRU 11/29, RUSLAN GAREEV.", "spans": [{"value": "5316 7402 8853 9041", "category": "card_number"}, {"value": "RUSLAN GAREEV", "category": "card_holder"}]}
+{"id": "ultra-name-001", "text": "ДАТА РОЖДЕНИЯ: 14.07.1979", "spans": [{"value": "14.07.1979", "category": "birth_date"}]}
+{"id": "ultra-name-002", "text": "ДаТа РоЖдЕнИя: 19.09.1988", "spans": [{"value": "19.09.1988", "category": "birth_date"}]}
+{"id": "ultra-name-003", "text": "МЕСТО РОЖДЕНИЯ: КОПЕЙСК", "spans": [{"value": "КОПЕЙСК", "category": "birth_place"}]}
+{"id": "ultra-name-004", "text": "Гагарина Юрия Алексеевича", "spans": []}
+{"id": "ultra-name-005", "text": "зовут Каримов Бахтиёр", "spans": [{"value": "Каримов Бахтиёр", "category": "full_name"}]}
+{"id": "ultra-name-006", "text": "доставка карты для Нгуен Тхи Лан", "spans": [{"value": "Нгуен Тхи Лан", "category": "full_name"}]}
+{"id": "ultra-name-007", "text": "Бабушка написала в чат: внучок, я забыла, пин-код от карты 5536 9104 6872 0190 это 4071 или 4017? Роза Мусаевна.", "spans": [{"value": "5536 9104 6872 0190", "category": "card_number"}, {"value": "4071", "category": "pin"}, {"value": "4017", "category": "pin"}, {"value": "Роза Мусаевна", "category": "full_name"}]}
+{"id": "ultra-date-014a", "text": "род. 12 окт 1969 в г. Орёл", "spans": [{"value": "12 окт 1969", "category": "birth_date"}, {"value": "г. Орёл", "category": "birth_place"}]}
+{"id": "ultra-date-014b", "text": "{\"birth\": \"1995-02-17\", \"doc_issue\": \"15-03-2015\"}", "spans": [{"value": "1995-02-17", "category": "birth_date"}, {"value": "15-03-2015", "category": "passport_date"}]}
+{"id": "ultra-date-015a", "text": "Назовите дату рождения.\nКлиент: Двадцать третьего февраля тысяча девятьсот семьдесят шестого.", "spans": [{"value": "Двадцать третьего февраля тысяча девятьсот семьдесят шестого", "category": "birth_date"}]}
+{"id": "ultra-date-015b", "text": "родилась десятого октября тысяча девятьсот шестьдесят второго года в деревне", "spans": [{"value": "десятого октября тысяча девятьсот шестьдесят второго года", "category": "birth_date"}]}
+{"id": "ultra-date-016", "text": "Родился я двенадцатого мая тысяча девятьсот девяностого года, а паспорт мне выдали двадцать первого августа две тысячи девятнадцатого года.", "spans": [{"value": "двенадцатого мая тысяча девятьсот девяностого года", "category": "birth_date"}, {"value": "двадцать первого августа две тысячи девятнадцатого года", "category": "passport_date"}]}
+{"id": "ultra-date-017", "text": "ВУ 7712345678, категории B, C. Выдано 14.06.2018.", "spans": [{"value": "7712345678", "category": "driver_license"}, {"value": "14.06.2018", "category": "date"}]}
+{"id": "ultra-date-018a", "text": "issue date 04.28.2011 (месяц.день.год), серия 6008 номер 215734.", "spans": [{"value": "04.28.2011", "category": "passport_date"}, {"value": "6008 номер 215734", "category": "passport"}]}
+{"id": "ultra-date-018b", "text": "DOB (US format mm.dd.yyyy): 12.31.1975", "spans": [{"value": "12.31.1975", "category": "birth_date"}]}
+{"id": "task19-addr-001", "text": "Страна: Россия\nИндекс: 119034\nГород: Москва\nУлица: Пречистенка\nДом: 17/9\nКвартира: 41", "spans": [{"value": "Россия", "category": "address"}, {"value": "119034", "category": "address"}, {"value": "Москва", "category": "address"}, {"value": "Пречистенка", "category": "address"}, {"value": "17/9", "category": "address"}, {"value": "41", "category": "address"}]}
+{"id": "task19-addr-002", "text": "Индекс: 344018, Город: Ростов-на-Дону, Улица: Будённовский проспект, Дом: 97, Квартира: 12.", "spans": [{"value": "344018", "category": "address"}, {"value": "Ростов-на-Дону", "category": "address"}, {"value": "Будённовский проспект", "category": "address"}, {"value": "97", "category": "address"}, {"value": "12", "category": "address"}]}
+{"id": "task20-addr-001", "text": "я проживаю на тверской 5, квартира 8, это центр", "spans": [{"value": "тверской 5, квартира 8", "category": "address"}]}
+{"id": "task20-addr-002", "text": "регистрации: Республика", "spans": []}
+{"id": "task20-addr-003", "text": "Конференция «ФинТех-2026» пройдёт в отеле по адресу: Санкт-Петербург, Невский пр., 57.", "spans": []}
+{"id": "task21-bp-001", "text": "родился пятого марта тысяча девятьсот восемьдесят пятого года в городе Тула", "spans": [{"value": "Тула", "category": "birth_place"}, {"value": "пятого марта тысяча девятьсот восемьдесят пятого года", "category": "birth_date"}]}
+{"id": "task21-bp-002", "text": "родилась десятого октября тысяча девятьсот шестьдесят второго года в деревне Малые Вяземы", "spans": [{"value": "Малые Вяземы", "category": "birth_place"}, {"value": "десятого октября тысяча девятьсот шестьдесят второго года", "category": "birth_date"}]}
+{"id": "task21-bp-003", "text": "Место рождения: с. Большие Кайбицы Кайбицкого района Татарской АССР.", "spans": [{"value": "с. Большие Кайбицы Кайбицкого района Татарской АССР", "category": "birth_place"}]}
+{"id": "task22-cit-001", "text": "гражданство Великобритании", "spans": [{"value": "Великобритании", "category": "citizenship"}]}
+{"id": "task22-cit-002", "text": "гражданство ФРГ", "spans": [{"value": "ФРГ", "category": "citizenship"}]}
+{"id": "task22-cit-003", "text": "гражданка Азербайджанской Республики", "spans": [{"value": "Азербайджанской Республики", "category": "citizenship"}]}
+{"id": "task23-iss-001", "text": "паспорт 4001 №113578, выдан 31.01.2001 16 о/м Центрального р-на Санкт-Петербурга, код 782-016.", "spans": [{"value": "16 о/м Центрального р-на Санкт-Петербурга", "category": "passport_issuer"}, {"value": "4001 №113578", "category": "passport"}, {"value": "31.01.2001", "category": "passport_date"}, {"value": "782-016", "category": "division_code"}]}
+{"id": "task23-iss-002", "text": "паспорт мне выдали двадцать первого августа две тысячи девятнадцатого года в МВД по Республике Башкортостан", "spans": [{"value": "МВД по Республике Башкортостан", "category": "passport_issuer"}, {"value": "двадцать первого августа две тысячи девятнадцатого года", "category": "passport_date"}]}
+{"id": "task23-iss-003", "text": "Паспорт получен первого сентября две тысячи шестого года в ОВД района Сокол г. Москвы", "spans": [{"value": "ОВД района Сокол г. Москвы", "category": "passport_issuer"}, {"value": "первого сентября две тысячи шестого года", "category": "passport_date"}]}
+{"id": "task24-email-001", "text": "To: support@alfabank.ru", "spans": []}
+{"id": "trap-issuer-001", "text": "ИНН организации 7707083893. Пушкин написал стихи, отделение банка на Тверской. Иван Петров, паспорт 4509 123456, телефон +7 (916) 123-45-67, email ivan.petrov@mail.ru, СНИЛС 112-233-445 95, карта 4111 1111 1111 1111, дата рождения 12.03.1990, родился двенадцатого марта тысяча девятьсот девяностого года, место рождения: Тула.", "spans": [{"value": "Иван Петров", "category": "full_name"}, {"value": "4509 123456", "category": "passport"}, {"value": "+7 (916) 123-45-67", "category": "phone"}, {"value": "ivan.petrov@mail.ru", "category": "email"}, {"value": "112-233-445 95", "category": "snils"}, {"value": "4111 1111 1111 1111", "category": "card_number"}, {"value": "12.03.1990", "category": "birth_date"}, {"value": "двенадцатого марта тысяча девятьсот девяностого года", "category": "birth_date"}, {"value": "Тула", "category": "birth_place"}]}
+{"id": "task25-mil-001", "text": "военный билет АБ 1234567", "spans": [{"value": "АБ 1234567", "category": "id_document"}]}
+{"id": "task25-mil-002", "text": "военный билет серия АБ номер 1234567", "spans": [{"value": "АБ номер 1234567", "category": "id_document"}]}
+{"id": "task25-rp-001", "text": "вид на жительство 82 №1234567", "spans": [{"value": "82 №1234567", "category": "id_document"}]}
+{"id": "task25-rp-002", "text": "ВНЖ 82 1234567", "spans": [{"value": "82 1234567", "category": "id_document"}]}
+{"id": "task25-bc-001", "text": "свидетельство о рождении II-МЮ №123456", "spans": [{"value": "II-МЮ №123456", "category": "id_document"}]}
+{"id": "task25-bc-002", "text": "свидетельство о рождении IV-АГ 654321", "spans": [{"value": "IV-АГ 654321", "category": "id_document"}]}
+{"id": "task25-neg-001", "text": "82 1234567", "spans": []}

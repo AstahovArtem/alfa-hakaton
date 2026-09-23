@@ -949,3 +949,98 @@ func TestTollFreeExcluded(t *testing.T) {
 		}
 	}
 }
+
+func TestMilitaryIDDetect(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{"positive", "военный билет АБ 1234567", true},
+		{"positiveNo", "военный билет АБ №1234567", true},
+		{"positiveWord", "военный билет серия АБ номер 1234567", true},
+		{"positiveContiguous", "военник АБ1234567", true},
+		{"positiveOfficer", "билет офицера запаса АБ 1234567", true},
+		{"positiveServiceman", "удостоверение военнослужащего АБ 1234567", true},
+		{"negativeNoContext", "АБ 1234567", false},
+		{"negativeLost", "военный билет утерян", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			res := runPipeline(t, c.in)
+			if got := hasCategory(t, res, pii.CatIDDocument); got != c.want {
+				t.Errorf("military_id detect %q = %v, want %v (spans: %+v)", c.in, got, c.want, res.Spans)
+			}
+		})
+	}
+}
+
+func TestResidencePermitDetect(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{"positive", "вид на жительство 82 №1234567", true},
+		{"positiveBare", "внж 82 1234567", true},
+		{"positiveVNZH", "ВНЖ 82 1234567", true},
+		{"positiveRVP", "разрешение на временное проживание 82 1234567", true},
+		{"negativeNoContext", "82 1234567", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			res := runPipeline(t, c.in)
+			if got := hasCategory(t, res, pii.CatIDDocument); got != c.want {
+				t.Errorf("residence_permit detect %q = %v, want %v (spans: %+v)", c.in, got, c.want, res.Spans)
+			}
+		})
+	}
+}
+
+func TestResidencePermitVsForeignPassport(t *testing.T) {
+	res := runPipeline(t, "загранпаспорт 82 1234567")
+	if !hasCategory(t, res, pii.CatForeignPassport) {
+		t.Errorf("expected foreign_passport for %q, got %+v", "загранпаспорт 82 1234567", res.Spans)
+	}
+	if hasCategory(t, res, pii.CatIDDocument) {
+		t.Errorf("residence_permit should not win over foreign_passport, got %+v", res.Spans)
+	}
+}
+
+func TestBirthCertificateDetect(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{"positive", "свидетельство о рождении II-МЮ №123456", true},
+		{"positiveBare", "свидетельство о рождении IV-АГ 654321", true},
+		{"positiveNoNo", "свидетельство о рождении II-МЮ 123456", true},
+		{"positiveAbbrev", "свид. о рождении II-МЮ №123456", true},
+		{"positiveSvvo", "св-во о рождении II-МЮ 123456", true},
+		{"negativeNoContext", "II-МЮ №123456", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			res := runPipeline(t, c.in)
+			if got := hasCategory(t, res, pii.CatIDDocument); got != c.want {
+				t.Errorf("birth_certificate detect %q = %v, want %v (spans: %+v)", c.in, got, c.want, res.Spans)
+			}
+		})
+	}
+}
+
+func TestIDDocumentSpanValue(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"военный билет АБ 1234567", "АБ 1234567"},
+		{"военный билет АБ №1234567", "АБ №1234567"},
+		{"вид на жительство 82 №1234567", "82 №1234567"},
+		{"свидетельство о рождении II-МЮ №123456", "II-МЮ №123456"},
+	}
+	for _, c := range cases {
+		assertSpanValue(t, runPipeline(t, c.in), pii.CatIDDocument, c.in, c.want)
+	}
+}
