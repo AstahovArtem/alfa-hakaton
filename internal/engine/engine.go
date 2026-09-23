@@ -14,13 +14,6 @@ import (
 	"pdn-shield/internal/store"
 )
 
-// chunkThreshold is the text size above which Mask splits the input into
-// chunks before running the pipeline.
-const chunkThreshold = 64 * 1024
-
-// chunkSize is the target chunk size in bytes.
-const chunkSize = 32 * 1024
-
 // ErrNotFound is returned when an id is unknown.
 var ErrNotFound = errors.New("engine: record not found")
 
@@ -297,121 +290,6 @@ func (e *Engine) maskWithRecord(
 	return MaskResult{Masked: masked, Found: found, Stages: stages}, nil
 }
 
-// maskChunked splits text into chunks, masks each chunk independently and
-// concatenates the results. Replacement offsets are shifted by the chunk
-// offset so they refer to the full masked text.
-func (e *Engine) maskChunked(
-	text string,
-	opt Options,
-	strategy mask.Strategy,
-	doc *mask.DocState,
-) (string, []mask.Replacement, map[pii.Category]int, Stages) {
-	var b strings.Builder
-	var reps []mask.Replacement
-	found := make(map[pii.Category]int)
-	var stages Stages
-	offset := 0
-	for _, chunk := range chunkText(text) {
-		detectStart := time.Now()
-		res := e.pipeline.Run(chunk)
-		stages.DetectMs += time.Since(detectStart).Milliseconds()
-
-		maskStart := time.Now()
-		spans := filterSpans(res.Spans, opt.Categories, opt.ComboRules)
-		masked, chunkReps := mask.Apply(chunk, spans, strategy, doc)
-		stages.MaskMs += time.Since(maskStart).Milliseconds()
-		for _, r := range chunkReps {
-			r.Start += offset
-			r.End += offset
-			reps = append(reps, r)
-		}
-		for c, n := range counts(spans) {
-			found[c] += n
-		}
-		b.WriteString(masked)
-		offset += len(masked)
-	}
-	return b.String(), reps, found, stages
-}
-
-// chunkText splits text into chunks of at most chunkSize bytes, breaking on
-// sentence or line boundaries so a word is never cut in half.
-func chunkText(text string) []string {
-	if len(text) <= chunkSize {
-		return []string{text}
-	}
-	var chunks []string
-	start := 0
-	for start < len(text) {
-		end := start + chunkSize
-		if end >= len(text) {
-			chunks = append(chunks, text[start:])
-			break
-		}
-		// Find a boundary at or before end: prefer a newline, then a sentence
-		// end, then a space.
-		cut := findBoundary(text, start, end)
-		chunks = append(chunks, text[start:cut])
-		start = cut
-	}
-	return chunks
-}
-
-// findBoundary returns the best split point in text[start:end], preferring a
-// newline, then a sentence end, then a space. It never splits a word.
-func findBoundary(text string, start, end int) int {
-	if cut := findNewline(text, start, end); cut > 0 {
-		return cut
-	}
-	if cut := findSentenceEnd(text, start, end); cut > 0 {
-		return cut
-	}
-	if cut := findSpace(text, start, end); cut > 0 {
-		return cut
-	}
-	// Fall back to the hard limit.
-	return end
-}
-
-// findNewline returns the last newline position in text[start:end], or 0.
-func findNewline(text string, start, end int) int {
-	for i := end; i > start; i-- {
-		if text[i-1] == '\n' {
-			return i
-		}
-	}
-	return 0
-}
-
-// findSentenceEnd returns the last sentence-end position in text[start:end],
-// consuming a following space, or 0.
-func findSentenceEnd(text string, start, end int) int {
-	for i := end; i > start; i-- {
-		if isSentenceEnd(text[i-1]) {
-			if i < len(text) && text[i] == ' ' {
-				return i + 1
-			}
-			return i
-		}
-	}
-	return 0
-}
-
-// findSpace returns the last space position in text[start:end], or 0.
-func findSpace(text string, start, end int) int {
-	for i := end; i > start; i-- {
-		if text[i-1] == ' ' {
-			return i
-		}
-	}
-	return 0
-}
-
-// isSentenceEnd reports whether b terminates a sentence.
-func isSentenceEnd(b byte) bool {
-	return b == '.' || b == '!' || b == '?'
-}
-
 // Unmask loads the mapping by id and restores the original text.
 func (e *Engine) Unmask(ctx context.Context, id, masked string) (string, int, error) {
 	res, err := e.UnmaskEx(ctx, id, masked)
@@ -503,46 +381,6 @@ func processExisting(rec store.Record, payload string, unmask bool) (ProcessResu
 	}
 	// Zero matches: return the payload as-is.
 	return ProcessResult{Result: payload, Misses: misses}, nil
-}
-
-// filterSpans drops spans whose category is not in categories and applies the
-// combo rules.
-func filterSpans(spans []pii.Span, categories []pii.Category, rules []ComboRule) []pii.Span {
-	wanted := make(map[pii.Category]bool)
-	for _, c := range categories {
-		wanted[c] = true
-	}
-	present := make(map[pii.Category]bool)
-	for _, s := range spans {
-		present[s.Category] = true
-	}
-	var out []pii.Span
-	for _, s := range spans {
-		if len(wanted) > 0 && !wanted[s.Category] {
-			continue
-		}
-		if !comboAllowed(s.Category, present, rules) {
-			continue
-		}
-		out = append(out, s)
-	}
-	return out
-}
-
-// comboAllowed reports whether a category may be masked given the combo rules.
-func comboAllowed(cat pii.Category, present map[pii.Category]bool, rules []ComboRule) bool {
-	for _, r := range rules {
-		if r.Category != cat {
-			continue
-		}
-		for _, req := range r.RequiresAny {
-			if present[req] {
-				return true
-			}
-		}
-		return false
-	}
-	return true
 }
 
 func counts(spans []pii.Span) map[pii.Category]int {
