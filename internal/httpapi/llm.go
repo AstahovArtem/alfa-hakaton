@@ -96,6 +96,7 @@ type sseChunk struct {
 		Delta struct {
 			Content string `json:"content"`
 		} `json:"delta"`
+		FinishReason *string `json:"finish_reason"`
 	} `json:"choices"`
 	Usage *usage `json:"usage"`
 }
@@ -166,15 +167,16 @@ func (c *LLMClient) chatCompletion(ctx context.Context, req chatRequest) (string
 }
 
 // errStreamNotTerminated is returned by readSSE when the upstream connection
-// ended without ever sending a "[DONE]" marker: the stream was cut short
-// (dropped connection, upstream crash, proxy truncation), so any content
-// collected so far cannot be trusted as complete.
+// ended without a "[DONE]" marker and without a finish_reason: the stream was
+// cut short (dropped connection, upstream crash, proxy truncation), so any
+// content collected so far cannot be trusted as complete.
 var errStreamNotTerminated = errors.New("llm: stream ended without [DONE]")
 
 // readSSE parses the SSE stream and concatenates delta.content fragments. It
 // also picks up a usage block when a chunk carries one (some gateways attach
-// it to the final chunk). A stream that ends without a "[DONE]" marker is
-// reported as an error rather than silently returning partial content.
+// it to the final chunk). A stream counts as complete when it sends "[DONE]"
+// or a chunk with a finish_reason (some gateways omit "[DONE]"); otherwise it
+// is reported as an error rather than silently returning partial content.
 func readSSE(r io.Reader) (string, usage, error) {
 	var content strings.Builder
 	var usage usage
@@ -197,6 +199,9 @@ func readSSE(r io.Reader) (string, usage, error) {
 		}
 		for _, ch := range chunk.Choices {
 			content.WriteString(ch.Delta.Content)
+			if ch.FinishReason != nil && *ch.FinishReason != "" {
+				sawDone = true
+			}
 		}
 		if chunk.Usage != nil {
 			usage = *chunk.Usage

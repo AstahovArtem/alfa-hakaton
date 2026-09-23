@@ -168,7 +168,8 @@
   async function loadSystems() {
     await fetch('/healthz');
     // The demo page does not know the system list from the API; use a fixed set.
-    const systems = ['checker', 'demo', 'chatbot', 'legacy_crm'];
+    // The keyless checker system works only on /process, so it is not listed.
+    const systems = ['demo', 'chatbot', 'legacy_crm'];
     const sel = byId('system');
     for (const s of systems) {
       const opt = document.createElement('option');
@@ -177,9 +178,7 @@
       sel.appendChild(opt);
     }
     const saved = localStorage.getItem('pdn_system');
-    if (saved) {
-      sel.value = saved;
-    }
+    sel.value = systems.includes(saved) ? saved : 'demo';
     const key = localStorage.getItem('pdn_key');
     if (key) {
       byId('apikey').value = key;

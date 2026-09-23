@@ -104,7 +104,7 @@ func TestChunkBoundarySweep(t *testing.T) {
 				}
 				id := fmt.Sprintf("%s-%d", tc.name, delta)
 
-				masked, found, err := e.Mask(ctx, id, text, Options{Strategy: "partial", TTL: time.Minute})
+				masked, found, err := e.Mask(ctx, id, text, Options{Strategy: "partial", TTL: time.Minute, SystemID: "test"})
 				if err != nil {
 					t.Fatalf("delta=%d: Mask: %v", delta, err)
 				}
@@ -119,7 +119,7 @@ func TestChunkBoundarySweep(t *testing.T) {
 					t.Fatalf("delta=%d: fixture bug, entity at [%d:%d) = %q", delta, start, end, text[start:end])
 				}
 
-				restored, misses, err := e.Unmask(ctx, id, masked)
+				restored, misses, err := e.Unmask(ctx, id, masked, Options{SystemID: "test"})
 				if err != nil {
 					t.Fatalf("delta=%d: Unmask: %v", delta, err)
 				}
@@ -166,7 +166,7 @@ func TestChunkComboRuleAcrossWindows(t *testing.T) {
 	e := testEngine(t)
 	ctx := context.Background()
 	rule := ComboRule{Category: pii.CatPIN, RequiresAny: []pii.Category{pii.CatCardNumber}}
-	opt := Options{Strategy: "partial", TTL: time.Minute, ComboRules: []ComboRule{rule}}
+	opt := Options{SystemID: "test", Strategy: "partial", TTL: time.Minute, ComboRules: []ComboRule{rule}}
 
 	for delta := -64; delta <= 64; delta += 8 {
 		text, pinStart, pinEnd := comboSweepText(delta, true)
@@ -189,7 +189,7 @@ func TestChunkComboRuleAcrossWindows(t *testing.T) {
 			t.Errorf("delta=%d: card leaked in masked output", delta)
 		}
 
-		restored, misses, err := e.Unmask(ctx, id, masked)
+		restored, misses, err := e.Unmask(ctx, id, masked, Options{SystemID: "test"})
 		if err != nil {
 			t.Fatalf("delta=%d: Unmask: %v", delta, err)
 		}
@@ -246,7 +246,7 @@ func wholeTextResult(e *Engine, text string, opt Options, strategy mask.Strategy
 func TestChunkedEquivalentToWhole(t *testing.T) {
 	e := testEngine(t)
 	strategy := e.resolveStrategy("partial")
-	opt := Options{Strategy: "partial"}
+	opt := Options{SystemID: "test", Strategy: "partial"}
 
 	sizes := []int{
 		1024,             // far below chunkThreshold: exercises the single-window fallback
@@ -302,7 +302,7 @@ func TestChunkLargeTextPerformance(t *testing.T) {
 	runtime.ReadMemStats(&msBefore)
 
 	start := time.Now()
-	masked, found, err := e.Mask(ctx, "big", text, Options{Strategy: "partial", TTL: time.Minute})
+	masked, found, err := e.Mask(ctx, "big", text, Options{Strategy: "partial", TTL: time.Minute, SystemID: "test"})
 	elapsed := time.Since(start)
 
 	runtime.ReadMemStats(&msAfter)
@@ -327,7 +327,7 @@ func TestChunkLargeTextPerformance(t *testing.T) {
 		t.Errorf("expected all categories detected, found=%v", found)
 	}
 
-	restored, misses, err := e.Unmask(ctx, "big", masked)
+	restored, misses, err := e.Unmask(ctx, "big", masked, Options{SystemID: "test"})
 	if err != nil {
 		t.Fatalf("Unmask: %v", err)
 	}
@@ -349,7 +349,7 @@ func TestChunkShortTextUnchanged(t *testing.T) {
 	e := testEngine(t)
 	ctx := context.Background()
 	strategy := e.resolveStrategy("partial")
-	opt := Options{Strategy: "partial", TTL: time.Minute}
+	opt := Options{SystemID: "test", Strategy: "partial", TTL: time.Minute}
 
 	texts := []string{
 		testText,
