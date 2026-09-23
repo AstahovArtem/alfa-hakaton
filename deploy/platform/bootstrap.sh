@@ -36,6 +36,8 @@
 #   REMOTE                ssh target, e.g. root@1.2.3.4 — run on the node via ssh
 #   KUBECONFIG            path to kubeconfig for the final kubectl apply
 #   HELM_REPO_*           override helm repo URLs (see defaults below)
+#   FORCE_SECRETS         set to 1 to regenerate pdn-shield-secrets even if it
+#                         already exists (default: leave an existing secret alone)
 
 set -euo pipefail
 
@@ -114,6 +116,11 @@ helmc() {
 # monitoring/values.tpl.yaml and headlamp/values.tpl.yaml) don't collide.
 render_templates() {
   log "Rendering templates into ${RENDER_DIR}"
+  if ! command -v envsubst >/dev/null 2>&1; then
+    log "envsubst not found, installing gettext-base"
+    run apt-get update -y
+    run apt-get install -y gettext-base
+  fi
   run mkdir -p "${RENDER_DIR}"
   export DOMAIN ACME_EMAIL SERVER_IP
   local tpl rel out
@@ -135,17 +142,29 @@ render_templates() {
 
 if [[ -n "${REMOTE}" ]]; then
   log "Running on remote node ${REMOTE}"
+  REMOTE_DIR="/tmp/pdn-deploy"
+  # deploy/ tree (this script's parent's parent), so the copy preserves the
+  # same platform/../k8s layout the script relies on for RENDER_DIR and
+  # `kc apply -k`.
+  DEPLOY_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+  DEPLOY_PARENT="$(dirname "${DEPLOY_ROOT}")"
   if [[ "${DRY_RUN}" -eq 1 ]]; then
-    echo "   [dry-run] would scp bootstrap.sh to ${REMOTE} and run it there"
+    echo "   [dry-run] would tar the deploy/ tree to ${REMOTE}:${REMOTE_DIR} and run bootstrap.sh there"
     exit 0
   fi
+  # Copy the whole deploy/ tree (platform/ + k8s/), not just this script: the
+  # script applies manifests and renders templates relative to its own
+  # location, and needs deploy/k8s as a sibling of deploy/platform.
+  log "Copying deploy/ tree to ${REMOTE}:${REMOTE_DIR}"
+  ssh "${REMOTE}" "mkdir -p '${REMOTE_DIR}'"
+  tar -C "${DEPLOY_PARENT}" -czf - deploy | ssh "${REMOTE}" "tar -C '${REMOTE_DIR}' -xzf -"
   # Re-invoke ourselves on the node with the same env, minus REMOTE.
-  scp -q "${BASH_SOURCE[0]}" "${REMOTE}:/tmp/pdn-bootstrap.sh"
   ssh "${REMOTE}" \
     "DOMAIN='${DOMAIN}' ACME_EMAIL='${ACME_EMAIL}' GRAFANA_ADMIN_PASSWORD='${GRAFANA_ADMIN_PASSWORD}' \
      SERVER_IP='${SERVER_IP}' PDN_ENC_KEY='${PDN_ENC_KEY:-}' MODEL_KEY='${MODEL_KEY:-}' \
      PDN_DEMO_KEY='${PDN_DEMO_KEY:-}' PDN_CHATBOT_KEY='${PDN_CHATBOT_KEY:-}' \
-     bash /tmp/pdn-bootstrap.sh"
+     FORCE_SECRETS='${FORCE_SECRETS:-}' \
+     bash '${REMOTE_DIR}/deploy/platform/bootstrap.sh'"
   exit $?
 fi
 
@@ -155,7 +174,8 @@ fi
 
 log "Step 1/9 — system packages and firewall"
 run apt-get update -y
-run apt-get install -y curl git jq ufw
+# gettext-base provides envsubst, used by render_templates below.
+run apt-get install -y curl git jq ufw gettext-base
 if [[ "${DRY_RUN}" -eq 1 ]]; then
   echo "   [dry-run] ufw allow 22,80,443,6443/tcp and enable"
 else
@@ -218,7 +238,9 @@ else
     --set installCRDs=true
 fi
 render_templates
-run kc apply -f "${RENDER_DIR}/cluster-issuers.yaml"
+# render_templates preserves the template's subdirectory layout, so both
+# cert-manager/*.tpl.yaml files land under RENDER_DIR/cert-manager/.
+run kc apply -f "${RENDER_DIR}/cert-manager/cluster-issuers.yaml"
 
 # ---------------------------------------------------------------------------
 # 5. namespace pdn, Redis, Middleware, Certificate
@@ -228,7 +250,7 @@ log "Step 5/9 — namespace pdn, Redis, middleware, certificate"
 run kc apply -f "${SCRIPT_DIR}/namespace.yaml"
 run kc apply -f "${SCRIPT_DIR}/redis.yaml"
 run kc apply -f "${SCRIPT_DIR}/traefik/https-redirect.yaml"
-run kc apply -f "${RENDER_DIR}/certificate.yaml"
+run kc apply -f "${RENDER_DIR}/cert-manager/certificate.yaml"
 
 # ---------------------------------------------------------------------------
 # 6. kube-prometheus-stack + ServiceMonitor + dashboard + Grafana ingress
@@ -287,21 +309,32 @@ fi
 # ---------------------------------------------------------------------------
 
 log "Step 8/9 — pdn-shield secrets"
-PDN_ENC_KEY="${PDN_ENC_KEY:-$(openssl rand -hex 32)}"
-MODEL_KEY="${MODEL_KEY:-$(openssl rand -hex 16)}"
-PDN_DEMO_KEY="${PDN_DEMO_KEY:-$(openssl rand -hex 16)}"
-PDN_CHATBOT_KEY="${PDN_CHATBOT_KEY:-$(openssl rand -hex 16)}"
-if [[ "${DRY_RUN}" -eq 1 ]]; then
-  echo "   [dry-run] create secret pdn-shield-secrets (PDN_ENC_KEY, MODEL_KEY, PDN_DEMO_KEY, PDN_CHATBOT_KEY)"
+FORCE_SECRETS="${FORCE_SECRETS:-0}"
+# Re-running bootstrap must never rotate existing secrets under the app's
+# feet (it would silently break decryption of already-stored records and
+# invalidate live API keys). Only (re)generate when the secret is missing,
+# or when the operator explicitly asks for it via FORCE_SECRETS=1.
+SECRET_EXISTS=0
+if [[ "${DRY_RUN}" -ne 1 ]] && kc -n pdn get secret pdn-shield-secrets >/dev/null 2>&1; then
+  SECRET_EXISTS=1
+fi
+if [[ "${SECRET_EXISTS}" -eq 1 && "${FORCE_SECRETS}" != "1" ]]; then
+  echo "   secret pdn-shield-secrets already exists, skipping (set FORCE_SECRETS=1 to regenerate)"
+elif [[ "${DRY_RUN}" -eq 1 ]]; then
+  echo "   [dry-run] create/refresh secret pdn-shield-secrets (PDN_ENC_KEY, MODEL_KEY, PDN_DEMO_KEY, PDN_CHATBOT_KEY)"
 else
+  PDN_ENC_KEY="${PDN_ENC_KEY:-$(openssl rand -hex 32)}"
+  MODEL_KEY="${MODEL_KEY:-$(openssl rand -hex 16)}"
+  PDN_DEMO_KEY="${PDN_DEMO_KEY:-$(openssl rand -hex 16)}"
+  PDN_CHATBOT_KEY="${PDN_CHATBOT_KEY:-$(openssl rand -hex 16)}"
   kc -n pdn create secret generic pdn-shield-secrets \
     --from-literal=PDN_ENC_KEY="${PDN_ENC_KEY}" \
     --from-literal=MODEL_KEY="${MODEL_KEY}" \
     --from-literal=PDN_DEMO_KEY="${PDN_DEMO_KEY}" \
     --from-literal=PDN_CHATBOT_KEY="${PDN_CHATBOT_KEY}" \
     --dry-run=client -o yaml | kc apply -f -
+  echo "   secret keys created: PDN_ENC_KEY MODEL_KEY PDN_DEMO_KEY PDN_CHATBOT_KEY (values not printed)"
 fi
-echo "   secret keys created: PDN_ENC_KEY MODEL_KEY PDN_DEMO_KEY PDN_CHATBOT_KEY (values not printed)"
 
 # ---------------------------------------------------------------------------
 # 9. Deploy the service

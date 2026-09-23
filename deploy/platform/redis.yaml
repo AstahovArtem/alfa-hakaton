@@ -18,19 +18,42 @@ spec:
       containers:
         - name: redis
           image: redis:7-alpine
+          # Every key we write carries a TTL (store.ttl, 1h — see configs/config.yaml),
+          # so eviction should always prefer the record closest to expiring anyway
+          # (volatile-ttl) over allkeys-lru, which can evict a mapping a client is
+          # about to /unmask even though it still has 55+ minutes of life left.
+          #
+          # Sizing: worst case is sustained writes for a full TTL window, i.e.
+          # 2000 req/s * 3600 s = 7,200,000 resident keys (mask does not delete on
+          # unmask, so a key lives its full TTL regardless). Each record is a
+          # compact JSON payload (short text + a handful of {c,o,m,s,e}
+          # replacements + a SHA-256 hash + a timestamp) AES-256-GCM sealed, plus
+          # the "pdn:<payload_id>" key and Redis' own per-key object/dict
+          # overhead — roughly 0.5-1 KiB per key for the short PII-bearing
+          # snippets this service handles. That puts full 1h saturation at
+          # ~3.5-7 GiB, more than this hackathon node (4 CPU / 8 GB, shared with
+          # k3s, monitoring and 3x pdn-shield) can dedicate to Redis alone.
+          # 1536mb is the practical ceiling for this stand: comfortable for
+          # normal traffic and short bursts, and under volatile-ttl a sustained
+          # 2000 RPS peak degrades gracefully by shedding the oldest (soonest to
+          # expire) entries first instead of evicting at random.
           args:
             - "--maxmemory"
-            - "512mb"
+            - "1536mb"
             - "--maxmemory-policy"
-            - "allkeys-lru"
+            - "volatile-ttl"
           ports:
             - containerPort: 6379
           resources:
             requests:
-              memory: "64Mi"
+              memory: "256Mi"
               cpu: "50m"
             limits:
-              memory: "768Mi"
+              # Headroom above maxmemory for Redis' own overhead (allocator
+              # fragmentation, connection buffers, replication/AOF buffers if
+              # ever enabled) — persistence stays off, matching the existing
+              # config.
+              memory: "2Gi"
               cpu: "500m"
 ---
 apiVersion: v1

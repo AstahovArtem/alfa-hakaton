@@ -23,5 +23,6 @@ COPY deploy/certs/russian_trusted_ca.pem /etc/ssl/certs/russian_trusted_ca.pem
 
 USER nonroot
 EXPOSE 8080
+EXPOSE 9090
 ENTRYPOINT ["/pdn-shield"]
 CMD ["-config", "/etc/pdn-shield/config.yaml"]

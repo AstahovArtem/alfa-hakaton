@@ -3,6 +3,8 @@ services:
     build: .
     ports:
       - "8080:8080"
+      # 9090 (metrics) is intentionally not published to the host: /metrics is
+      # for in-cluster/in-network scraping only, not the public interface.
     environment:
       PDN_ENC_KEY: ${PDN_ENC_KEY}
       MODEL_KEY: ${MODEL_KEY}
