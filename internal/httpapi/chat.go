@@ -1,6 +1,8 @@
 package httpapi
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -19,6 +21,27 @@ type chatRequestIn struct {
 	Strategy string `json:"strategy"`
 }
 
+// allowedRoles are the OpenAI chat message roles this proxy accepts. Anything
+// else is rejected before any masking or upstream call.
+var allowedRoles = map[string]bool{
+	"system":    true,
+	"user":      true,
+	"assistant": true,
+	"tool":      true,
+}
+
+// messagesHaveValidRoles reports whether every message's role is in
+// allowedRoles. It runs before masking or the upstream call, so a malformed
+// request never reaches the LLM.
+func messagesHaveValidRoles(messages []chatMessage) bool {
+	for _, m := range messages {
+		if !allowedRoles[m.Role] {
+			return false
+		}
+	}
+	return true
+}
+
 // handleChat proxies a chat completion request: masks all messages under one
 // id, calls the LLM, unmasks the response and returns a non-streaming answer.
 func (s *Server) handleChat(w http.ResponseWriter, r *http.Request) {
@@ -30,6 +53,10 @@ func (s *Server) handleChat(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(req.Messages) == 0 {
 		writeError(w, http.StatusBadRequest, "messages are required")
+		return
+	}
+	if !messagesHaveValidRoles(req.Messages) {
+		writeError(w, http.StatusBadRequest, "unknown message role")
 		return
 	}
 
@@ -110,13 +137,29 @@ func estimateTokens(messages []chatMessage) int {
 	return n
 }
 
-// handleLLMError writes the error response when the LLM call fails.
+// handleLLMError writes the error response when the LLM call fails. An
+// upstream timeout is reported as 504 (the client made a valid request but
+// the gateway did not answer in time); every other failure (unreachable,
+// 5xx, malformed/truncated stream) is a 502.
 func (s *Server) handleLLMError(w http.ResponseWriter, err error) {
 	s.logger.Error("llm unavailable", "err", err)
+	if isUpstreamTimeout(err) {
+		writeJSON(w, http.StatusGatewayTimeout, map[string]string{
+			"error":  "llm timeout",
+			"detail": "upstream model gateway did not respond in time",
+		})
+		return
+	}
 	writeJSON(w, http.StatusBadGateway, map[string]string{
 		"error":  "llm unavailable",
 		"detail": "upstream model gateway error",
 	})
+}
+
+// isUpstreamTimeout reports whether err stems from the LLM client's request
+// timeout expiring (net/http wraps this as a context.DeadlineExceeded).
+func isUpstreamTimeout(err error) bool {
+	return errors.Is(err, context.DeadlineExceeded)
 }
 
 // maskMessages masks all message contents under one id with a shared DocState
@@ -144,10 +187,22 @@ func (s *Server) maskMessages(
 			s.storeUnavailable(w, "save", err)
 			return "", nil, nil, engine.Stages{}, 0, false
 		}
+		if errors.Is(err, engine.ErrForeignRecord) {
+			// A freshly generated UUID collided with an existing record's id
+			// (astronomically unlikely); refuse rather than overwrite it.
+			writeError(w, http.StatusConflict, "id already in use")
+			return "", nil, nil, engine.Stages{}, 0, false
+		}
 		writeError(w, http.StatusInternalServerError, "masking failed")
 		return "", nil, nil, engine.Stages{}, 0, false
 	}
 	s.recordFound(mbres.Found)
+	if info := reqInfoFrom(r.Context()); info != nil {
+		info.found = mbres.Found
+	}
+	// The optional OpenAI "name" field on a message can carry PII (a display
+	// name); it is dropped rather than forwarded, since chatMessage has no
+	// Name field to copy it into.
 	maskedMessages := make([]chatMessage, len(req.Messages))
 	for i, m := range req.Messages {
 		maskedMessages[i] = chatMessage{Role: m.Role, Content: mbres.Masked[i]}
@@ -172,7 +227,7 @@ func (s *Server) unmaskAnswer(
 	if !sys.Unmask {
 		return content, true
 	}
-	ures, err := s.engine.UnmaskEx(r.Context(), id, content)
+	ures, err := s.engine.UnmaskEx(r.Context(), id, content, s.optionsFor(sys))
 	if err != nil {
 		if isStoreError(err) {
 			s.storeUnavailable(w, "load", err)

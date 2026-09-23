@@ -5,6 +5,7 @@ server:
   max_body_bytes: 2097152        # 2 MiB (~100k токенов кириллицы с запасом)
   max_inflight: 512              # больше — 429 с Retry-After: 1
   default_system: checker
+  metrics_addr: ":9090"          # /metrics только на отдельном порту
 store:
   kind: memory                   # memory | redis
   redis_addr: "redis.pdn.svc.cluster.local:6379"
@@ -15,8 +16,7 @@ llm:
   base_url: "https://alfagen.alfabank.ru/continue-dev/"
   api_key_env: MODEL_KEY
   model: "deepseek-ai/DeepSeek-V4-Flash-0731"
-  timeout: 60s
-  stream_only: true              # шлюз AlfaGen принимает только stream:true
+  timeout: 12s                   # < write_timeout, so the client gets a clean 502/504
 logging:
   level: info
   format: json

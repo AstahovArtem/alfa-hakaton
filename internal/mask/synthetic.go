@@ -3,7 +3,6 @@ package mask
 import (
 	"embed"
 	"hash/fnv"
-	"math"
 	// math/rand: deterministic fake values seeded by the input, not used for security.
 	"math/rand"
 	"strings"
@@ -161,19 +160,19 @@ func (s *syntheticStrategy) Mask(value string, cat pii.Category, doc *DocState) 
 func (s *syntheticStrategy) synthFor(value string, cat pii.Category, rng *rand.Rand, doc *DocState) string {
 	switch cat {
 	case pii.CatFullName:
-		return s.synthName(value, rng)
+		return s.synthName(value, cat, rng, doc)
 	case pii.CatPhone:
-		return synthPhone(value, rng)
+		return synthPhone(value, cat, rng, doc)
 	case pii.CatCardNumber:
-		return synthCard(value, rng)
+		return synthCard(value, cat, rng, doc)
 	case pii.CatINN:
-		return synthINN(value, rng)
+		return synthINN(value, cat, rng, doc)
 	case pii.CatSNILS:
-		return synthSNILS(value, rng)
+		return synthSNILS(value, cat, rng, doc)
 	case pii.CatPassport:
-		return synthPassport(value, rng)
+		return synthPassport(value, cat, rng, doc)
 	case pii.CatDate, pii.CatBirthDate, pii.CatPassportDate:
-		return synthDate(value, rng)
+		return synthDate(value, cat, rng, doc)
 	case pii.CatEmail:
 		return synthEmail(value, rng)
 	default:
@@ -181,18 +180,19 @@ func (s *syntheticStrategy) synthFor(value string, cat pii.Category, rng *rand.R
 	}
 }
 
-// newSeeded returns a deterministic RNG seeded from category+value.
+// newSeeded returns a deterministic RNG seeded from category+value. The
+// 64-bit FNV sum is folded into the int64 range by clearing the sign bit
+// rather than clamping to math.MaxInt64, so the full range of hash values
+// maps to distinct seeds instead of half of them collapsing onto one seed.
 func newSeeded(cat pii.Category, value string) *rand.Rand {
 	h := fnv.New64a()
 	_, _ = h.Write([]byte(string(cat)))
 	_, _ = h.Write([]byte{0})
 	_, _ = h.Write([]byte(value))
 	sum := h.Sum64()
-	if sum > math.MaxInt64 {
-		sum = math.MaxInt64
-	}
+	seed := int64(sum &^ (1 << 63))
 	// #nosec G404 -- deterministic fake values seeded by input, not security
-	return rand.New(rand.NewSource(int64(sum)))
+	return rand.New(rand.NewSource(seed))
 }
 
 // tokenFallback produces a [CATEGORY_N] token for categories without a
@@ -227,11 +227,13 @@ func itoa(n int) string {
 }
 
 // synthName builds a fake full name preserving the number of words and the
-// gender inferred from the patronymic/surname ending.
-func (s *syntheticStrategy) synthName(value string, rng *rand.Rand) string {
+// gender inferred from the patronymic/surname ending. It falls back to a
+// [CATEGORY_N] token when there is nothing to preserve the shape of, or the
+// name dictionaries failed to load.
+func (s *syntheticStrategy) synthName(value string, cat pii.Category, rng *rand.Rand, doc *DocState) string {
 	words := strings.Fields(value)
-	if len(words) == 0 {
-		return value
+	if len(words) == 0 || len(s.names) == 0 || len(s.surnames) == 0 || len(s.patrM) == 0 || len(s.patrF) == 0 {
+		return tokenFallback(value, cat, doc)
 	}
 	female := isFemaleName(value)
 	first := s.names[rng.Intn(len(s.names))]
@@ -295,48 +297,51 @@ func capitalize(s string) string {
 	return strings.ToUpper(string(first)) + s[size:]
 }
 
-// synthPhone replaces the digits after "+7 9" keeping the original separators.
-func synthPhone(value string, rng *rand.Rand) string {
+// synthPhone replaces the digits after "+7 9" keeping the original
+// separators. Numbers that do not have the expected 11 digits (e.g. a foreign
+// number) fall back to a token rather than leaking the original.
+func synthPhone(value string, cat pii.Category, rng *rand.Rand, doc *DocState) string {
 	digits := digitsOnly(value)
 	if len(digits) != 11 {
-		return value
+		return tokenFallback(value, cat, doc)
 	}
 	return applyDigits(value, synth.Phone(rng))
 }
 
 // synthCard builds a 16-digit card with a valid Luhn and a 4xxx/5xxx BIN,
 // keeping the original separators.
-func synthCard(value string, rng *rand.Rand) string {
+func synthCard(value string, cat pii.Category, rng *rand.Rand, doc *DocState) string {
 	digits := digitsOnly(value)
 	if len(digits) < 13 || len(digits) > 19 {
-		return value
+		return tokenFallback(value, cat, doc)
 	}
 	return applyDigits(value, synth.Card(rng))
 }
 
-// synthINN builds a 12-digit INN with valid control sums.
-func synthINN(value string, rng *rand.Rand) string {
+// synthINN builds a 12-digit INN with valid control sums. A 10-digit
+// (organization) INN or any other length falls back to a token.
+func synthINN(value string, cat pii.Category, rng *rand.Rand, doc *DocState) string {
 	digits := digitsOnly(value)
 	if len(digits) != 12 {
-		return value
+		return tokenFallback(value, cat, doc)
 	}
 	return applyDigits(value, synth.INN(rng))
 }
 
 // synthSNILS builds an 11-digit SNILS with a valid control number.
-func synthSNILS(value string, rng *rand.Rand) string {
+func synthSNILS(value string, cat pii.Category, rng *rand.Rand, doc *DocState) string {
 	digits := digitsOnly(value)
 	if len(digits) != 11 {
-		return value
+		return tokenFallback(value, cat, doc)
 	}
 	return applyDigits(value, synth.SNILS(rng))
 }
 
 // synthPassport builds a 4+6 digit passport with series 4[0-9]{3}.
-func synthPassport(value string, rng *rand.Rand) string {
+func synthPassport(value string, cat pii.Category, rng *rand.Rand, doc *DocState) string {
 	digits := digitsOnly(value)
 	if len(digits) != 10 {
-		return value
+		return tokenFallback(value, cat, doc)
 	}
 	return applyDigits(value, synth.Passport(rng))
 }
@@ -360,11 +365,11 @@ func isWordDate(value string) bool {
 }
 
 // synthDate builds a random valid date in 1950-2005 in the same format.
-func synthDate(value string, rng *rand.Rand) string {
+func synthDate(value string, cat pii.Category, rng *rand.Rand, doc *DocState) string {
 	if isWordDate(value) {
 		return synthDateWord(value, rng)
 	}
-	return synthDateNumeric(value, rng)
+	return synthDateNumeric(value, cat, rng, doc)
 }
 
 // synthDateWord builds a word-form date "<day> <month genitive> <year>
@@ -382,8 +387,9 @@ func synthDateWord(value string, rng *rand.Rand) string {
 
 // synthDateNumeric builds a numeric date in the same format and with the same
 // separators as the source. Supported formats: dd.mm.yyyy, dd/mm/yyyy,
-// dd-mm-yyyy, yyyy-mm-dd, yyyy.mm.dd and dd.mm.yy.
-func synthDateNumeric(value string, rng *rand.Rand) string {
+// dd-mm-yyyy, yyyy-mm-dd, yyyy.mm.dd and dd.mm.yy. Anything else (no
+// separator found, or an unsupported digit count) falls back to a token.
+func synthDateNumeric(value string, cat pii.Category, rng *rand.Rand, doc *DocState) string {
 	sep := byte(0)
 	for i := 0; i < len(value); i++ {
 		if value[i] < '0' || value[i] > '9' {
@@ -392,7 +398,7 @@ func synthDateNumeric(value string, rng *rand.Rand) string {
 		}
 	}
 	if sep == 0 {
-		return value
+		return tokenFallback(value, cat, doc)
 	}
 	digits := digitsOnly(value)
 	year := 1950 + rng.Intn(56)
@@ -410,7 +416,7 @@ func synthDateNumeric(value string, rng *rand.Rand) string {
 		}
 		return dd + string(sep) + mm + string(sep) + yy
 	default:
-		return value
+		return tokenFallback(value, cat, doc)
 	}
 }
 

@@ -3,17 +3,21 @@ package httpapi
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"net/http"
 	"time"
 
 	"pdn-shield/internal/engine"
+	"pdn-shield/internal/metrics"
 	"pdn-shield/internal/pii"
 )
 
-// processRequest is the checker contract body.
+// processRequest is the checker contract body. Payload is a pointer so a
+// request that omits the field entirely (400) can be told apart from one that
+// explicitly sends an empty string (allowed).
 type processRequest struct {
-	Payload   string `json:"payload"`
-	PayloadID string `json:"payload_id"`
+	Payload   *string `json:"payload"`
+	PayloadID string  `json:"payload_id"`
 }
 
 // processResponse is the checker contract response.
@@ -28,21 +32,31 @@ func (s *Server) handleProcess(w http.ResponseWriter, r *http.Request) {
 	if err := readJSON(w, r, &req); err != nil {
 		return
 	}
+	if req.Payload == nil {
+		writeError(w, http.StatusBadRequest, "payload is required")
+		return
+	}
 	if req.PayloadID == "" {
 		writeError(w, http.StatusBadRequest, "payload_id is required")
 		return
 	}
+	if !validPayloadID(req.PayloadID) {
+		writeError(w, http.StatusBadRequest, "payload_id too long")
+		return
+	}
+	payload := *req.Payload
 
 	info := reqInfoFrom(r.Context())
 	if info != nil {
 		info.payloadID = req.PayloadID
-		info.textLen = len(req.Payload)
+		info.textLen = len(payload)
+		info.tokens = metrics.EstimateTokens(payload)
 	}
 
 	sys := s.systemFrom(r)
 	opt := s.optionsFor(sys)
 
-	res, err := s.engine.Process(r.Context(), req.PayloadID, req.Payload, opt)
+	res, err := s.engine.Process(r.Context(), req.PayloadID, payload, opt)
 	if err != nil {
 		s.handleProcessError(w, err)
 		return
@@ -53,7 +67,7 @@ func (s *Server) handleProcess(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if res.Unmasked && res.Misses > 0 {
-		s.logger.Warn("process unmask with misses", "payload_id", req.PayloadID, "misses", res.Misses)
+		s.logger.Warn("process unmask with misses", "payload_id", s.store.HashID(req.PayloadID), "misses", res.Misses)
 	}
 	if res.Found != nil {
 		s.recordFound(res.Found)
@@ -108,6 +122,10 @@ func (s *Server) handleMask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "text is required")
 		return
 	}
+	if !validPayloadID(req.ID) {
+		writeError(w, http.StatusBadRequest, "id too long")
+		return
+	}
 	id, ok := resolveMaskID(w, req.ID)
 	if !ok {
 		return
@@ -138,6 +156,7 @@ func (s *Server) handleMask(w http.ResponseWriter, r *http.Request) {
 		info.textLen = len(req.Text)
 		info.found = found
 		info.stages = mres.Stages
+		info.tokens = metrics.EstimateTokens(req.Text)
 	}
 
 	writeJSON(w, http.StatusOK, maskResponse{
@@ -173,6 +192,12 @@ func writeStrategyError(w http.ResponseWriter, status int) {
 
 // handleMaskError writes the appropriate error response for a MaskEx failure.
 func (s *Server) handleMaskError(w http.ResponseWriter, err error) {
+	if errors.Is(err, engine.ErrForeignRecord) {
+		// The id is already in use by another system's record: never
+		// overwrite it, and never reveal that it exists beyond "taken".
+		writeError(w, http.StatusConflict, "id already in use")
+		return
+	}
 	if isStoreError(err) {
 		s.storeUnavailable(w, "save", err)
 		return
@@ -207,7 +232,12 @@ func (s *Server) handleUnmask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "id and text are required")
 		return
 	}
-	ures, err := s.engine.UnmaskEx(r.Context(), req.ID, req.Text)
+	if !validPayloadID(req.ID) {
+		writeError(w, http.StatusBadRequest, "id too long")
+		return
+	}
+	opt := s.optionsFor(sys)
+	ures, err := s.engine.UnmaskEx(r.Context(), req.ID, req.Text, opt)
 	if err != nil {
 		if isStoreError(err) {
 			s.storeUnavailable(w, opLoad, err)
@@ -218,6 +248,7 @@ func (s *Server) handleUnmask(w http.ResponseWriter, r *http.Request) {
 	}
 	if info := reqInfoFrom(r.Context()); info != nil {
 		info.payloadID = req.ID
+		info.tokens = metrics.EstimateTokens(req.Text)
 		info.direction = dirUnmask
 		info.textLen = len(req.Text)
 		info.misses = ures.Misses
@@ -226,9 +257,14 @@ func (s *Server) handleUnmask(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, unmaskResponse{Text: ures.Restored, Misses: ures.Misses})
 }
 
-// systemFrom returns the authenticated system from the request context.
+// systemFrom returns the authenticated system that wrap() attached to the
+// request context. It falls back to re-resolving from headers only when
+// called outside the normal wrap() path (e.g. directly from a test), so it
+// never silently resolves to a system wrap() did not actually authenticate.
 func (s *Server) systemFrom(r *http.Request) *configSystem {
-	// The system is resolved in wrap(); here we re-resolve cheaply.
+	if sys := systemFromCtx(r.Context()); sys != nil {
+		return sys
+	}
 	return s.resolveSystem(r)
 }
 

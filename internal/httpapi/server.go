@@ -6,6 +6,7 @@ import (
 	"embed"
 	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -18,6 +19,11 @@ import (
 	"pdn-shield/internal/metrics"
 	"pdn-shield/internal/store"
 )
+
+// maxPayloadIDBytes bounds any caller-supplied id (payload_id, /mask id,
+// /unmask id) so an oversized id cannot be used to pad requests or abuse the
+// store.
+const maxPayloadIDBytes = 256
 
 //go:embed static/index.html
 var staticFS embed.FS
@@ -82,7 +88,10 @@ func New(cfg *config.Config, eng *engine.Engine, st store.Store, m *metrics.Metr
 	return s
 }
 
-// Handler returns the root http.Handler with all routes registered.
+// Handler returns the root http.Handler with all routes registered. When
+// server.metrics_addr is set, /metrics is served only on the separate
+// listener started by main.go (see MetricsHandler) and left off this mux;
+// when it is empty, /metrics stays here for backward compatibility.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /process", s.wrap(s.handleProcess, routeProcess))
@@ -91,62 +100,84 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/chat/completions", s.wrap(s.handleChat, routeChat))
 	mux.HandleFunc("GET /healthz", s.wrap(s.handleHealthz, routeHealthz))
 	mux.HandleFunc("GET /readyz", s.wrap(s.handleReadyz, routeReadyz))
-	mux.HandleFunc("GET /metrics", promhttp.HandlerFor(s.metrics.Registry, promhttp.HandlerOpts{}).ServeHTTP)
+	if s.cfg.Server.MetricsAddr == "" {
+		mux.Handle("GET /metrics", s.MetricsHandler())
+	}
 	mux.HandleFunc("GET /", s.handleIndex)
 	return mux
 }
 
+// MetricsHandler returns the standalone /metrics handler, for either the main
+// mux (when server.metrics_addr is empty) or a separate listener (when it is
+// set; see cmd/pdn-shield/main.go).
+func (s *Server) MetricsHandler() http.Handler {
+	return promhttp.HandlerFor(s.metrics.Registry, promhttp.HandlerOpts{})
+}
+
 // wrap applies backpressure, metrics and request logging around a handler.
+// Every outcome -- a 429 from backpressure, a 401/403 from auth, or the
+// handler's own response -- goes through the same request-log line and the
+// same RequestsTotal counter, so no rejected request is invisible in metrics
+// or logs.
 func (s *Server) wrap(h http.HandlerFunc, route string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		if !s.acquireSlot(w) {
-			return
-		}
-		s.applyBodyLimit(w, r)
-
-		// Identify the system. /process allows the default system; health
-		// endpoints are public.
-		allowDefault := route == routeProcess
-		public := route == routeHealthz || route == routeReadyz
-		var auth authResult
-		if !public {
-			auth = s.authenticate(r, allowDefault)
-			if auth.status != 0 {
-				s.metrics.RequestsTotal.WithLabelValues(route, "unknown", strconv.Itoa(auth.status)).Inc()
-				s.metrics.Rejected.WithLabelValues("auth").Inc()
-				writeError(w, auth.status, "system not allowed")
-				return
-			}
-		}
-
-		// Wrap the response writer to capture the status code.
 		sw := &statusWriter{ResponseWriter: w, status: http.StatusOK}
 
 		// Attach the per-request log info so handlers can record payload id,
 		// direction, counts and stage timings.
 		ctx, info := withReqInfo(r.Context())
-		h(sw, r.WithContext(ctx))
+		r = r.WithContext(ctx)
+
+		release, acquired := s.acquireSlot(sw)
+		if !acquired {
+			s.logRequest(route, start, sw, authResult{}, info)
+			return
+		}
+		defer release()
+
+		s.applyBodyLimit(sw, r)
+
+		// Identify the system. /process allows the default system; health
+		// endpoints are public.
+		public := route == routeHealthz || route == routeReadyz
+		var auth authResult
+		if !public {
+			auth = s.authenticate(r, route)
+			if auth.status != 0 {
+				s.metrics.Rejected.WithLabelValues("auth").Inc()
+				writeError(sw, auth.status, "system not allowed")
+				s.logRequest(route, start, sw, auth, info)
+				return
+			}
+			r = r.WithContext(withSystem(r.Context(), auth.system))
+		}
+
+		h(sw, r)
 
 		s.logRequest(route, start, sw, auth, info)
 	}
 }
 
-// acquireSlot applies backpressure by acquiring the inflight slot, returning
-// false (and writing a 429) when the slot is unavailable.
-func (s *Server) acquireSlot(w http.ResponseWriter) bool {
+// acquireSlot applies backpressure by acquiring the inflight slot. On success
+// it returns a release function the caller must defer for the lifetime of
+// the whole request (not just this call) so the slot and the Inflight gauge
+// stay held until the handler has actually finished, and true. On failure it
+// writes a 429 with Retry-After and returns a no-op release and false.
+func (s *Server) acquireSlot(w http.ResponseWriter) (release func(), acquired bool) {
 	select {
 	case s.sem <- struct{}{}:
-		defer func() { <-s.sem }()
+		s.metrics.Inflight.Inc()
+		return func() {
+			s.metrics.Inflight.Dec()
+			<-s.sem
+		}, true
 	default:
 		s.metrics.Rejected.WithLabelValues("inflight").Inc()
 		w.Header().Set("Retry-After", "1")
 		writeError(w, http.StatusTooManyRequests, "too many requests")
-		return false
+		return func() {}, false
 	}
-	s.metrics.Inflight.Inc()
-	defer s.metrics.Inflight.Dec()
-	return true
 }
 
 // applyBodyLimit wraps the request body with a size limit when configured.
@@ -156,15 +187,17 @@ func (s *Server) applyBodyLimit(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// logRequest emits one log line per request, never with PII values or span text.
+// logRequest emits one log line per request, never with PII values, span text
+// or the raw payload id (only a short HMAC of it, safe to correlate without
+// revealing the id itself).
 func (s *Server) logRequest(route string, start time.Time, sw *statusWriter, auth authResult, info *reqInfo) {
 	dur := time.Since(start)
-	systemID := "public"
-	if auth.system != nil {
-		systemID = auth.system.ID
-	}
+	systemID := systemLabel(route, auth)
 	s.metrics.RequestsTotal.WithLabelValues(route, systemID, strconv.Itoa(sw.status)).Inc()
 	s.metrics.RequestDuration.WithLabelValues(route).Observe(dur.Seconds())
+	if info.tokens > 0 {
+		s.metrics.Tokens.WithLabelValues(route).Add(float64(info.tokens))
+	}
 
 	attrs := []any{
 		fieldSystem, systemID,
@@ -174,7 +207,7 @@ func (s *Server) logRequest(route string, start time.Time, sw *statusWriter, aut
 		"duration_ms", dur.Milliseconds(),
 	}
 	if info.payloadID != "" {
-		attrs = append(attrs, fieldPayloadID, info.payloadID)
+		attrs = append(attrs, fieldPayloadID, s.store.HashID(info.payloadID))
 	}
 	if info.textLen > 0 {
 		attrs = append(attrs, "text_len", info.textLen)
@@ -188,6 +221,9 @@ func (s *Server) logRequest(route string, start time.Time, sw *statusWriter, aut
 	if info.misses > 0 {
 		attrs = append(attrs, fieldMisses, info.misses)
 	}
+	if info.tokens > 0 {
+		attrs = append(attrs, "tokens", info.tokens)
+	}
 	attrs = append(attrs, "detect_ms", info.stages.DetectMs)
 	attrs = append(attrs, "mask_ms", info.stages.MaskMs)
 	attrs = append(attrs, "store_ms", info.stages.StoreMs)
@@ -195,6 +231,20 @@ func (s *Server) logRequest(route string, start time.Time, sw *statusWriter, aut
 		attrs = append(attrs, "llm_ms", info.stages.LLMMs)
 	}
 	s.logger.Info("request", attrs...)
+}
+
+// systemLabel returns the metric/log label for the resolved system: its id
+// when authenticated, "public" for the unauthenticated health routes, or
+// "unknown" when the request was rejected before a system could be resolved
+// (backpressure or a failed authentication).
+func systemLabel(route string, auth authResult) string {
+	if auth.system != nil {
+		return auth.system.ID
+	}
+	if route == routeHealthz || route == routeReadyz {
+		return "public"
+	}
+	return "unknown"
 }
 
 // statusWriter captures the response status code.
@@ -220,8 +270,9 @@ func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{fieldError: msg})
 }
 
-// readJSON decodes a JSON request body, returning a 400 on malformed input and
-// a 413 when the body exceeds the configured limit.
+// readJSON decodes a JSON request body, returning a 400 on malformed input, a
+// 413 when the body exceeds the configured limit, and a 400 when there is any
+// non-whitespace data after the JSON value (e.g. a second smuggled object).
 func readJSON(w http.ResponseWriter, r *http.Request, v interface{}) error {
 	dec := json.NewDecoder(r.Body)
 	if err := dec.Decode(v); err != nil {
@@ -233,7 +284,17 @@ func readJSON(w http.ResponseWriter, r *http.Request, v interface{}) error {
 		writeError(w, http.StatusBadRequest, "invalid json")
 		return err
 	}
+	if _, err := dec.Token(); err != io.EOF {
+		writeError(w, http.StatusBadRequest, "trailing data after JSON body")
+		return errors.New("httpapi: trailing data after JSON body")
+	}
 	return nil
+}
+
+// validPayloadID reports whether a caller-supplied id is non-empty-checked by
+// the caller and within the length bound.
+func validPayloadID(id string) bool {
+	return len(id) <= maxPayloadIDBytes
 }
 
 // handleIndex serves the embedded demo page.

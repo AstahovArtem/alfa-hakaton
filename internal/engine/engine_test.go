@@ -36,18 +36,25 @@ func testEngine(t *testing.T) *Engine {
 
 const testText = "Клиент Иванов Иван Иванович, паспорт 4509 123456, тел +7 (916) 123-45-67"
 
+// testSystemID is the caller identity used across engine tests that do not
+// specifically exercise ownership/access-control behaviour, so a record
+// created by one call in a test remains accessible to a later call in the
+// same test.
+const testSystemID = "test-system"
+
 func TestEngineMaskUnmask(t *testing.T) {
 	e := testEngine(t)
 	ctx := context.Background()
 	text := "Клиент Иванов Иван Иванович, паспорт 4509 123456, тел +7 (916) 123-45-67"
-	masked, counts, err := e.Mask(ctx, "doc1", text, Options{Strategy: "partial", TTL: time.Minute})
+	opt := Options{Strategy: "partial", TTL: time.Minute, SystemID: testSystemID}
+	masked, counts, err := e.Mask(ctx, "doc1", text, opt)
 	if err != nil {
 		t.Fatalf("Mask: %v", err)
 	}
 	if counts[pii.CatFullName] != 1 || counts[pii.CatPassport] != 1 || counts[pii.CatPhone] != 1 {
 		t.Errorf("unexpected counts: %v", counts)
 	}
-	restored, misses, err := e.Unmask(ctx, "doc1", masked)
+	restored, misses, err := e.Unmask(ctx, "doc1", masked, opt)
 	if err != nil {
 		t.Fatalf("Unmask: %v", err)
 	}
@@ -63,11 +70,12 @@ func TestEngineIdempotent(t *testing.T) {
 	e := testEngine(t)
 	ctx := context.Background()
 	text := "карта 4111 1111 1111 1111"
-	m1, _, err := e.Mask(ctx, "doc", text, Options{Strategy: "partial", TTL: time.Minute})
+	opt := Options{Strategy: "partial", TTL: time.Minute, SystemID: testSystemID}
+	m1, _, err := e.Mask(ctx, "doc", text, opt)
 	if err != nil {
 		t.Fatalf("Mask 1: %v", err)
 	}
-	m2, _, err := e.Mask(ctx, "doc", text, Options{Strategy: "partial", TTL: time.Minute})
+	m2, _, err := e.Mask(ctx, "doc", text, opt)
 	if err != nil {
 		t.Fatalf("Mask 2: %v", err)
 	}
@@ -80,12 +88,13 @@ func TestEngineErrLooksLikeUnmask(t *testing.T) {
 	e := testEngine(t)
 	ctx := context.Background()
 	text := "карта 4111 1111 1111 1111"
-	masked, _, err := e.Mask(ctx, "doc", text, Options{Strategy: "partial", TTL: time.Minute})
+	opt := Options{Strategy: "partial", TTL: time.Minute, SystemID: testSystemID}
+	masked, _, err := e.Mask(ctx, "doc", text, opt)
 	if err != nil {
 		t.Fatalf("Mask: %v", err)
 	}
 	// Passing the masked text as the "new" text signals an unmask request.
-	_, _, err = e.Mask(ctx, "doc", masked, Options{Strategy: "partial", TTL: time.Minute})
+	_, _, err = e.Mask(ctx, "doc", masked, opt)
 	if !errors.Is(err, ErrLooksLikeUnmask) {
 		t.Errorf("expected ErrLooksLikeUnmask, got %v", err)
 	}
@@ -93,7 +102,7 @@ func TestEngineErrLooksLikeUnmask(t *testing.T) {
 
 func TestEngineUnmaskNotFound(t *testing.T) {
 	e := testEngine(t)
-	_, _, err := e.Unmask(context.Background(), "missing", "x")
+	_, _, err := e.Unmask(context.Background(), "missing", "x", Options{SystemID: testSystemID})
 	if !errors.Is(err, ErrNotFound) {
 		t.Errorf("expected ErrNotFound, got %v", err)
 	}
@@ -107,6 +116,7 @@ func TestEngineCategoryFilter(t *testing.T) {
 		Strategy:   "partial",
 		TTL:        time.Minute,
 		Categories: []pii.Category{pii.CatPhone},
+		SystemID:   testSystemID,
 	})
 	if err != nil {
 		t.Fatalf("Mask: %v", err)
@@ -133,6 +143,7 @@ func TestEngineComboRules(t *testing.T) {
 		Strategy:   "partial",
 		TTL:        time.Minute,
 		ComboRules: []ComboRule{rule},
+		SystemID:   testSystemID,
 	})
 	if err != nil {
 		t.Fatalf("Mask 1: %v", err)
@@ -146,6 +157,7 @@ func TestEngineComboRules(t *testing.T) {
 		Strategy:   "partial",
 		TTL:        time.Minute,
 		ComboRules: []ComboRule{rule},
+		SystemID:   testSystemID,
 	})
 	if err != nil {
 		t.Fatalf("Mask 2: %v", err)
@@ -161,7 +173,7 @@ func TestEngineComboRules(t *testing.T) {
 func TestEngineProcessContract(t *testing.T) {
 	e := testEngine(t)
 	ctx := context.Background()
-	opt := Options{Strategy: "partial", TTL: time.Minute, Unmask: true}
+	opt := Options{Strategy: "partial", TTL: time.Minute, Unmask: true, SystemID: testSystemID}
 
 	masked := processMask(t, e, ctx, opt)
 	processIdempotent(t, e, ctx, opt, masked)
@@ -208,16 +220,21 @@ func processUnmask(t *testing.T, e *Engine, ctx context.Context, opt Options, ma
 	}
 }
 
-// processDiffers verifies that a payload differing from both the mask and the
-// original text is returned as-is with misses.
+// processDiffers verifies that a payload matching neither the stored mask nor
+// the original text is treated as fresh content: masked with the caller's
+// strategy (here, containing no PII, so it comes back unchanged) rather than
+// returned as an unmask attempt with misses.
 func processDiffers(t *testing.T, e *Engine, ctx context.Context, opt Options) {
 	t.Helper()
 	res4, err := e.Process(ctx, "p1", "совсем другой текст", opt)
 	if err != nil {
 		t.Fatalf("Process differs: %v", err)
 	}
-	if res4.Result != "совсем другой текст" || res4.Misses == 0 {
+	if res4.Result != "совсем другой текст" {
 		t.Errorf("differs result: %+v", res4)
+	}
+	if res4.Unmasked {
+		t.Errorf("differs result should not be marked Unmasked: %+v", res4)
 	}
 }
 
@@ -236,7 +253,7 @@ func TestEngineProcessUnknownID(t *testing.T) {
 func TestEngineProcessPartialRestore(t *testing.T) {
 	e := testEngine(t)
 	ctx := context.Background()
-	opt := Options{Strategy: "partial", TTL: time.Minute, Unmask: true}
+	opt := Options{Strategy: "partial", TTL: time.Minute, Unmask: true, SystemID: testSystemID}
 
 	// Mask a text with two PII values so the record has two replacements.
 	text := "Клиент Иванов Иван Иванович, тел +7 (916) 123-45-67"
@@ -289,7 +306,8 @@ func TestEngineChunkedLargeText(t *testing.T) {
 	}
 	text := b.String()
 
-	masked, found, err := e.Mask(ctx, "big", text, Options{Strategy: "partial", TTL: time.Minute})
+	opt := Options{Strategy: "partial", TTL: time.Minute, SystemID: testSystemID}
+	masked, found, err := e.Mask(ctx, "big", text, opt)
 	if err != nil {
 		t.Fatalf("Mask: %v", err)
 	}
@@ -307,13 +325,13 @@ func TestEngineChunkedLargeText(t *testing.T) {
 	}
 
 	// Round-trip must restore the original text.
-	assertRoundTrip(t, ctx, e, "big", masked, text)
+	assertRoundTrip(t, ctx, e, "big", masked, text, opt)
 }
 
 // assertRoundTrip unmaskes masked and verifies it restores want with no misses.
-func assertRoundTrip(t *testing.T, ctx context.Context, e *Engine, id, masked, want string) {
+func assertRoundTrip(t *testing.T, ctx context.Context, e *Engine, id, masked, want string, opt Options) {
 	t.Helper()
-	restored, misses, err := e.Unmask(ctx, id, masked)
+	restored, misses, err := e.Unmask(ctx, id, masked, opt)
 	if err != nil {
 		t.Fatalf("Unmask: %v", err)
 	}
@@ -325,11 +343,12 @@ func assertRoundTrip(t *testing.T, ctx context.Context, e *Engine, id, masked, w
 	}
 }
 
-// countingStore wraps a Store and counts Load/Save/Delete calls.
+// countingStore wraps a Store and counts Load/Save/SaveNew calls.
 type countingStore struct {
 	store.Store
-	loads atomic.Int64
-	saves atomic.Int64
+	loads    atomic.Int64
+	saves    atomic.Int64
+	saveNews atomic.Int64
 }
 
 func (c *countingStore) Load(ctx context.Context, id string) (store.Record, bool, error) {
@@ -340,6 +359,11 @@ func (c *countingStore) Load(ctx context.Context, id string) (store.Record, bool
 func (c *countingStore) Save(ctx context.Context, id string, rec store.Record, ttl time.Duration) error {
 	c.saves.Add(1)
 	return c.Store.Save(ctx, id, rec, ttl)
+}
+
+func (c *countingStore) SaveNew(ctx context.Context, id string, rec store.Record, ttl time.Duration) (bool, error) {
+	c.saveNews.Add(1)
+	return c.Store.SaveNew(ctx, id, rec, ttl)
 }
 
 // TestProcessStoreCallCount verifies Process performs exactly 1 GET + 1 SET for
@@ -364,24 +388,24 @@ func TestProcessStoreCallCount(t *testing.T) {
 	}
 	e := New(p, cs, strategies)
 	ctx := context.Background()
-	opt := Options{Strategy: "partial", TTL: time.Minute, Unmask: true}
+	opt := Options{Strategy: "partial", TTL: time.Minute, Unmask: true, SystemID: testSystemID}
 
-	// Mask: 1 GET (miss) + 1 SET.
+	// Mask: 1 GET (miss) + 1 SET (SaveNew, since the id is new).
 	res := processOrFail(t, ctx, e, "c1", testText, opt)
-	if cs.loads.Load() != 1 || cs.saves.Load() != 1 {
-		t.Errorf("mask: loads=%d saves=%d, want 1/1", cs.loads.Load(), cs.saves.Load())
+	if cs.loads.Load() != 1 || cs.saveNews.Load() != 1 {
+		t.Errorf("mask: loads=%d saveNews=%d, want 1/1", cs.loads.Load(), cs.saveNews.Load())
 	}
 	masked := res.Result
 
 	// Unmask: 1 GET only.
 	cs.loads.Store(0)
-	cs.saves.Store(0)
+	cs.saveNews.Store(0)
 	res2 := processOrFail(t, ctx, e, "c1", masked, opt)
 	if !res2.Unmasked || res2.Result != testText {
 		t.Errorf("unmask result: %+v", res2)
 	}
-	if cs.loads.Load() != 1 || cs.saves.Load() != 0 {
-		t.Errorf("unmask: loads=%d saves=%d, want 1/0", cs.loads.Load(), cs.saves.Load())
+	if cs.loads.Load() != 1 || cs.saveNews.Load() != 0 {
+		t.Errorf("unmask: loads=%d saveNews=%d, want 1/0", cs.loads.Load(), cs.saveNews.Load())
 	}
 }
 
@@ -416,14 +440,15 @@ func TestEngineIDDocumentRoundTrip(t *testing.T) {
 // original is restored with no misses.
 func roundTripIDDocument(t *testing.T, ctx context.Context, e *Engine, strategy, id, text string) {
 	t.Helper()
-	masked, counts, err := e.Mask(ctx, id, text, Options{Strategy: strategy, TTL: time.Minute})
+	opt := Options{Strategy: strategy, TTL: time.Minute, SystemID: testSystemID}
+	masked, counts, err := e.Mask(ctx, id, text, opt)
 	if err != nil {
 		t.Fatalf("Mask(%s): %v", strategy, err)
 	}
 	if counts[pii.CatIDDocument] != 1 {
 		t.Errorf("Mask(%s) counts = %v, want id_document=1", strategy, counts)
 	}
-	restored, misses, err := e.Unmask(ctx, id, masked)
+	restored, misses, err := e.Unmask(ctx, id, masked, opt)
 	if err != nil {
 		t.Fatalf("Unmask(%s): %v", strategy, err)
 	}

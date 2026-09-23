@@ -69,10 +69,12 @@ func main() {
 	m := metrics.New()
 	srv := httpapi.New(cfg, eng, st, m, logger)
 	httpServer := newHTTPServer(cfg, srv)
+	metricsServer := newMetricsServer(cfg, srv)
 
 	logger.Info("starting pdn-shield",
 		"version", version,
 		"addr", cfg.Server.Addr,
+		"metrics_addr", cfg.Server.MetricsAddr,
 		"store", cfg.Store.Kind,
 		"systems", len(cfg.Systems),
 		"detectors", len(detectors.Default()),
@@ -89,6 +91,13 @@ func main() {
 			os.Exit(1)
 		}
 	}()
+	if metricsServer != nil {
+		go func() {
+			if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				logger.Error("metrics server failed", logErr, err)
+			}
+		}()
+	}
 
 	<-stop
 	logger.Info("shutting down")
@@ -96,6 +105,11 @@ func main() {
 	defer cancel()
 	if err := httpServer.Shutdown(ctx); err != nil {
 		logger.Error("shutdown failed", logErr, err)
+	}
+	if metricsServer != nil {
+		if err := metricsServer.Shutdown(ctx); err != nil {
+			logger.Error("metrics shutdown failed", logErr, err)
+		}
 	}
 	logger.Info("stopped")
 }
@@ -158,6 +172,21 @@ func newHTTPServer(cfg *config.Config, srv *httpapi.Server) *http.Server {
 		Handler:      srv.Handler(),
 		ReadTimeout:  cfg.Server.ReadTimeout,
 		WriteTimeout: cfg.Server.WriteTimeout,
+	}
+}
+
+// newMetricsServer builds the standalone /metrics server when
+// server.metrics_addr is configured, or nil when /metrics stays on the main
+// mux.
+func newMetricsServer(cfg *config.Config, srv *httpapi.Server) *http.Server {
+	if cfg.Server.MetricsAddr == "" {
+		return nil
+	}
+	mux := http.NewServeMux()
+	mux.Handle("GET /metrics", srv.MetricsHandler())
+	return &http.Server{
+		Addr:    cfg.Server.MetricsAddr,
+		Handler: mux,
 	}
 }
 
