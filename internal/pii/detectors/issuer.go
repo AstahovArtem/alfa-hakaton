@@ -61,8 +61,14 @@ var issuerGapWordRe = regexp.MustCompile(
 // are part of the gap. Leading whitespace is consumed so the date is matched as
 // a single gap unit even when the numeric day would otherwise be swallowed by
 // the non-letter gap regex.
+// issuerDecadeRe matches an approximate decade reference (e.g. "в 90-х", "в
+// 2000-х годах"), which may sit between a context keyword and the issuing
+// authority value the same way a full date does (e.g. "паспорт получил в
+// 90-х в отделении милиции ...").
+const issuerDecadeGap = `\d{1,4}-х(?:\s+(?:годах|года|гг\.?))?`
+
 var issuerDateGapRe = regexp.MustCompile(
-	`(?i)^\s*(?:\d{1,2}[./-]\d{1,2}[./-]\d{4}|\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря|янв|фев|мар|апр|май|июн|июл|авг|сен|сент|окт|ноя|дек)\.?\s+\d{4}|` + dateWordsRe.String() + `)(?:\s+(?:года|г\.|г))?`,
+	`(?i)^\s*(?:\d{1,2}[./-]\d{1,2}[./-]\d{4}|\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря|янв|фев|мар|апр|май|июн|июл|авг|сен|сент|окт|ноя|дек)\.?\s+\d{4}|` + dateWordsRe.String() + `|` + issuerDecadeGap + `)(?:\s+(?:года|г\.|г\b))?`,
 )
 
 // issuerOrganKeywordRe matches the keywords that confirm an "отделение/отдел"
@@ -70,7 +76,7 @@ var issuerDateGapRe = regexp.MustCompile(
 // Each keyword is matched as a whole word so "по" does not match inside
 // "почты" or "полиции".
 var issuerOrganKeywordRe = regexp.MustCompile(
-	`(?i)(?:^|[^\p{L}])(?:уфмс|мвд|овд|увд|омвд|умвд|милиции|полиции|россии|района|р-на|города|г\.|по|№)(?:[^\p{L}]|$)`,
+	`(?i)(?:^|[^\p{L}])(?:внутренних дел|уфмс|мвд|овд|увд|омвд|умвд|милиции|полиции|россии|района|р-на|города|г\.|по|№)(?:[^\p{L}]|$)`,
 )
 
 var issuerTermLowerRe = regexp.MustCompile(
@@ -227,6 +233,12 @@ func issuerStartWithNumber(search string, start int) int {
 		j--
 	}
 	if j == i {
+		return start
+	}
+	// A digit run immediately preceded by a date separator is the tail of a
+	// full date already consumed as a gap (e.g. "...30.06.2018 ГУ МВД..."),
+	// not a leading identifier number (e.g. "16 о/м"): leave it out.
+	if j > 0 && (search[j-1] == '.' || search[j-1] == '/' || search[j-1] == '-') {
 		return start
 	}
 	return j

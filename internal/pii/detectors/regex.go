@@ -86,6 +86,13 @@ type Rule struct {
 	// (when byte lengths match) so the pattern needs no (?i) for Cyrillic
 	// keywords. Only safe for rules whose pattern is case-insensitive.
 	MatchLower bool `yaml:"match_lower"`
+	// ContextAllowDateGap, when true, lets a left context keyword satisfy
+	// require_context even when a date sits between the keyword and the
+	// match. By default leftContext rejects that (so a birth-date label does
+	// not jump over an unrelated date), but some labels expect a date in
+	// between (e.g. "в/у выдано 15 мая 2018, серия ... номер ...", where the
+	// issue date sits between the "в/у" label and the series/number).
+	ContextAllowDateGap bool `yaml:"context_allow_date_gap"`
 	// contextWindow is the number of runes to the left scanned for context.
 	contextWindow int
 	// contextAfterWindow is the number of runes to the right scanned for context.
@@ -551,7 +558,13 @@ func reclassify(t pii.Text, start, end int, r Rule) pii.Category {
 // right of the match and returns the distance in runes to the nearest satisfying
 // keyword together with the window size used.
 func contextDistance(t pii.Text, start, end int, r Rule) (bool, int, int) {
-	ok, dist := leftContext(t, start, r.contextWindow, r.contextLower)
+	var ok bool
+	var dist int
+	if r.ContextAllowDateGap {
+		ok, dist = leftContextAnyGap(t, start, r.contextWindow, r.contextLower)
+	} else {
+		ok, dist = leftContext(t, start, r.contextWindow, r.contextLower)
+	}
 	win := r.contextWindow
 	if ok {
 		return true, dist, win
@@ -564,12 +577,23 @@ func contextDistance(t pii.Text, start, end int, r Rule) (bool, int, int) {
 }
 
 // leftContext reports whether any keyword appears in the window of size n runes
-// immediately to the left of position pos with no digit group between the
-// keyword and pos. It returns the distance in runes from the nearest keyword to
-// pos. Keywords must already be lowercased. A keyword only counts when it is at
-// a word boundary (not part of a longer word, e.g. "рожден" must not match
+// immediately to the left of position pos with no date between the keyword and
+// pos. It returns the distance in runes from the nearest keyword to pos.
+// Keywords must already be lowercased. A keyword only counts when it is at a
+// word boundary (not part of a longer word, e.g. "рожден" must not match
 // inside "рождения").
 func leftContext(t pii.Text, pos, n int, keywords []string) (bool, int) {
+	return leftContextImpl(t, pos, n, keywords, true)
+}
+
+// leftContextAnyGap is leftContext without the "no date in between" guard, for
+// a label whose value is normally preceded by a date (e.g. "в/у выдано 15 мая
+// 2018, серия ... номер ...").
+func leftContextAnyGap(t pii.Text, pos, n int, keywords []string) (bool, int) {
+	return leftContextImpl(t, pos, n, keywords, false)
+}
+
+func leftContextImpl(t pii.Text, pos, n int, keywords []string, blockDate bool) (bool, int) {
 	if len(keywords) == 0 {
 		return false, 0
 	}
@@ -585,7 +609,7 @@ func leftContext(t pii.Text, pos, n int, keywords []string) (bool, int) {
 	if best < 0 {
 		return false, 0
 	}
-	if containsDate(window[best:]) {
+	if blockDate && containsDate(window[best:]) {
 		return false, 0
 	}
 	return true, utf8.RuneCountInString(window[best:])

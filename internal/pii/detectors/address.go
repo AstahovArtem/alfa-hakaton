@@ -669,6 +669,13 @@ func isHotlineLinija(matchText string) bool {
 func findStreets(text string) []addrComponent {
 	var comps []addrComponent
 	for _, loc := range addrStreetMarkerRe.FindAllStringIndex(text, -1) {
+		// The marker alternatives (e.g. "ул") have no built-in word boundary
+		// (Go's \b never matches around Cyrillic letters), so a short marker
+		// can start inside a longer word (e.g. "ул" inside "вернул"). Reject
+		// a match whose start is not a real word boundary.
+		if isLetterRune(runeBefore(text, loc[0])) {
+			continue
+		}
 		if isHotlineLinija(text[loc[0]:loc[1]]) {
 			continue
 		}

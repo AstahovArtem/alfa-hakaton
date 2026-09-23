@@ -106,7 +106,7 @@ func followsPassportIssuer(spans []Span, i int) bool {
 var BirthContexts = []string{
 	"родился", "родилась", "родился", "родились", "родил", "рожден", "рождён",
 	"дата рождения", "дату рождения", "уроженец", "уроженка", "г.р.", "г. р.", "д.р.", "др",
-	"род.", "род", "рожд.", "рожд", "birth", "dob",
+	"род.", "род", "рожд.", "рожд", "birth", "dob", "born",
 }
 
 // isPassportDate reports whether a date span is a passport issue date.

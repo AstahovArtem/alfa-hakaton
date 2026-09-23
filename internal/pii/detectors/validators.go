@@ -9,17 +9,18 @@ import (
 // Validators maps a validator name to its function. Each validator normalizes
 // the input (removes spaces, dashes, parentheses) before checking.
 var Validators = map[string]func(match string) bool{
-	"luhn":              luhn,
-	"inn":               inn,
-	"snils":             snils,
-	"passport":          passport,
-	"phone":             phone,
-	"phone10":           phone10,
-	"phone_e164":        phoneE164,
-	"date":              date,
-	"date_short_year":   dateShortYear,
-	"not_service_email": notServiceEmail,
-	"not_toll_free":     notTollFree,
+	"luhn":                 luhn,
+	"inn":                  inn,
+	"snils":                snils,
+	"passport":             passport,
+	"phone":                phone,
+	"phone10":              phone10,
+	"phone_e164":           phoneE164,
+	"date":                 date,
+	"date_short_year":      dateShortYear,
+	"date_word_short_year": dateWordShortYear,
+	"not_service_email":    notServiceEmail,
+	"not_toll_free":        notTollFree,
 }
 
 var nonDigit = regexp.MustCompile(`[^\d]`)
@@ -28,7 +29,7 @@ var nonDigit = regexp.MustCompile(`[^\d]`)
 // it are corporate contacts rather than personal data.
 const tollFreePrefix = "800"
 
-var wordDateRe = regexp.MustCompile(`^(\d{1,2})(?:-го|-е|-ого|-его)?\s+([а-яё]+)\s+(\d{4})(?:\s+(?:г\.|года|г))?$`)
+var wordDateRe = regexp.MustCompile(`^(\d{1,2})(?:-го|-е|-ого|-его)?\s+([a-zа-яё]+)\s+(\d{4})(?:\s+(?:г\.|года|г))?$`)
 
 // yearFirstDateRe matches "1985 г., 5 марта" (year first, then day + month).
 var yearFirstDateRe = regexp.MustCompile(`^(\d{4})\s+г\.?\s*,?\s+(\d{1,2})(?:-го|-е|-ого|-его)?\s+([а-яё]+)$`)
@@ -214,6 +215,9 @@ var monthNames = map[string]int{
 	"май": 5, "май.": 5, "июн": 6, "июн.": 6, "июл": 7, "июл.": 7,
 	"авг": 8, "авг.": 8, "сен": 9, "сен.": 9, "сент": 9, "сент.": 9, "окт": 10, "окт.": 10,
 	"ноя": 11, "ноя.": 11, "дек": 12, "дек.": 12,
+	// English month names, for dates in English-language text.
+	"january": 1, "february": 2, "march": 3, "april": 4, "may": 5, "june": 6,
+	"july": 7, "august": 8, "september": 9, "october": 10, "november": 11, "december": 12,
 }
 
 // date validates a date. It accepts numeric dates in several orders and
@@ -320,6 +324,29 @@ func shortYearAsFirst(a, b, c int) bool {
 	}
 	year := 1900 + a
 	return validYMD(year, b, c)
+}
+
+// dateWordShortYearRe matches a day with an ordinal suffix, a month in words
+// and a two-digit year with its own ordinal suffix (e.g. "25-го марта
+// 90-го").
+var dateWordShortYearRe = regexp.MustCompile(`^(\d{1,2})(?:-го|-е|-ого|-его)\s+([а-яё]+)\s+(\d{2})-го$`)
+
+// dateWordShortYear validates a word-form date with a two-digit ordinal year
+// (e.g. "25-го марта 90-го" = 25 March 1990). The two-digit year is
+// interpreted as 19xx, matching dateShortYear's convention.
+func dateWordShortYear(match string) bool {
+	s := strings.ToLower(strings.TrimSpace(match))
+	m := dateWordShortYearRe.FindStringSubmatch(s)
+	if m == nil {
+		return false
+	}
+	day, _ := strconv.Atoi(m[1])
+	month, ok := monthNames[m[2]]
+	if !ok {
+		return false
+	}
+	c, _ := strconv.Atoi(m[3])
+	return validYMD(1900+c, month, day)
 }
 
 func validYMD(year, month, day int) bool {
