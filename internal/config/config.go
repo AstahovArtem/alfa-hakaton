@@ -27,6 +27,10 @@ type Server struct {
 	MaxBodyBytes  int64         `yaml:"max_body_bytes"`
 	MaxInflight   int           `yaml:"max_inflight"`
 	DefaultSystem string        `yaml:"default_system"`
+	// MetricsAddr, when set, serves /metrics only on this separate listener
+	// (started by main.go) and removes it from the main Addr mux. When empty,
+	// /metrics stays on the main mux for backward compatibility.
+	MetricsAddr string `yaml:"metrics_addr"`
 }
 
 // Store configures the persistence backend.
@@ -40,13 +44,14 @@ type Store struct {
 	EncryptionKeyEnv string        `yaml:"encryption_key_env"`
 }
 
-// LLM configures the upstream model gateway.
+// LLM configures the upstream model gateway. The gateway only accepts
+// stream:true requests, so the client always streams (see LLMClient.chatCompletion);
+// there is no non-streaming mode to configure.
 type LLM struct {
-	BaseURL    string        `yaml:"base_url"`
-	APIKeyEnv  string        `yaml:"api_key_env"`
-	Model      string        `yaml:"model"`
-	Timeout    time.Duration `yaml:"timeout"`
-	StreamOnly bool          `yaml:"stream_only"`
+	BaseURL   string        `yaml:"base_url"`
+	APIKeyEnv string        `yaml:"api_key_env"`
+	Model     string        `yaml:"model"`
+	Timeout   time.Duration `yaml:"timeout"`
 }
 
 // Logging configures slog output.

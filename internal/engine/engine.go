@@ -28,6 +28,11 @@ var ErrNotFound = errors.New("engine: record not found")
 // stored masked text, indicating the caller actually wants to unmask.
 var ErrLooksLikeUnmask = errors.New("engine: text looks like an unmask request")
 
+// ErrForeignRecord is returned by MaskEx/MaskBatchEx when a record already
+// exists under the requested id but belongs to a different system. The
+// caller must never overwrite it.
+var ErrForeignRecord = errors.New("engine: record belongs to another system")
+
 // Options configures a single Mask call.
 type Options struct {
 	Categories []pii.Category // empty = all
@@ -38,6 +43,15 @@ type Options struct {
 	// payload that equals the stored mask is returned as-is (the mask itself)
 	// rather than unmasked.
 	Unmask bool
+	// SystemID is the authenticated caller's system id. It is recorded as the
+	// owner of any record this call creates, and is compared against a
+	// record's owner before Process/MaskEx/MaskBatchEx/UnmaskEx are allowed
+	// to read or extend an existing record.
+	SystemID string
+	// DefaultSystemID is the configured default system id (server.default_system).
+	// A record with no recorded owner (written before ownership tracking
+	// existed) is treated as owned by this system only.
+	DefaultSystemID string
 }
 
 // ComboRule masks Category only if at least one of RequiresAny is present in
@@ -123,8 +137,18 @@ func (e *Engine) MaskBatch(
 	return res.Masked, res.Found, nil
 }
 
-// MaskBatchEx is MaskBatch with stage timings in the result.
+// MaskBatchEx is MaskBatch with stage timings in the result. Each message's
+// replacements are shifted by the cumulative length of the previously
+// masked messages (matching how joinMasked concatenates them), so every
+// Replacement's Start/End is a position in the single stored MaskedText
+// rather than colliding local, per-message offsets: without this, two
+// messages containing the same value would both record a replacement
+// starting at 0, and Restore could not tell them apart.
 func (e *Engine) MaskBatchEx(ctx context.Context, id string, texts []string, opt Options) (MaskBatchResult, error) {
+	if rec, ok, err := e.store.Load(ctx, id); err == nil && ok && !ownsRecord(rec, opt) {
+		return MaskBatchResult{}, ErrForeignRecord
+	}
+
 	doc := mask.NewDocState()
 	strategy := e.resolveStrategy(opt.Strategy)
 	if strategy == nil {
@@ -135,6 +159,7 @@ func (e *Engine) MaskBatchEx(ctx context.Context, id string, texts []string, opt
 	var allReps []mask.Replacement
 	found := make(map[pii.Category]int)
 	var stages Stages
+	msgOffset := 0
 	for i, text := range texts {
 		var reps []mask.Replacement
 		var f map[pii.Category]int
@@ -156,10 +181,16 @@ func (e *Engine) MaskBatchEx(ctx context.Context, id string, texts []string, opt
 			stages.MaskMs += time.Since(maskStart).Milliseconds()
 			f = counts(spans)
 		}
-		allReps = append(allReps, reps...)
+		for _, r := range reps {
+			r.Start += msgOffset
+			r.End += msgOffset
+			allReps = append(allReps, r)
+		}
 		for c, n := range f {
 			found[c] += n
 		}
+		// +1 for the '\n' separator joinMasked writes after every message.
+		msgOffset += len(masked[i]) + 1
 	}
 
 	rec := store.Record{
@@ -168,6 +199,7 @@ func (e *Engine) MaskBatchEx(ctx context.Context, id string, texts []string, opt
 		CreatedAt:    time.Now(),
 		MaskedText:   joinMasked(masked),
 		Hash:         hashText(joinTexts(texts)),
+		SystemID:     opt.SystemID,
 	}
 	storeStart := time.Now()
 	if err := e.store.Save(ctx, id, rec, opt.TTL); err != nil {
@@ -202,6 +234,9 @@ func (e *Engine) maskEx(ctx context.Context, id, text string, opt Options, doc *
 
 	// Idempotency: if the id exists and the hash matches, return the stored mask.
 	if rec, ok, err := e.store.Load(ctx, id); err == nil && ok {
+		if !ownsRecord(rec, opt) {
+			return MaskResult{}, ErrForeignRecord
+		}
 		if rec.Hash == hash {
 			return MaskResult{Masked: rec.MaskedText, Found: countsFromRec(rec)}, nil
 		}
@@ -231,9 +266,47 @@ func (e *Engine) resolveStrategy(name string) mask.Strategy {
 	return strategy
 }
 
+// runMask runs detection and masking for text (chunked when large) without
+// touching the store. It is the shared core of every code path that produces
+// a masked result, whether or not that result ends up persisted.
+func (e *Engine) runMask(text string, opt Options, strategy mask.Strategy, doc *mask.DocState) (MaskResult, []mask.Replacement) {
+	var masked string
+	var reps []mask.Replacement
+	var found map[pii.Category]int
+	var stages Stages
+
+	if len(text) > chunkThreshold {
+		masked, reps, found, stages = e.maskChunked(text, opt, strategy, doc)
+	} else {
+		detectStart := time.Now()
+		res := e.pipeline.Run(text)
+		stages.DetectMs = time.Since(detectStart).Milliseconds()
+
+		maskStart := time.Now()
+		spans := filterSpans(res.Spans, opt.Categories, opt.ComboRules)
+		masked, reps = mask.Apply(text, spans, strategy, doc)
+		stages.MaskMs = time.Since(maskStart).Milliseconds()
+		found = counts(spans)
+	}
+	return MaskResult{Masked: masked, Found: found, Stages: stages}, reps
+}
+
+// maskOnly masks text and returns the result without persisting anything. It
+// is used whenever a payload must be masked but the outcome must not be
+// saved: a record owned by a different system, or a payload that does not
+// match any known state of an existing record.
+func (e *Engine) maskOnly(text string, opt Options, doc *mask.DocState) (MaskResult, error) {
+	strategy := e.resolveStrategy(opt.Strategy)
+	if strategy == nil {
+		return MaskResult{}, errors.New("engine: no strategy available")
+	}
+	mres, _ := e.runMask(text, opt, strategy, doc)
+	return mres, nil
+}
+
 // maskWithRecord masks text and saves the mapping under id. existing, when
-// non-nil, is a record already loaded by the caller so the store is not hit a
-// second time.
+// non-nil, is a record already loaded by the caller (and already verified to
+// be owned by opt.SystemID) so the store is not hit a second time.
 func (e *Engine) maskWithRecord(
 	ctx context.Context,
 	id, text string,
@@ -260,41 +333,22 @@ func (e *Engine) maskWithRecord(
 	if strategy == nil {
 		return MaskResult{}, errors.New("engine: no strategy available")
 	}
-
-	var masked string
-	var reps []mask.Replacement
-	var found map[pii.Category]int
-	var stages Stages
-
-	if len(text) > chunkThreshold {
-		var st Stages
-		masked, reps, found, st = e.maskChunked(text, opt, strategy, doc)
-		stages = st
-	} else {
-		detectStart := time.Now()
-		res := e.pipeline.Run(text)
-		stages.DetectMs = time.Since(detectStart).Milliseconds()
-
-		maskStart := time.Now()
-		spans := filterSpans(res.Spans, opt.Categories, opt.ComboRules)
-		masked, reps = mask.Apply(text, spans, strategy, doc)
-		stages.MaskMs = time.Since(maskStart).Milliseconds()
-		found = counts(spans)
-	}
+	mres, reps := e.runMask(text, opt, strategy, doc)
 
 	rec := store.Record{
 		Replacements: reps,
 		Strategy:     strategy.Name(),
 		CreatedAt:    time.Now(),
-		MaskedText:   masked,
+		MaskedText:   mres.Masked,
 		Hash:         hash,
+		SystemID:     opt.SystemID,
 	}
 	storeStart := time.Now()
 	if err := e.store.Save(ctx, id, rec, opt.TTL); err != nil {
 		return MaskResult{}, err
 	}
-	stages.StoreMs = time.Since(storeStart).Milliseconds()
-	return MaskResult{Masked: masked, Found: found, Stages: stages}, nil
+	mres.Stages.StoreMs = time.Since(storeStart).Milliseconds()
+	return mres, nil
 }
 
 // maskChunked splits text into chunks, masks each chunk independently and
@@ -413,22 +467,24 @@ func isSentenceEnd(b byte) bool {
 }
 
 // Unmask loads the mapping by id and restores the original text.
-func (e *Engine) Unmask(ctx context.Context, id, masked string) (string, int, error) {
-	res, err := e.UnmaskEx(ctx, id, masked)
+func (e *Engine) Unmask(ctx context.Context, id, masked string, opt Options) (string, int, error) {
+	res, err := e.UnmaskEx(ctx, id, masked, opt)
 	if err != nil {
 		return "", 0, err
 	}
 	return res.Restored, res.Misses, nil
 }
 
-// UnmaskEx is Unmask with stage timings in the result.
-func (e *Engine) UnmaskEx(ctx context.Context, id, masked string) (UnmaskResult, error) {
+// UnmaskEx is Unmask with stage timings in the result. A record that exists
+// but belongs to a different system is reported as ErrNotFound, exactly like
+// a missing id: the caller must not learn that a foreign record exists.
+func (e *Engine) UnmaskEx(ctx context.Context, id, masked string, opt Options) (UnmaskResult, error) {
 	loadStart := time.Now()
 	rec, ok, err := e.store.Load(ctx, id)
 	if err != nil {
 		return UnmaskResult{}, err
 	}
-	if !ok {
+	if !ok || !ownsRecord(rec, opt) {
 		return UnmaskResult{}, ErrNotFound
 	}
 	loadMs := time.Since(loadStart).Milliseconds()
@@ -452,57 +508,132 @@ type ProcessResult struct {
 // Process implements the checker contract for a single payload. It masks the
 // payload, or unmasks when the payload equals the stored mask, or returns the
 // stored mask when the payload equals the original text (idempotency). When
-// the id is known but the payload matches neither, it attempts an unmask and
-// falls back to returning the payload as-is.
+// the id is known but owned by a different system, the payload is masked
+// fresh and returned without ever reading or overwriting the foreign record.
+// A brand-new id is persisted with SET NX (SaveNew) so two concurrent first
+// writers for the same id cannot silently clobber one another: the loser
+// resolves through the normal existing-record path instead.
 func (e *Engine) Process(ctx context.Context, id, payload string, opt Options) (ProcessResult, error) {
+	loadStart := time.Now()
 	rec, exists, err := e.store.Load(ctx, id)
 	if err != nil {
 		return ProcessResult{}, err
 	}
+	loadMs := time.Since(loadStart).Milliseconds()
 
 	if exists {
-		return processExisting(rec, payload, opt.Unmask)
+		if !ownsRecord(rec, opt) {
+			return e.maskFreshResult(payload, opt)
+		}
+		res, err := e.processExisting(rec, payload, opt)
+		if err != nil {
+			return ProcessResult{}, err
+		}
+		// The idempotent-retry and restore paths do not otherwise record the
+		// store timing (only the Load above touched the store, no Save), and
+		// the idempotent retry does not otherwise report found counts.
+		res.Stages.StoreMs += loadMs
+		if !res.Unmasked && res.Found == nil && res.Result == rec.MaskedText {
+			res.Found = countsFromRec(rec)
+		}
+		return res, nil
 	}
 
-	// Unknown id: mask normally, reusing the already-loaded record so the store
-	// is hit exactly once (1 GET + 1 SET).
-	mres, err := e.maskWithRecord(ctx, id, payload, opt, mask.NewDocState(), nil)
+	strategy := e.resolveStrategy(opt.Strategy)
+	if strategy == nil {
+		return ProcessResult{}, errors.New("engine: no strategy available")
+	}
+	mres, reps := e.runMask(payload, opt, strategy, mask.NewDocState())
+	newRec := store.Record{
+		Replacements: reps,
+		Strategy:     strategy.Name(),
+		CreatedAt:    time.Now(),
+		MaskedText:   mres.Masked,
+		Hash:         hashText(payload),
+		SystemID:     opt.SystemID,
+	}
+	storeStart := time.Now()
+	created, err := e.store.SaveNew(ctx, id, newRec, opt.TTL)
+	if err != nil {
+		return ProcessResult{}, err
+	}
+	mres.Stages.StoreMs = time.Since(storeStart).Milliseconds()
+	if created {
+		return ProcessResult{Result: mres.Masked, Found: mres.Found, Stages: mres.Stages}, nil
+	}
+
+	// Lost the race: another request created the record first. Resolve
+	// through the normal existing-record path instead of overwriting it.
+	rec2, ok, err := e.store.Load(ctx, id)
+	if err != nil {
+		return ProcessResult{}, err
+	}
+	if !ok {
+		// The winner's record vanished (e.g. expired) between SaveNew and
+		// this Load; fall back to a plain save of our own result.
+		if err := e.store.Save(ctx, id, newRec, opt.TTL); err != nil {
+			return ProcessResult{}, err
+		}
+		return ProcessResult{Result: mres.Masked, Found: mres.Found, Stages: mres.Stages}, nil
+	}
+	if !ownsRecord(rec2, opt) {
+		return e.maskFreshResult(payload, opt)
+	}
+	return e.processExisting(rec2, payload, opt)
+}
+
+// maskFreshResult masks payload without persisting anything, for a caller
+// that must never read or extend a record it does not own.
+func (e *Engine) maskFreshResult(payload string, opt Options) (ProcessResult, error) {
+	mres, err := e.maskOnly(payload, opt, mask.NewDocState())
 	if err != nil {
 		return ProcessResult{}, err
 	}
 	return ProcessResult{Result: mres.Masked, Found: mres.Found, Stages: mres.Stages}, nil
 }
 
-// processExisting resolves a Process call for a known id against the stored
-// record: unmask when the payload equals the mask, return the stored mask when
-// the payload equals the original text, otherwise attempt a partial restore.
-// When unmask is false the stored mask is never restored: a payload that equals
-// the mask is returned as-is.
-func processExisting(rec store.Record, payload string, unmask bool) (ProcessResult, error) {
-	// Payload equals the stored mask: unmask, unless the system forbids it.
-	if rec.MaskedText == payload {
-		if !unmask {
-			return ProcessResult{Result: payload}, nil
-		}
-		restored, misses := mask.Restore(payload, rec.Replacements)
-		return ProcessResult{Result: restored, Unmasked: true, Misses: misses}, nil
-	}
-	// Payload equals the original text: return the stored mask (idempotent).
+// processExisting resolves a Process call against a record already verified
+// to be owned by the caller (opt.SystemID).
+//
+// The unmask permission (opt.Unmask) is checked before any restore is
+// attempted, not just when the payload happens to equal the stored mask: a
+// system with unmask disabled must never see a restored value, regardless of
+// what the payload looks like.
+//
+//   - payload equals the original text (hash match): return the stored mask
+//     (idempotent retry; allowed regardless of opt.Unmask, since nothing is
+//     restored).
+//   - opt.Unmask is false: never restore. Mask the payload fresh with the
+//     caller's strategy/categories and return that, without touching the
+//     stored record.
+//   - payload equals the stored mask, or a partial/reordered variant of it:
+//     restore what matches. If nothing at all matches, this is not our mask;
+//     mask the payload fresh instead of leaking it unchanged (this also
+//     covers a record with zero recorded replacements, where "restoring"
+//     would otherwise trivially return the payload as-is).
+func (e *Engine) processExisting(rec store.Record, payload string, opt Options) (ProcessResult, error) {
 	if rec.Hash == hashText(payload) {
 		return ProcessResult{Result: rec.MaskedText}, nil
 	}
-	// Payload differs from both: try to unmask; the mask may have changed.
+	if !opt.Unmask {
+		return e.maskFreshResult(payload, opt)
+	}
 	restored, misses := mask.Restore(payload, rec.Replacements)
-	if misses == 0 {
-		return ProcessResult{Result: restored, Unmasked: true}, nil
+	if misses >= len(rec.Replacements) {
+		return e.maskFreshResult(payload, opt)
 	}
-	// Partial restore: at least one replacement was applied, so return the
-	// restored text rather than the payload as-is.
-	if misses < len(rec.Replacements) {
-		return ProcessResult{Result: restored, Unmasked: true, Misses: misses}, nil
+	return ProcessResult{Result: restored, Unmasked: true, Misses: misses}, nil
+}
+
+// ownsRecord reports whether opt.SystemID may access rec. A record with no
+// recorded owner (SystemID == store.LegacyOwner, i.e. written before
+// ownership tracking existed) is accessible only to the configured default
+// system, never to an arbitrary other caller.
+func ownsRecord(rec store.Record, opt Options) bool {
+	if rec.SystemID == store.LegacyOwner {
+		return opt.SystemID != "" && opt.SystemID == opt.DefaultSystemID
 	}
-	// Zero matches: return the payload as-is.
-	return ProcessResult{Result: payload, Misses: misses}, nil
+	return rec.SystemID == opt.SystemID
 }
 
 // filterSpans drops spans whose category is not in categories and applies the

@@ -20,6 +20,10 @@ type reqInfo struct {
 	found     map[pii.Category]int
 	misses    int
 	stages    engine.Stages
+	// tokens is the estimated (or, when the upstream LLM reports it, exact)
+	// token count processed by this request. It feeds the pdn_tokens_total
+	// metric and the request log line for every route, not just chat.
+	tokens int
 }
 
 // withReqInfo attaches a reqInfo to the request context.

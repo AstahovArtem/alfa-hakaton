@@ -43,7 +43,7 @@ func TestChatProxyMasksAndUnmasks(t *testing.T) {
 	cfg.LLM.BaseURL = llm.URL
 	_, ts := testServer(t, cfg)
 
-	resp, data := doJSON(t, ts, "POST", "/v1/chat/completions", checkerHeaders(), map[string]interface{}{
+	resp, data := doJSON(t, ts, "POST", "/v1/chat/completions", demoHeaders(t), map[string]interface{}{
 		"model":    "test-model",
 		"messages": []map[string]string{{"role": "user", "content": testText}},
 	})
@@ -100,7 +100,7 @@ func assertPDNBlock(t *testing.T, pdn *pdnInfo) {
 		t.Errorf("pdn.masked_count = 0, want > 0")
 	}
 	if !pdn.Unmasked {
-		t.Errorf("pdn.unmasked = false, want true for checker system")
+		t.Errorf("pdn.unmasked = false, want true for demo system")
 	}
 }
 
@@ -109,7 +109,7 @@ func TestChatProxyLLMUnavailable(t *testing.T) {
 	cfg.LLM.BaseURL = "http://127.0.0.1:1" // unreachable
 	_, ts := testServer(t, cfg)
 
-	resp, data := doJSON(t, ts, "POST", "/v1/chat/completions", checkerHeaders(), map[string]interface{}{
+	resp, data := doJSON(t, ts, "POST", "/v1/chat/completions", demoHeaders(t), map[string]interface{}{
 		"messages": []map[string]string{{"role": "user", "content": testText}},
 	})
 	if resp.StatusCode != 502 {
@@ -130,7 +130,7 @@ func TestChatProxyLLM5xx(t *testing.T) {
 	cfg.LLM.BaseURL = llm.URL
 	_, ts := testServer(t, cfg)
 
-	resp, data := doJSON(t, ts, "POST", "/v1/chat/completions", checkerHeaders(), map[string]interface{}{
+	resp, data := doJSON(t, ts, "POST", "/v1/chat/completions", demoHeaders(t), map[string]interface{}{
 		"messages": []map[string]string{{"role": "user", "content": testText}},
 	})
 	if resp.StatusCode != 502 {
@@ -149,7 +149,7 @@ func TestChatProxySharedDocState(t *testing.T) {
 	cfg.LLM.BaseURL = llm.URL
 	_, ts := testServer(t, cfg)
 
-	resp, data := doJSON(t, ts, "POST", "/v1/chat/completions", checkerHeaders(), map[string]interface{}{
+	resp, data := doJSON(t, ts, "POST", "/v1/chat/completions", demoHeaders(t), map[string]interface{}{
 		"messages": []map[string]string{
 			{"role": "user", "content": "Мой телефон +7 (916) 123-45-67"},
 			{"role": "user", "content": "Позвоните на +7 (916) 123-45-67"},
@@ -213,18 +213,22 @@ func TestNoPIIInLogs(t *testing.T) {
 	defer ts.Close()
 
 	// Run a mask and an unmask with PII.
-	resp, data := doJSON(t, ts, "POST", "/mask", checkerHeaders(), map[string]string{"text": testText})
+	resp, data := doJSON(t, ts, "POST", "/mask", demoHeaders(t), map[string]string{"text": testText})
 	if resp.StatusCode != 200 {
 		t.Fatalf("mask status = %d", resp.StatusCode)
 	}
 	var mres maskResponse
 	_ = json.Unmarshal(data, &mres)
 
-	doJSON(t, ts, "POST", "/unmask", checkerHeaders(), map[string]string{"id": mres.ID, "text": mres.Masked})
+	doJSON(t, ts, "POST", "/unmask", demoHeaders(t), map[string]string{"id": mres.ID, "text": mres.Masked})
 
 	logs := buf.String()
 	assertNoPIILeak(t, logs)
-	assertLogContains(t, logs, `"payload_id":"`+mres.ID+`"`, "log missing payload_id %q:\n%s", mres.ID)
+	// The raw payload id must never be logged (A9): only its HMAC digest.
+	if strings.Contains(logs, mres.ID) {
+		t.Errorf("log leaked the raw payload id %q:\n%s", mres.ID, logs)
+	}
+	assertLogContains(t, logs, `"payload_id":"`+s.store.HashID(mres.ID)+`"`, "log missing hashed payload_id for %q:\n%s", mres.ID)
 	assertLogContains(t, logs, `"direction":"mask"`, "log missing mask direction:\n%s")
 	assertLogContains(t, logs, `"direction":"unmask"`, "log missing unmask direction:\n%s")
 	for _, cat := range []string{"full_name", "passport", "phone"} {

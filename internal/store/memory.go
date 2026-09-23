@@ -16,11 +16,14 @@ type memoryEntry struct {
 }
 
 // Memory is an in-memory Store with TTL-based background cleanup. Records are
-// stored encrypted so a memory dump does not reveal personal data.
+// stored encrypted so a memory dump does not reveal personal data. Entries are
+// keyed by the HMAC of the caller-supplied id, for consistency with the Redis
+// backend, even though a raw-id map would be equally safe in-process.
 type Memory struct {
 	mu     sync.RWMutex
 	items  map[string]memoryEntry
 	cipher *crypto.Cipher
+	key    []byte
 	stop   chan struct{}
 	done   chan struct{}
 }
@@ -34,11 +37,17 @@ func NewMemory(key []byte) (*Memory, error) {
 	m := &Memory{
 		items:  make(map[string]memoryEntry),
 		cipher: c,
+		key:    key,
 		stop:   make(chan struct{}),
 		done:   make(chan struct{}),
 	}
 	go m.cleanupLoop()
 	return m, nil
+}
+
+// HashID returns the derived key used to store and log id.
+func (m *Memory) HashID(id string) string {
+	return hashID(m.key, id)
 }
 
 // cleanupLoop periodically removes expired entries.
@@ -80,35 +89,62 @@ func (m *Memory) Close() {
 
 // Save encrypts and stores a record under id with the given TTL.
 func (m *Memory) Save(_ context.Context, id string, rec Record, ttl time.Duration) error {
-	plain, err := json.Marshal(rec)
+	ct, err := m.encode(rec)
 	if err != nil {
 		return err
-	}
-	ct, err := m.cipher.Encrypt(plain)
-	if err != nil {
-		return err
-	}
-	var expiry time.Time
-	if ttl > 0 {
-		expiry = time.Now().Add(ttl)
 	}
 	m.mu.Lock()
-	m.items[id] = memoryEntry{ct: ct, expiry: expiry}
+	m.items[m.HashID(id)] = memoryEntry{ct: ct, expiry: expiryFor(ttl)}
 	m.mu.Unlock()
 	return nil
 }
 
+// SaveNew stores rec under id only if no live record currently exists there.
+func (m *Memory) SaveNew(_ context.Context, id string, rec Record, ttl time.Duration) (bool, error) {
+	ct, err := m.encode(rec)
+	if err != nil {
+		return false, err
+	}
+	key := m.HashID(id)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if e, ok := m.items[key]; ok && !expired(e, time.Now()) {
+		return false, nil
+	}
+	m.items[key] = memoryEntry{ct: ct, expiry: expiryFor(ttl)}
+	return true, nil
+}
+
+// encode marshals and encrypts a record.
+func (m *Memory) encode(rec Record) ([]byte, error) {
+	plain, err := json.Marshal(rec)
+	if err != nil {
+		return nil, err
+	}
+	return m.cipher.Encrypt(plain)
+}
+
+// expiryFor returns the absolute expiry for a TTL, or the zero time for "no
+// expiry".
+func expiryFor(ttl time.Duration) time.Time {
+	if ttl <= 0 {
+		return time.Time{}
+	}
+	return time.Now().Add(ttl)
+}
+
 // Load retrieves and decrypts a record by id.
 func (m *Memory) Load(_ context.Context, id string) (Record, bool, error) {
+	key := m.HashID(id)
 	m.mu.RLock()
-	e, ok := m.items[id]
+	e, ok := m.items[key]
 	m.mu.RUnlock()
 	if !ok {
 		return Record{}, false, nil
 	}
 	if !e.expiry.IsZero() && time.Now().After(e.expiry) {
 		m.mu.Lock()
-		delete(m.items, id)
+		delete(m.items, key)
 		m.mu.Unlock()
 		return Record{}, false, nil
 	}
@@ -126,7 +162,7 @@ func (m *Memory) Load(_ context.Context, id string) (Record, bool, error) {
 // Delete removes a record by id.
 func (m *Memory) Delete(_ context.Context, id string) error {
 	m.mu.Lock()
-	delete(m.items, id)
+	delete(m.items, m.HashID(id))
 	m.mu.Unlock()
 	return nil
 }

@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -87,13 +88,16 @@ type chatResponse struct {
 	PDN   *pdnInfo `json:"pdn"`
 }
 
-// sseChunk is one streaming chunk from the upstream.
+// sseChunk is one streaming chunk from the upstream. Usage is only present on
+// the final chunk of some gateways, when requested; when absent, token
+// accounting falls back to the estimate in chat.go.
 type sseChunk struct {
 	Choices []struct {
 		Delta struct {
 			Content string `json:"content"`
 		} `json:"delta"`
 	} `json:"choices"`
+	Usage *usage `json:"usage"`
 }
 
 // chatCompletion calls the upstream LLM with a masked request and returns the
@@ -161,10 +165,20 @@ func (c *LLMClient) chatCompletion(ctx context.Context, req chatRequest) (string
 	return content, out, nil
 }
 
-// readSSE parses the SSE stream and concatenates delta.content fragments.
+// errStreamNotTerminated is returned by readSSE when the upstream connection
+// ended without ever sending a "[DONE]" marker: the stream was cut short
+// (dropped connection, upstream crash, proxy truncation), so any content
+// collected so far cannot be trusted as complete.
+var errStreamNotTerminated = errors.New("llm: stream ended without [DONE]")
+
+// readSSE parses the SSE stream and concatenates delta.content fragments. It
+// also picks up a usage block when a chunk carries one (some gateways attach
+// it to the final chunk). A stream that ends without a "[DONE]" marker is
+// reported as an error rather than silently returning partial content.
 func readSSE(r io.Reader) (string, usage, error) {
 	var content strings.Builder
 	var usage usage
+	sawDone := false
 	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
@@ -174,6 +188,7 @@ func readSSE(r io.Reader) (string, usage, error) {
 		}
 		data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
 		if data == "[DONE]" {
+			sawDone = true
 			break
 		}
 		var chunk sseChunk
@@ -183,9 +198,15 @@ func readSSE(r io.Reader) (string, usage, error) {
 		for _, ch := range chunk.Choices {
 			content.WriteString(ch.Delta.Content)
 		}
+		if chunk.Usage != nil {
+			usage = *chunk.Usage
+		}
 	}
 	if err := scanner.Err(); err != nil {
 		return "", usage, err
+	}
+	if !sawDone {
+		return "", usage, errStreamNotTerminated
 	}
 	return content.String(), usage, nil
 }

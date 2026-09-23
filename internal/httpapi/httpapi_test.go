@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -23,9 +24,20 @@ import (
 
 const testText = "Клиент Иванов Иван Иванович, паспорт 4509 123456, тел +7 (916) 123-45-67"
 
-// checkerHeaders identifies the checker system for non-process endpoints.
+// checkerHeaders identifies the checker system. checker is keyless, so per
+// A1 it is only usable on POST /process; use it only for /process tests.
 func checkerHeaders() map[string]string {
 	return map[string]string{"X-System-Id": "checker"}
+}
+
+// demoHeaders identifies the demo system, which has a real key, for tests
+// that exercise a non-process endpoint (/mask, /unmask, /v1/chat/completions)
+// and so must not use the keyless checker system. It sets PDN_DEMO_KEY for
+// the duration of the calling test via t.Setenv (auto-restored).
+func demoHeaders(t *testing.T) map[string]string {
+	t.Helper()
+	t.Setenv("PDN_DEMO_KEY", "demo-key")
+	return map[string]string{"X-System-Id": "demo", "X-API-Key": "demo-key"}
 }
 
 func testConfig() *config.Config {
@@ -50,6 +62,10 @@ func testConfig() *config.Config {
 			},
 			{ID: "chatbot", Enabled: true, APIKeyEnv: "PDN_CHATBOT_KEY", Strategy: "token", Unmask: false},
 			{ID: "legacy_crm", Enabled: false, APIKeyEnv: "PDN_LEGACY_KEY"},
+			// demo2 is a second unmask-enabled system, distinct from demo, so
+			// ownership tests can exercise "system B tries to read/restore
+			// system A's record" without the confound of unmask:false.
+			{ID: "demo2", Enabled: true, APIKeyEnv: "PDN_DEMO2_KEY", Strategy: "partial", Unmask: true},
 		},
 	}
 }
@@ -188,8 +204,9 @@ func TestProcessNoUnmaskForChatbot(t *testing.T) {
 		t.Errorf("chatbot /process leaked the original text")
 	}
 
-	// checker keeps the previous behaviour: /process with the mask restores the
-	// original text.
+	// checker does not own "docChat" (chatbot created it): /process as
+	// checker with chatbot's mask must not reveal chatbot's original text.
+	// It gets a fresh mask of the payload instead, never chatbot's record.
 	resp3, data3 := doJSON(t, ts, "POST", "/process", nil, map[string]string{
 		"payload":    mres.Result,
 		"payload_id": "docChat",
@@ -201,8 +218,11 @@ func TestProcessNoUnmaskForChatbot(t *testing.T) {
 	if err := json.Unmarshal(data3, &cres); err != nil {
 		t.Fatalf("unmarshal3: %v", err)
 	}
-	if cres.Result != testText {
-		t.Errorf("checker /process with mask = %q, want original %q", cres.Result, testText)
+	if cres.Result == testText {
+		t.Errorf("checker was able to reveal chatbot's record: %q", cres.Result)
+	}
+	if strings.Contains(cres.Result, "Иванов") || strings.Contains(cres.Result, "4509") {
+		t.Errorf("checker /process leaked chatbot's PII: %q", cres.Result)
 	}
 }
 
@@ -383,7 +403,7 @@ func TestAuthUnauthorized(t *testing.T) {
 
 func TestMaskEndpoint(t *testing.T) {
 	_, ts := testServer(t, testConfig())
-	resp, data := doJSON(t, ts, "POST", "/mask", checkerHeaders(), map[string]string{"text": testText})
+	resp, data := doJSON(t, ts, "POST", "/mask", demoHeaders(t), map[string]string{"text": testText})
 	if resp.StatusCode != 200 {
 		t.Fatalf("status = %d, body %s", resp.StatusCode, data)
 	}
@@ -417,7 +437,8 @@ func TestUnmaskDisabledForSystem(t *testing.T) {
 
 func TestUnmaskRoundTrip(t *testing.T) {
 	_, ts := testServer(t, testConfig())
-	_, data := doJSON(t, ts, "POST", "/mask", checkerHeaders(), map[string]string{"text": testText})
+	headers := demoHeaders(t)
+	_, data := doJSON(t, ts, "POST", "/mask", headers, map[string]string{"text": testText})
 	var mres maskResponse
 	if err := json.Unmarshal(data, &mres); err != nil {
 		t.Fatalf("unmarshal: %v", err)
@@ -427,7 +448,7 @@ func TestUnmaskRoundTrip(t *testing.T) {
 		ts,
 		"POST",
 		"/unmask",
-		checkerHeaders(),
+		headers,
 		map[string]string{"id": mres.ID, "text": mres.Masked},
 	)
 	if resp.StatusCode != 200 {
@@ -469,34 +490,82 @@ func TestBodyTooLarge(t *testing.T) {
 	cfg.Server.MaxBodyBytes = 100
 	_, ts := testServer(t, cfg)
 	big := strings.Repeat("a", 1000)
-	resp, _ := doJSON(t, ts, "POST", "/mask", checkerHeaders(), map[string]string{"text": big})
+	resp, _ := doJSON(t, ts, "POST", "/mask", demoHeaders(t), map[string]string{"text": big})
 	if resp.StatusCode != 413 {
 		t.Errorf("status = %d, want 413", resp.StatusCode)
 	}
 }
 
+// TestInflightLimit verifies the inflight slot (and the Inflight gauge) is
+// held for the whole lifetime of a request, not released before the handler
+// actually runs: with max_inflight=1, a request whose handler blocks must
+// cause a second, concurrent request to be rejected with 429 for as long as
+// the first is still in flight, and the slot must be free again once the
+// first request finishes.
 func TestInflightLimit(t *testing.T) {
 	cfg := testConfig()
 	cfg.Server.MaxInflight = 1
-	s, ts := testServer(t, cfg)
+	s, _ := testServer(t, cfg)
+	headers := demoHeaders(t)
 
-	// Fill the semaphore directly to simulate a full inflight slot.
-	s.sem <- struct{}{}
-	defer func() { <-s.sem }()
+	started := make(chan struct{})
+	release := make(chan struct{})
+	var startOnce sync.Once
+	blocking := s.wrap(func(w http.ResponseWriter, r *http.Request) {
+		startOnce.Do(func() { close(started) })
+		<-release
+		writeJSON(w, http.StatusOK, map[string]string{"ok": "1"})
+	}, routeMask)
 
-	resp, data := doJSON(t, ts, "POST", "/mask", checkerHeaders(), map[string]string{"text": "x"})
-	if resp.StatusCode != 429 {
-		t.Fatalf("status = %d, want 429, body %s", resp.StatusCode, data)
+	newReq := func() *http.Request {
+		req := httptest.NewRequest("POST", "/mask", strings.NewReader("{}"))
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
+		return req
 	}
-	if resp.Header.Get("Retry-After") != "1" {
-		t.Errorf("Retry-After = %q, want 1", resp.Header.Get("Retry-After"))
+
+	// Start the first (blocking) request in the background; it holds the
+	// inflight slot until we release it.
+	done := make(chan *httptest.ResponseRecorder, 1)
+	go func() {
+		rec := httptest.NewRecorder()
+		blocking(rec, newReq())
+		done <- rec
+	}()
+	<-started
+
+	// A second, concurrent request must be rejected with 429 while the first
+	// is still in flight. This only holds if the slot is released after the
+	// handler finishes, not (as the old code did) right after acquireSlot
+	// returns, before the handler even runs.
+	rec2 := httptest.NewRecorder()
+	blocking(rec2, newReq())
+	if rec2.Code != http.StatusTooManyRequests {
+		t.Fatalf("status = %d, want 429, body %s", rec2.Code, rec2.Body.String())
+	}
+	if rec2.Header().Get("Retry-After") != "1" {
+		t.Errorf("Retry-After = %q, want 1", rec2.Header().Get("Retry-After"))
+	}
+
+	close(release)
+	rec1 := <-done
+	if rec1.Code != http.StatusOK {
+		t.Errorf("first request status = %d, want 200, body %s", rec1.Code, rec1.Body.String())
+	}
+
+	// The slot must be free again once the first request has finished.
+	rec3 := httptest.NewRecorder()
+	blocking(rec3, newReq())
+	if rec3.Code == http.StatusTooManyRequests {
+		t.Errorf("slot still held after the first request finished")
 	}
 }
 
 func TestMetricsEndpoint(t *testing.T) {
 	_, ts := testServer(t, testConfig())
 	// Generate some traffic so the counters are registered.
-	doJSON(t, ts, "POST", "/mask", checkerHeaders(), map[string]string{"text": testText})
+	doJSON(t, ts, "POST", "/mask", demoHeaders(t), map[string]string{"text": testText})
 	resp, data := doJSON(t, ts, "GET", "/metrics", checkerHeaders(), nil)
 	if resp.StatusCode != 200 {
 		t.Fatalf("status = %d", resp.StatusCode)
@@ -580,8 +649,13 @@ func TestMaskStrategyOverrideAllowed(t *testing.T) {
 }
 
 func TestMaskStrategyOverrideDenied(t *testing.T) {
+	t.Setenv("PDN_CHATBOT_KEY", "chatbot-key")
 	_, ts := testServer(t, testConfig())
-	resp, data := doJSON(t, ts, "POST", "/mask", checkerHeaders(), map[string]string{
+	// chatbot is authenticated (has a real key) but is not allowed to
+	// override the strategy, so this exercises the override check itself
+	// rather than route/auth rejection.
+	headers := map[string]string{"X-System-Id": "chatbot", "X-API-Key": "chatbot-key"}
+	resp, data := doJSON(t, ts, "POST", "/mask", headers, map[string]string{
 		"text":     testText,
 		"strategy": "full",
 	})

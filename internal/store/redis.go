@@ -26,6 +26,7 @@ const (
 type Redis struct {
 	client *redis.Client
 	cipher *crypto.Cipher
+	key    []byte
 }
 
 // Options configures the Redis client pool.
@@ -75,7 +76,18 @@ func NewRedisWithOptions(addr, password string, key []byte, opt Options) (*Redis
 		PoolTimeout:  opt.Wait,
 		MinIdleConns: DefaultRedisMinIdle,
 	})
-	return &Redis{client: client, cipher: c}, nil
+	return &Redis{client: client, cipher: c, key: key}, nil
+}
+
+// HashID returns the derived key used to store and log id.
+func (r *Redis) HashID(id string) string {
+	return hashID(r.key, id)
+}
+
+// redisKey returns the namespaced, hashed Redis key for id. The raw id never
+// appears in Redis.
+func (r *Redis) redisKey(id string) string {
+	return redisKeyPrefix + r.HashID(id)
 }
 
 // Ping checks connectivity.
@@ -92,20 +104,35 @@ func (r *Redis) Close() {
 
 // Save encrypts and stores a record under id with the given TTL.
 func (r *Redis) Save(ctx context.Context, id string, rec Record, ttl time.Duration) error {
+	ct, err := r.encode(rec)
+	if err != nil {
+		return err
+	}
+	return r.client.Set(ctx, r.redisKey(id), ct, ttl).Err()
+}
+
+// SaveNew stores rec under id only if the key does not already exist, using
+// Redis SET NX so the check and the write are atomic.
+func (r *Redis) SaveNew(ctx context.Context, id string, rec Record, ttl time.Duration) (bool, error) {
+	ct, err := r.encode(rec)
+	if err != nil {
+		return false, err
+	}
+	return r.client.SetNX(ctx, r.redisKey(id), ct, ttl).Result()
+}
+
+// encode marshals and encrypts a record.
+func (r *Redis) encode(rec Record) ([]byte, error) {
 	plain, err := json.Marshal(rec)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	ct, err := r.cipher.Encrypt(plain)
-	if err != nil {
-		return err
-	}
-	return r.client.Set(ctx, redisKeyPrefix+id, ct, ttl).Err()
+	return r.cipher.Encrypt(plain)
 }
 
 // Load retrieves and decrypts a record by id.
 func (r *Redis) Load(ctx context.Context, id string) (Record, bool, error) {
-	ct, err := r.client.Get(ctx, redisKeyPrefix+id).Bytes()
+	ct, err := r.client.Get(ctx, r.redisKey(id)).Bytes()
 	if errors.Is(err, redis.Nil) {
 		return Record{}, false, nil
 	}
@@ -125,5 +152,5 @@ func (r *Redis) Load(ctx context.Context, id string) (Record, bool, error) {
 
 // Delete removes a record by id.
 func (r *Redis) Delete(ctx context.Context, id string) error {
-	return r.client.Del(ctx, redisKeyPrefix+id).Err()
+	return r.client.Del(ctx, r.redisKey(id)).Err()
 }
