@@ -155,7 +155,7 @@ func dateWordDayValid(day string) bool {
 // dateWordRightContexts are the birth-date keywords that may appear to the
 // right of a date. The shared BirthContexts cover г.р., г. р., уроженец and
 // уроженка; the specific right-context keywords are added on top.
-var dateWordRightContexts = append([]string{"года рождения", "р.", "место рождения"}, pii.BirthContexts...)
+var dateWordRightContexts = append([]string{"года рождения", "рождения", "р.", "место рождения"}, pii.BirthContexts...)
 
 // dateBirthReclassify applies the birth_date reclassification shared by the
 // regex date rule and the dateWords detector. It returns birth_date when a

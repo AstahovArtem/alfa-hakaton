@@ -12,7 +12,7 @@ import (
 // an optional pronoun ("я") and preposition ("в") between the keyword and the
 // value, and an optional separator (":", "—", "-").
 var birthContextRe = regexp.MustCompile(
-	`(?i)(?:место рождения|место рожд\.|родился\s+в\s+|родилась\s+в\s+|родился|родилась|рожден в|рождён в|уроженец|уроженка|род\.)`,
+	`(?i)(?:место рождения|место рожд\.|город рождения|родился\s+в\s+|родилась\s+в\s+|родился|родилась|рожден в|рождён в|уроженец|уроженка|род\.|ур\.|\bborn\b)`,
 )
 
 // settlementPrefixGorod is the "г." settlement prefix.
@@ -37,7 +37,7 @@ var birthStopWords = map[string]bool{
 }
 
 var birthContextLowerRe = regexp.MustCompile(
-	`(?:место рождения|место рожд\.|родился\s+в\s+|родилась\s+в\s+|родился|родилась|рожден в|рождён в|уроженец|уроженка|род\.)`,
+	`(?:место рождения|место рожд\.|город рождения|родился\s+в\s+|родилась\s+в\s+|родился|родилась|рожден в|рождён в|уроженец|уроженка|род\.|ур\.|\bborn\b)`,
 )
 
 // birthValueRe matches the value after a birth-place context keyword. It
@@ -70,16 +70,32 @@ func birthValueBody(upper bool) string {
 	dateTail := `(?:г\.|года|году|г)?\s*`
 	date := `(?:` + dateWordsRe.String() + `\s+в\s+|\d{1,2}[./-]\d{1,2}[./-]\d{4}\s+` + dateTail + `в\s+|\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря|янв|фев|мар|апр|май|июн|июл|авг|сен|окт|ноя|дек)\s+\d{4}\s+` + dateTail + `в\s+|\d{4}\s+` + dateTail + `в\s+)?`
 	// An optional pronoun and preposition between the context and the place
-	// (e.g. "Родилась я в Ташкенте"). These stay outside the captured value.
-	lead := `(?:я\s+)?(?:в\s+)?`
+	// (e.g. "Родилась я в Ташкенте", "born in Baku"). These stay outside the
+	// captured value.
+	lead := `(?:я\s+)?(?:в\s+|in\s+)?`
 	prefix := `(?:г\.|гор\.|город|городе|пос\.|посёлок|поселок|село|дер\.|деревня|деревне|станица|пгт|с\.|ст\.|аул|х\.|хутор|п\.|рп|д\.|кишлак|кишлаке)?`
 	word := `[а-яё-]+`
+	// The first word of the place may also be a Latin name (e.g. "Baku") for
+	// an English birth statement; a continuation word stays Cyrillic-only so a
+	// following English filler word ("on", "and", ...) is never swept in.
+	firstWord := `[а-яё-]+|[a-z-]+`
 	if upper {
 		word = `[А-ЯЁ][а-яё-]+`
+		firstWord = `[А-ЯЁ][а-яё-]+|[A-Z][A-Za-z-]+`
 	}
-	place := `(?:` + word + `|` + cityAlt + `)(?:\s+` + word + `){0,2}`
-	region := `(?:область|области|обл\.|край|края|район|района|республика|республики|асср)`
-	tail := `(?:,?\s*(?:` + region + `\s+` + word + `(?:\s+` + word + `)?|` + word + `\s+` + region + `|` + region + `)){0,2}`
+	place := `(?:` + firstWord + `|` + cityAlt + `)(?:\s+` + word + `){0,1}`
+	// Longer alternatives come first so e.g. "района" wins over its prefix
+	// "район" (regexp alternation picks the first alternative that matches).
+	region := `(?:область|области|обл\.|край|края|района|район|республики|республика|асср)`
+	// regionLeading is the subset of region keywords that can precede the
+	// region's proper name (e.g. "Республики Дагестан", "Республика Северная
+	// Осетия"). "область"/"край"/"район"/"асср" only ever follow the proper
+	// name (e.g. "Челябинской области"), so allowing them to lead into an
+	// arbitrary trailing word would swallow unrelated text (e.g. a "область"
+	// at the end of a line followed by the next field's first word).
+	regionLeading := `(?:республики|республика)`
+	bareRegion := `(?:` + strings.Join(bareRegionNames, "|") + `)`
+	tail := `(?:,?\s*(?:` + regionLeading + `\s+` + word + `(?:\s+` + word + `)?|` + word + `\s+` + region + `|` + region + `|` + bareRegion + `)){0,2}`
 	return date + lead + `(?P<value>` + prefix + `\s*` + place + tail + `)`
 }
 
@@ -111,9 +127,9 @@ func (d *birthplaceDetector) DetectLower(t pii.Text) []pii.Span {
 	var spans []pii.Span
 	valueIdx := valueRe.SubexpIndex("value")
 	for _, loc := range ctxRe.FindAllStringIndex(search, -1) {
-		// The "род." abbreviation must be a standalone word, not part of a
-		// longer word (e.g. "город.").
-		if ctxEndIsRodAbbrev(search, loc) {
+		// A "." abbreviation ("род.", "ур.") must be a standalone word, not
+		// part of a longer word (e.g. "город.").
+		if ctxEndIsAbbrevInWord(search, loc) {
 			continue
 		}
 		// A famous person's birth place is not personal data: when the subject
@@ -137,10 +153,14 @@ func isBornContext(search string, loc []int) bool {
 	return strings.HasPrefix(ctx, "родил")
 }
 
-// ctxEndIsRodAbbrev reports whether a context match is the "род." abbreviation
-// that is part of a longer word (e.g. "город.").
-func ctxEndIsRodAbbrev(search string, loc []int) bool {
-	return loc[1]-loc[0] == len("род.") && loc[0] > 0 && isLetterRune(runeBefore(search, loc[0]))
+// ctxEndIsAbbrevInWord reports whether a context match ending in a period
+// abbreviation (e.g. "род.", "ур.") is part of a longer word (e.g. "город.").
+func ctxEndIsAbbrevInWord(search string, loc []int) bool {
+	ctx := search[loc[0]:loc[1]]
+	if !strings.HasSuffix(ctx, ".") {
+		return false
+	}
+	return loc[0] > 0 && isLetterRune(runeBefore(search, loc[0]))
 }
 
 // matchAtContext builds a birth-place span for the value that follows a context
@@ -315,15 +335,35 @@ func wordCount(s string) int {
 	return len(strings.Fields(s))
 }
 
+// bareRegionNames lists Russian republics that are commonly named without a
+// "республика"/"область" keyword (e.g. "с. Верхние Киги, Башкирия").
+var bareRegionNames = []string{
+	"башкирия", "татарстан", "чувашия", "якутия", "дагестан", "ингушетия",
+	"осетия", "адыгея", "калмыкия", "мордовия", "удмуртия", "хакасия", "тыва",
+	"бурятия", "коми", "карелия", "крым", "марий эл", "кабардино-балкария",
+	"карачаево-черкесия", "саха",
+}
+
+// isBareRegionName reports whether lower is a known bare Russian republic name
+// (see bareRegionNames).
+func isBareRegionName(lower string) bool {
+	for _, r := range bareRegionNames {
+		if lower == r {
+			return true
+		}
+	}
+	return false
+}
+
 // isRegionTail reports whether s looks like a region/republic tail that follows
 // a comma in a birth place (e.g. "Краснодарский край", "Республика
-// Башкортостан", "Астраханской обл.").
+// Башкортостан", "Астраханской обл.", "Башкирия").
 func isRegionTail(s string) bool {
 	if s == "" {
 		return false
 	}
 	lower := strings.ToLower(strings.Fields(s)[0])
-	return isRegionKeyword(lower) || isRegionAdjective(lower)
+	return isRegionKeyword(lower) || isRegionAdjective(lower) || isBareRegionName(lower)
 }
 
 // isRegionKeyword reports whether lower is a region/republic keyword such as

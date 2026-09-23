@@ -52,6 +52,13 @@ rules:
     pattern: '(?i)\+\d{1,3}[\s\x{00A0}\x{202F}-]*\d{2,3}[\s\x{00A0}\x{202F}-]*\d{3,4}[\s\x{00A0}\x{202F}-]*\d{2,4}[\s\x{00A0}\x{202F}-]*\d{2,4}'
     validator: phone_e164
     confidence: 0.95
+    reject_context:
+      - горячая линия
+      - горячей линии
+      - бесплатно по россии
+      - служба поддержки
+      - поддержки банка
+    reject_context_window: 150
 
   - name: phone_ru_mobile
     category: phone
@@ -232,7 +239,7 @@ rules:
 
   - name: passport
     category: passport
-    pattern: '(?:серия[\s\x{00A0}\x{202F}]*:?[\s\x{00A0}\x{202F}]*(\d{4})[\s\x{00A0}\x{202F},]*номер[\s\x{00A0}\x{202F}]*:?[\s\x{00A0}\x{202F}]*(\d{6})|паспорт[\s\x{00A0}\x{202F}]*:?[\s\x{00A0}\x{202F}]*(?:с\.[\s\x{00A0}\x{202F}]*)?(\d{4})[\s\x{00A0}\x{202F}]*(?:№|номер|н\.|ном\.)?[\s\x{00A0}\x{202F}]*(\d{6})|\b(\d{4})[\s\x{00A0}\x{202F}]+(\d{6})\b|\b(\d{4})[\s\x{00A0}\x{202F}]*(?:№|номер|н\.|ном\.)[\s\x{00A0}\x{202F}]*(\d{6})\b|\b(\d{2}[\s\x{00A0}\x{202F}]\d{2})[\s\x{00A0}\x{202F}](\d{6})\b|серия[\s\x{00A0}\x{202F}]*:?[\s\x{00A0}\x{202F}]*(\d{2}[\s\x{00A0}\x{202F}]\d{2})[\s\x{00A0}\x{202F}]*,?[\s\x{00A0}\x{202F}]*(?:№|номер[\s\x{00A0}\x{202F}]*:?)[\s\x{00A0}\x{202F}]*(\d{6})|\b(\d{2}[\s\x{00A0}\x{202F}]\d{2})[\s\x{00A0}\x{202F}]*,?[\s\x{00A0}\x{202F}]*(?:№|номер[\s\x{00A0}\x{202F}]*:?)[\s\x{00A0}\x{202F}]*(\d{6})\b)'
+    pattern: '(?:серия[\s\x{00A0}\x{202F}]*:?[\s\x{00A0}\x{202F}]*(\d{4})[\s\x{00A0}\x{202F},.]*номер[\s\x{00A0}\x{202F}]*:?[\s\x{00A0}\x{202F}]*(\d{6})|паспорт[\s\x{00A0}\x{202F}]*:?[\s\x{00A0}\x{202F}]*(?:с\.[\s\x{00A0}\x{202F}]*)?(\d{4})[\s\x{00A0}\x{202F}]*(?:№|номер|н\.|ном\.)?[\s\x{00A0}\x{202F}]*(\d{6})|\b(\d{4})[\s\x{00A0}\x{202F}]+(\d{6})\b|\b(\d{4})[\s\x{00A0}\x{202F}]*(?:№|номер|н\.|ном\.)[\s\x{00A0}\x{202F}]*(\d{6})\b|\b(\d{2}[\s\x{00A0}\x{202F}]\d{2})[\s\x{00A0}\x{202F}](\d{6})\b|серия[\s\x{00A0}\x{202F}]*:?[\s\x{00A0}\x{202F}]*(\d{2}[\s\x{00A0}\x{202F}]\d{2})[\s\x{00A0}\x{202F}]*[,.]?[\s\x{00A0}\x{202F}]*(?:№|номер[\s\x{00A0}\x{202F}]*:?)[\s\x{00A0}\x{202F}]*(\d{6})|\b(\d{2}[\s\x{00A0}\x{202F}]\d{2})[\s\x{00A0}\x{202F}]*[,.]?[\s\x{00A0}\x{202F}]*(?:№|номер[\s\x{00A0}\x{202F}]*:?)[\s\x{00A0}\x{202F}]*(\d{6})\b)'
     validator: passport
     confidence: 0.9
     match_lower: true
@@ -275,6 +282,13 @@ rules:
       - к/п
       - код подр
       - код
+    # The bare "код" context is also common in unrelated technical text (e.g.
+    # an HTTP-style error count); that context disqualifies the match even
+    # though "код" is nearby.
+    reject_context:
+      - ошибок
+      - ошибка
+    reject_context_window: 30
 
   - name: division_code_spaced
     category: division_code
@@ -329,6 +343,32 @@ rules:
       - права
       - удостоверение
 
+  - name: driver_license_labeled
+    category: driver_license
+    # "77 12 номер 345678" / "77 12 № 345678" (series with an explicit
+    # "номер"/"№" label between series and number). A higher confidence than
+    # the passport rule's bare series+number form wins the overlap when a
+    # driver-license context is present (e.g. "серия 50 33 номер 776655").
+    pattern: '(?i)\b\d{2}[\s\x{00A0}\x{202F}]\d{2}[\s\x{00A0}\x{202F}]*(?:№|номер)[\s\x{00A0}\x{202F}]*\d{6}\b'
+    require_context: true
+    context_window: 40
+    # The issue date normally sits between the label and the series/number
+    # (e.g. "в/у выдано 15 мая 2018, серия 50 33 номер 776655").
+    context_allow_date_gap: true
+    confidence: 0.92
+    context:
+      - водительское
+      - в/у
+      - ву
+      - права
+      - удостоверение
+    context_after:
+      - водительское
+      - в/у
+      - ву
+      - права
+      - удостоверение
+
   - name: snils
     category: snils
     pattern: '(?i)(?:\b\d{3}[\s-]\d{3}[\s-]\d{3}[\s-]\d{2}\b|\b\d{11}\b)'
@@ -341,8 +381,10 @@ rules:
     confidence: 0.9
     context:
       - снилс
+      - страховой номер
     context_after:
       - снилс
+      - страховой номер
 
   - name: foreign_passport
     category: foreign_passport
@@ -429,11 +471,56 @@ rules:
 
   - name: date
     category: date
-    pattern: '(?:\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b|\b\d{4}[./-]\d{1,2}[./-]\d{1,2}\b|\b\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+\d{4}\b(?:\s+(?:года|г\.|г))?|\b\d{1,2}(?:-го|-е|-ого|-его)\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+\d{4}\b|\b\d{1,2}\s+(?:янв|фев|мар|апр|мая|май|июн|июл|авг|сен|сент|окт|ноя|дек)\.?\s+\d{4}\b|\b\d{4}\s+г\.?\s*,?\s+\d{1,2}(?:-го|-е|-ого|-его)?\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря))'
+    pattern: '(?:\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b|\b\d{4}[./-]\d{1,2}[./-]\d{1,2}\b|\b\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+\d{4}\b(?:\s+(?:года|г\.|г))?|\b\d{1,2}(?:-го|-е|-ого|-его)\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+\d{4}\b|\b\d{1,2}\s+(?:янв|фев|мар|апр|мая|май|июн|июл|авг|сен|сент|окт|ноя|дек)\.?\s+\d{4}\b|\b\d{4}\s+г\.?\s*,?\s+\d{1,2}(?:-го|-е|-ого|-его)?\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)|\b\d{1,2}\s+(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{4}\b)'
     validator: date
     confidence: 0.85
     match_lower: true
     reclassify_date: true
+
+  - name: date_word_short_year
+    category: date
+    # A day with an ordinal suffix, a month in words and a two-digit year with
+    # its own ordinal suffix (e.g. "25-го марта 90-го" = 25 March 1990).
+    # The trailing boundary is a character class, not \b: Go's regexp package
+    # treats \b as an ASCII word boundary only, so \b right after a Cyrillic
+    # letter never matches (Cyrillic letters count as non-word there too).
+    pattern: '(?i)\b\d{1,2}(?:-го|-е|-ого|-его)\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+\d{2}-го(?:[^\p{L}]|$)'
+    validator: date_word_short_year
+    confidence: 0.85
+    match_lower: true
+    reclassify_date: true
+
+  - name: birth_year_labeled
+    category: birth_date
+    # A bare year with the birth-year phrase itself in the match (e.g. "1999
+    # года рождения"), so the label stays inside the span the same way it does
+    # for a full word-form date (see the "date" rule's "рождения" handling).
+    # The trailing boundary is a character class, not \b (see the note on
+    # date_word_short_year above).
+    pattern: '(?i)\b(?:19|20)\d{2}\s+года\s+рождения(?:[^\p{L}]|$)'
+    # Low confidence so a fuller date at the same position never loses to this
+    # (e.g. a preceding day+month already matched by the "date" rule).
+    confidence: 0.6
+
+  - name: birth_year
+    category: birth_date
+    # A bare year labelled as a birth year (e.g. "г.р. 1985", "1999 г.р."),
+    # with no day or month. Without one of these labels a bare 4-digit number
+    # is too ambiguous with amounts, codes and other IDs.
+    pattern: '(?i)\b(?:19|20)\d{2}\b'
+    # Low confidence so a fuller numeric or word-form date at the same
+    # position (e.g. the "1995" tail of "01.05.1995") always wins the overlap
+    # instead of being shrunk down to the bare year.
+    confidence: 0.6
+    require_context: true
+    context_window: 10
+    context_after_window: 10
+    context:
+      - г.р.
+      - г. р.
+    context_after:
+      - г.р.
+      - г. р.
 
   - name: date_short_year
     category: date
