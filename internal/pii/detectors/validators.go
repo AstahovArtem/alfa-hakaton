@@ -19,7 +19,6 @@ var Validators = map[string]func(match string) bool{
 	"date":              date,
 	"date_short_year":   dateShortYear,
 	"not_service_email": notServiceEmail,
-	"not_bank_email":    notBankEmail,
 	"not_toll_free":     notTollFree,
 }
 
@@ -34,39 +33,39 @@ var wordDateRe = regexp.MustCompile(`^(\d{1,2})(?:-го|-е|-ого|-его)?\s+
 // yearFirstDateRe matches "1985 г., 5 марта" (year first, then day + month).
 var yearFirstDateRe = regexp.MustCompile(`^(\d{4})\s+г\.?\s*,?\s+(\d{1,2})(?:-го|-е|-ого|-его)?\s+([а-яё]+)$`)
 
-// serviceEmailLocalParts are local parts of corporate/service mailboxes that
-// are not personal data.
+// serviceEmailLocalParts are local parts of corporate/service mailboxes
+// (info@, support@, ...) that are not personal data when found on an
+// organisation's own domain. A personal-looking local part on the same
+// domain, such as "ivan.petrov", is still personal data.
 var serviceEmailLocalParts = map[string]bool{
 	"support": true, "info": true, "noreply": true, "no-reply": true,
 	"help": true, "sales": true, "office": true, "hello": true,
+	"press": true, "pr": true, "hr": true, "feedback": true,
+	"mail": true, "clients": true, "client": true,
 }
 
-// bankEmailDomains are corporate domains whose mailboxes are not personal data
-// (e.g. the bank's own "alfabank.ru").
-var bankEmailDomains = map[string]bool{
+// orgEmailDomains are the organisation's own domains, whose generic service
+// mailboxes are not personal data (e.g. the bank's "alfabank.ru").
+var orgEmailDomains = map[string]bool{
 	"alfabank.ru": true,
 }
 
-// notServiceEmail rejects an email whose local part is a corporate service
-// mailbox (support, info, noreply, ...).
+// notServiceEmail rejects an email whose local part is a generic service
+// mailbox (support, info, noreply, ...) on one of the organisation's own
+// domains. It does not reject a personal-looking address on the same domain,
+// such as "ivan.petrov@alfabank.ru" or "i.ivanov@alfabank.ru", which is
+// personal data and must be masked.
 func notServiceEmail(match string) bool {
 	at := strings.Index(match, "@")
 	if at < 0 {
 		return true
 	}
 	local := strings.ToLower(match[:at])
-	return !serviceEmailLocalParts[local]
-}
-
-// notBankEmail rejects an email whose domain is a corporate bank domain (e.g.
-// "alfabank.ru"), which is an organisation address rather than personal data.
-func notBankEmail(match string) bool {
-	at := strings.Index(match, "@")
-	if at < 0 {
+	domain := strings.ToLower(match[at+1:])
+	if !orgEmailDomains[domain] {
 		return true
 	}
-	domain := strings.ToLower(match[at+1:])
-	return !bankEmailDomains[domain]
+	return !serviceEmailLocalParts[local]
 }
 
 // notTollFree rejects a Russian toll-free 8 800 number, which is a corporate

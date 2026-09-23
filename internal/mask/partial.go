@@ -3,6 +3,7 @@ package mask
 import (
 	"embed"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"gopkg.in/yaml.v3"
@@ -351,26 +352,16 @@ func maskWord(word, char string) string {
 	return string(first) + strings.Repeat(char, rc-1)
 }
 
+// isDigit reports whether r is a digit. It uses unicode.IsDigit rather than an
+// ASCII-only range so digits from other scripts are also recognized
+// consistently with isLetter.
 func isDigit(r rune) bool {
-	return r >= '0' && r <= '9'
+	return unicode.IsDigit(r)
 }
 
+// isLetter reports whether r is a letter. It uses unicode.IsLetter rather than
+// custom ASCII+Cyrillic ranges so accented and other non-ASCII, non-Cyrillic
+// letters (e.g. "é") are masked instead of being left in the clear.
 func isLetter(r rune) bool {
-	return isLatinLetter(r) || isCyrillicLetter(r)
-}
-
-func isLatinLetter(r rune) bool {
-	return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
-}
-
-func isCyrillicLetter(r rune) bool {
-	return isLowerCyrillic(r) || isUpperCyrillic(r)
-}
-
-func isLowerCyrillic(r rune) bool {
-	return (r >= 'а' && r <= 'я') || r == 'ё'
-}
-
-func isUpperCyrillic(r rune) bool {
-	return (r >= 'А' && r <= 'Я') || r == 'Ё'
+	return unicode.IsLetter(r)
 }

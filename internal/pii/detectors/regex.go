@@ -267,8 +267,17 @@ func (d *regexDetector) DetectLower(t pii.Text) []pii.Span {
 // need no case-insensitive matching. Otherwise the raw text and the
 // case-insensitive regexp are used.
 func (r Rule) matchText(t pii.Text) (string, *regexp.Regexp) {
-	if r.MatchLower && t.LowerOK() && r.reLower != nil {
-		return t.Lower, r.reLower
+	if r.MatchLower && r.reLower != nil {
+		if t.LowerOK() {
+			return t.Lower, r.reLower
+		}
+		// The lowercased text has a different byte length (a rare character
+		// changes size when lowercased), so byte offsets into Lower would not
+		// line up with Raw. Fall back to matching Raw, but still use the
+		// case-insensitive compiled pattern: r.re has no (?i) and is meant to
+		// run only against the already-lowercased text, so matching it
+		// against Raw would silently lose case-insensitivity.
+		return t.Raw, r.reLower
 	}
 	return t.Raw, r.re
 }
@@ -334,13 +343,14 @@ func (r Rule) matchConfidence(t pii.Text, start, end int, soft bool) (float64, b
 	return conf, true
 }
 
-// trimTrailingSeparators trims trailing spaces, dashes, periods and commas so a
-// span never ends with a separator (e.g. a card number followed by a space).
+// trimTrailingSeparators trims trailing spaces (including NBSP and narrow
+// NBSP), dashes, periods and commas so a span never ends with a separator
+// (e.g. a card number followed by a space).
 func trimTrailingSeparators(raw string, start, end int) int {
 	for end > start {
-		c := raw[end-1]
-		if c == ' ' || c == '-' || c == '.' || c == ',' {
-			end--
+		r, size := utf8.DecodeLastRuneInString(raw[start:end])
+		if r == ' ' || r == '-' || r == '.' || r == ',' || r == ' ' || r == ' ' {
+			end -= size
 			continue
 		}
 		break
@@ -491,16 +501,21 @@ func (r Rule) rejectedByContext(t pii.Text, start, end int) bool {
 			return true
 		}
 	}
-	// Deny context: if any deny keyword appears as a substring within the
-	// window to the left or right, the match is not personal data (e.g. a
-	// PIN for a door intercom). Substring matching catches inflected forms
-	// such as "домофона" and stems such as "сигнализац".
+	// Deny context: a deny keyword blocks the match only when it is the label
+	// of this value, i.e. it is the nearest keyword (deny or positive
+	// context) to the left of the match. This lets "ПИН карты 4321, пароль не
+	// помню" stay masked (пароль sits after the number, not as its label)
+	// while "пин-код от домофона 4321" stays unmasked (домофона is nearer to
+	// the number than пин-код). Substring matching catches inflected forms
+	// such as "домофона" and stems such as "сигнализац". Deny context is
+	// checked on the left only: a deny word appearing after the match is
+	// incidental text, not a label.
 	if len(r.denyContextLower) > 0 {
-		if denyContextLeft(t, start, r.denyContextWindow, r.denyContextLower) {
-			return true
-		}
-		if denyContextRight(t, end, r.denyContextWindow, r.denyContextLower) {
-			return true
+		if denyOK, denyDist := leftSubstringContext(t, start, r.denyContextWindow, r.denyContextLower); denyOK {
+			posOK, posDist := leftContext(t, start, r.contextWindow, r.contextLower)
+			if !posOK || denyDist < posDist {
+				return true
+			}
 		}
 	}
 	return false
@@ -616,6 +631,32 @@ func denyContextLeft(t pii.Text, pos, n int, keywords []string) bool {
 		}
 	}
 	return false
+}
+
+// leftSubstringContext reports whether any keyword appears as a substring in
+// the window of size n runes immediately to the left of byte position pos,
+// and the distance in runes from the nearest (rightmost) occurrence to pos.
+// Keywords must already be lowercased. Substring matching catches inflected
+// forms and stems, so no word-boundary check is applied; this mirrors
+// denyContextLeft but also reports the distance so the caller can compare it
+// against the nearest positive context keyword.
+func leftSubstringContext(t pii.Text, pos, n int, keywords []string) (bool, int) {
+	if len(keywords) == 0 {
+		return false, 0
+	}
+	window := runeWindowBefore(t, pos, n)
+	best := -1
+	for _, kw := range keywords {
+		if idx := strings.LastIndex(window, kw); idx >= 0 {
+			if e := idx + len(kw); e > best {
+				best = e
+			}
+		}
+	}
+	if best < 0 {
+		return false, 0
+	}
+	return true, utf8.RuneCountInString(window[best:])
 }
 
 // denyContextRight reports whether any deny keyword appears as a substring in the
