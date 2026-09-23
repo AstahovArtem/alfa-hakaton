@@ -161,5 +161,5 @@ func writeMaskedWord(b *strings.Builder, word string) {
 
 // isWordRune reports whether r is a letter or digit that can be part of a word.
 func isWordRune(r rune) bool {
-	return isLetter(r) || (r >= '0' && r <= '9')
+	return isLetter(r) || isDigit(r)
 }

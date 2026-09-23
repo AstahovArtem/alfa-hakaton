@@ -1,7 +1,7 @@
 rules:
   - name: phone_ru
     category: phone
-    pattern: '(?i)(?:\+7|8|7)[\s(-]*\d{3,4}[\s)-]*\d{2,3}[\s-]*\d{2}[\s-]*\d{2}'
+    pattern: '(?i)(?:\+7|8|7)[\s\x{00A0}\x{202F}(-]*\d{3,4}[\s\x{00A0}\x{202F})-]*\d{2,3}[\s\x{00A0}\x{202F}-]*\d{2}[\s\x{00A0}\x{202F}-]*\d{2}'
     validator: phone
     confidence: 0.9
     context:
@@ -17,7 +17,7 @@ rules:
 
   - name: phone_moscow
     category: phone
-    pattern: '(?i)\(\d{3}\)[\s-]*\d{3}[\s-]*\d{2}[\s-]*\d{2}'
+    pattern: '(?i)\(\d{3}\)[\s\x{00A0}\x{202F}-]*\d{3}[\s\x{00A0}\x{202F}-]*\d{2}[\s\x{00A0}\x{202F}-]*\d{2}'
     validator: phone10
     require_context: true
     context_window: 40
@@ -49,14 +49,44 @@ rules:
 
   - name: phone_e164
     category: phone
-    pattern: '(?i)\+\d{1,3}[\s-]*\d{2,3}[\s-]*\d{3,4}[\s-]*\d{2,4}[\s-]*\d{2,4}'
+    pattern: '(?i)\+\d{1,3}[\s\x{00A0}\x{202F}-]*\d{2,3}[\s\x{00A0}\x{202F}-]*\d{3,4}[\s\x{00A0}\x{202F}-]*\d{2,4}[\s\x{00A0}\x{202F}-]*\d{2,4}'
     validator: phone_e164
     confidence: 0.95
+
+  - name: phone_ru_mobile
+    category: phone
+    # A bare 10-digit mobile number (no leading 7/8 country code), e.g.
+    # "9161234567" or "916-123-45-67". Without a phone label this is
+    # ambiguous with other 10-digit identifiers (account numbers, etc.), so a
+    # context keyword is mandatory.
+    pattern: '(?i)\b9\d{2}[\s\x{00A0}\x{202F}-]?\d{3}[\s\x{00A0}\x{202F}-]?\d{2}[\s\x{00A0}\x{202F}-]?\d{2}\b'
+    validator: phone10
+    require_context: true
+    context_window: 30
+    confidence: 0.9
+    context:
+      - телефон
+      - тел
+      - моб
+      - мобильный
+      - номер телефона
+      - сотовый
+      - whatsapp
+      - telegram
+    context_after:
+      - телефон
+      - тел
+      - моб
+      - мобильный
+      - номер телефона
+      - сотовый
+      - whatsapp
+      - telegram
 
   - name: email
     category: email
     pattern: '[\p{L}\p{N}._%+\-]+@[\p{L}\p{N}.\-]+\.\p{L}{2,}'
-    validator: not_bank_email
+    validator: not_service_email
     confidence: 0.95
     reject_context:
       - работает круглосуточно
@@ -95,17 +125,30 @@ rules:
 
   - name: inn_spaced
     category: inn
-    pattern: '(?i)\b\d{4}\s\d{4}\s\d{4}\b'
+    # Spaced or dashed INN: the 12-digit individual form in three groups of
+    # four (e.g. "5001 0073 2258" or "5001-0073-2258"), and the 10-digit
+    # legal-entity form in common groupings (4+3+3, 3+3+4, 2+4+4).
+    pattern: '(?i)\b(?:\d{4}[\s\x{00A0}\x{202F}-]\d{4}[\s\x{00A0}\x{202F}-]\d{4}|\d{4}[\s\x{00A0}\x{202F}-]\d{3}[\s\x{00A0}\x{202F}-]\d{3}|\d{3}[\s\x{00A0}\x{202F}-]\d{3}[\s\x{00A0}\x{202F}-]\d{4}|\d{2}[\s\x{00A0}\x{202F}-]\d{4}[\s\x{00A0}\x{202F}-]\d{4})\b'
     validator: inn
+    validator_soft_context:
+      - инн
     require_context: true
     context_window: 40
     confidence: 0.9
     context:
       - инн
+    reject_context:
+      - ооо
+      - ао
+      - пао
+      - кпп
+      - огрн
+      - организац
+    reject_context_window: 40
 
   - name: card_number
     category: card_number
-    pattern: '(?i)(?:\d[ -]?){13,19}'
+    pattern: '(?i)(?:\d[ \x{00A0}\x{202F}-]?){13,19}'
     validator: luhn
     validator_soft_context:
       - карта
@@ -189,7 +232,7 @@ rules:
 
   - name: passport
     category: passport
-    pattern: '(?:серия\s*:?\s*(\d{4})[\s,]*номер\s*:?\s*(\d{6})|паспорт\s*:?\s*(?:с\.\s*)?(\d{4})\s*(?:№|номер|н\.|ном\.)?\s*(\d{6})|\b(\d{4})\s+(\d{6})\b|\b(\d{4})\s*(?:№|номер|н\.|ном\.)\s*(\d{6})\b|\b(\d{2}\s\d{2})\s(\d{6})\b|серия\s*:?\s*(\d{2}\s\d{2})\s*,?\s*(?:№|номер\s*:?)\s*(\d{6})|\b(\d{2}\s\d{2})\s*,?\s*(?:№|номер\s*:?)\s*(\d{6})\b)'
+    pattern: '(?:серия[\s\x{00A0}\x{202F}]*:?[\s\x{00A0}\x{202F}]*(\d{4})[\s\x{00A0}\x{202F},]*номер[\s\x{00A0}\x{202F}]*:?[\s\x{00A0}\x{202F}]*(\d{6})|паспорт[\s\x{00A0}\x{202F}]*:?[\s\x{00A0}\x{202F}]*(?:с\.[\s\x{00A0}\x{202F}]*)?(\d{4})[\s\x{00A0}\x{202F}]*(?:№|номер|н\.|ном\.)?[\s\x{00A0}\x{202F}]*(\d{6})|\b(\d{4})[\s\x{00A0}\x{202F}]+(\d{6})\b|\b(\d{4})[\s\x{00A0}\x{202F}]*(?:№|номер|н\.|ном\.)[\s\x{00A0}\x{202F}]*(\d{6})\b|\b(\d{2}[\s\x{00A0}\x{202F}]\d{2})[\s\x{00A0}\x{202F}](\d{6})\b|серия[\s\x{00A0}\x{202F}]*:?[\s\x{00A0}\x{202F}]*(\d{2}[\s\x{00A0}\x{202F}]\d{2})[\s\x{00A0}\x{202F}]*,?[\s\x{00A0}\x{202F}]*(?:№|номер[\s\x{00A0}\x{202F}]*:?)[\s\x{00A0}\x{202F}]*(\d{6})|\b(\d{2}[\s\x{00A0}\x{202F}]\d{2})[\s\x{00A0}\x{202F}]*,?[\s\x{00A0}\x{202F}]*(?:№|номер[\s\x{00A0}\x{202F}]*:?)[\s\x{00A0}\x{202F}]*(\d{6})\b)'
     validator: passport
     confidence: 0.9
     match_lower: true
@@ -212,7 +255,13 @@ rules:
 
   - name: division_code
     category: division_code
-    pattern: '(?i)\b\d{3}-\d{3}\b'
+    # "770-001" (dash), "770 - 001" (spaced dash) and "770–001" (en dash, no
+    # spaces) all mean the same division code. A dash-like separator is
+    # mandatory here (the bare "код" context word is common enough in banking
+    # text — confirmation codes, hotline numbers — that a space-only pair
+    # needs the more specific "код подразделения"/"к/п"/"код подр" context;
+    # see division_code_spaced).
+    pattern: '(?i)\b\d{3}[\s\x{00A0}\x{202F}]*[-\x{2010}-\x{2015}][\s\x{00A0}\x{202F}]*\d{3}\b'
     require_context: true
     context_window: 60
     confidence: 0.9
@@ -227,6 +276,25 @@ rules:
       - код подр
       - код
 
+  - name: division_code_spaced
+    category: division_code
+    # "770 001" (space, no dash). The generic "код" context word is too
+    # common (confirmation codes, hotline numbers such as "8 800 200-00-00")
+    # to safely trigger on a bare space-separated digit pair, so only the
+    # specific division-code phrases count as context here.
+    pattern: '(?i)\b\d{3}[\s\x{00A0}\x{202F}]+\d{3}\b'
+    require_context: true
+    context_window: 30
+    confidence: 0.9
+    context:
+      - код подразделения
+      - к/п
+      - код подр
+    context_after:
+      - код подразделения
+      - к/п
+      - код подр
+
   - name: division_code_bare
     category: division_code
     pattern: '(?i)\b\d{6}\b'
@@ -240,7 +308,11 @@ rules:
 
   - name: driver_license
     category: driver_license
-    pattern: '(?i)(?:\b\d{2}\s\d{2}\s\d{6}\b|\b\d{4}\s\d{6}\b|\b\d{2}[а-яё]{2}\s\d{6}\b|\b\d{10}\b)'
+    # "77 12 345678" (digits, spaced), "7712 345678" (digits, one gap), "77 АА
+    # 123456" / "77АА123456" / "77АА 123456" (2-digit region + 2-letter
+    # series, Cyrillic or Latin look-alikes, spaces optional on either side)
+    # and the bare 10-digit form.
+    pattern: '(?i)(?:\b\d{2}[\s\x{00A0}\x{202F}]\d{2}[\s\x{00A0}\x{202F}]\d{6}\b|\b\d{4}[\s\x{00A0}\x{202F}]\d{6}\b|\b\d{2}[\s\x{00A0}\x{202F}]?[a-zа-яё]{2}[\s\x{00A0}\x{202F}]?\d{6}\b|\b\d{10}\b)'
     require_context: true
     context_window: 40
     confidence: 0.9
