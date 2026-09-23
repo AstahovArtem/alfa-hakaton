@@ -193,11 +193,15 @@ var (
 	// addrParenLocalityRe matches a locality in parentheses, e.g. "(Уфа)".
 	addrParenLocalityRe = regexp.MustCompile(`\([А-ЯЁ][а-яё-]+\)`)
 	// addrLabeledRe matches a labelled address component prefix, e.g. "Страна:",
-	// "Индекс:", "Город:", "Улица:", "Дом:", "Квартира:". The value that follows
-	// runs to the next label or the end of the line and is computed in code. The
-	// label is matched case-insensitively; the value keeps its original case.
+	// "Индекс:", "Город:", "Улица:", "Дом:", "Квартира:", and also "Страна =",
+	// "Страна - " and "Страна — ". The "=" and ":" separators may sit directly
+	// against the label (e.g. "city=Москва"); "-"/"—" require surrounding
+	// whitespace so a compound word like "дом-музей" is not mistaken for a
+	// labelled "Дом" field. The value that follows runs to the next label or
+	// the end of the line and is computed in code. The label is matched
+	// case-insensitively; the value keeps its original case.
 	addrLabeledRe = regexp.MustCompile(
-		`(?i)(?:страна проживания|страна|индекс|город|улица|дом|квартира|кв\.|кв|region|country|index|zip|city|street|building|apt)\s*:\s*`,
+		`(?i)(?:страна проживания|страна|индекс|город|улица|дом|квартира|кв\.|кв|region|country|index|zip|city|street|building|apt)(?:\s*:\s*|\s*=\s*|\s+[-—]\s+)`,
 	)
 )
 
@@ -290,9 +294,23 @@ var addrExceptionPhrases = []string{
 	"пункт выдачи", "адрес банка", "до", "банка", "банке",
 }
 
+// addrPersonalMarkers are phrases that mark an address as the client's own.
+// When one appears closer to the address than an organisation-address
+// exception phrase, it always cancels the exception.
+var addrPersonalMarkers = []string{
+	"живу", "живёт", "живет", "проживаю", "проживает", "прописан", "прописана",
+	"зарегистрирован", "зарегистрирована", "адрес регистрации",
+	"адрес проживания", "мой адрес", "домашний адрес", "фактический адрес",
+	"прописка",
+}
+
 // addrExceptionWindow is the number of runes scanned before an address group
 // for an organisation-address exception keyword.
 const addrExceptionWindow = 60
+
+// addrClauseBoundary is the set of bytes that end a clause for the purpose of
+// binding an organisation-address exception to its direct head.
+const addrClauseBoundary = ",.!?\n"
 
 type addressDetector struct{}
 
@@ -581,7 +599,7 @@ func trimLabeledValue(text string, start, end int) (int, int) {
 	for start < end && (text[start] == ' ' || text[start] == '\t') {
 		start++
 	}
-	for end > start && (text[end-1] == ' ' || text[end-1] == '\t' || text[end-1] == ',' || text[end-1] == '\n') {
+	for end > start && (text[end-1] == ' ' || text[end-1] == '\t' || text[end-1] == ',' || text[end-1] == ';' || text[end-1] == '\n') {
 		end--
 	}
 	if end > start && text[end-1] == '.' && end-2 >= start && text[end-2] >= '0' && text[end-2] <= '9' {
@@ -619,15 +637,47 @@ func findLocalities(search, text string, localityRe *regexp.Regexp) []addrCompon
 	return comps
 }
 
+// addrNonStreetPhrases are capitalised word+marker phrases that addrStreetNameRe
+// would otherwise mistake for a street name, because the marker word ("линия")
+// is also used idiomatically (e.g. "горячая линия", a hotline, not a street).
+var addrNonStreetPhrases = map[string]bool{
+	"горячая линия": true,
+}
+
+// addrHotlineFollowWords are words that, right after the "линия" marker, mark
+// the phrase as a hotline reference rather than a street name (e.g. "линия
+// банка 8 800 ..."), so addrStreetMarkerRe must not treat it as a street.
+var addrHotlineFollowWords = map[string]bool{
+	"банка": true, "банку": true, "банке": true,
+}
+
+// isHotlineLinija reports whether a street-marker match starting with "линия"
+// is actually a hotline phrase such as "линия банка" rather than a street
+// (e.g. "8-я линия" or "Кожевническая линия" are real streets and are not
+// affected, since they do not start with the marker itself).
+func isHotlineLinija(matchText string) bool {
+	fields := strings.Fields(strings.ToLower(matchText))
+	if len(fields) < 2 || fields[0] != "линия" {
+		return false
+	}
+	return addrHotlineFollowWords[fields[1]]
+}
+
 // findStreets appends street components. The street regexes are always matched
 // against the raw text so the word-before-marker form can require an uppercase
 // street name.
 func findStreets(text string) []addrComponent {
 	var comps []addrComponent
 	for _, loc := range addrStreetMarkerRe.FindAllStringIndex(text, -1) {
+		if isHotlineLinija(text[loc[0]:loc[1]]) {
+			continue
+		}
 		comps = append(comps, addrComponent{start: loc[0], end: loc[1], kind: kindStreet})
 	}
 	for _, loc := range addrStreetNameRe.FindAllStringIndex(text, -1) {
+		if addrNonStreetPhrases[strings.ToLower(text[loc[0]:loc[1]])] {
+			continue
+		}
 		comps = append(comps, addrComponent{start: loc[0], end: loc[1], kind: kindStreet})
 	}
 	return comps
@@ -796,18 +846,20 @@ func bareStreetIsNonStreet(text string, start int) bool {
 func (d *addressDetector) validGroup(t pii.Text, group []addrComponent) bool {
 	flags := classifyGroup(group)
 	start := group[0].start
-	// A single labelled component (e.g. "Страна: Россия") is always an address.
+	// A single labelled component (e.g. "Страна: Россия") is an address unless
+	// an organisation-address header precedes it in the same or previous
+	// sentence (e.g. "Адрес отделения банка. Город: Москва").
 	if len(group) == 1 && flags.labeled {
-		return true
+		return !d.hasException(t, start, false)
 	}
 	if flags.street && flags.house {
-		return !d.hasException(t, start)
+		return !d.hasException(t, start, true)
 	}
 	if flags.locality && (flags.other || flags.street || flags.house) {
-		return !d.hasException(t, start)
+		return !d.hasException(t, start, true)
 	}
 	if hasLeftContext(t, start, addrContext, 30) {
-		return !d.hasException(t, start)
+		return !d.hasException(t, start, true)
 	}
 	return false
 }
@@ -844,33 +896,89 @@ func classifyGroup(group []addrComponent) groupFlags {
 	return f
 }
 
-func (d *addressDetector) hasException(t pii.Text, pos int) bool {
+// hasException reports whether pos sits inside an organisation-address
+// context. When clauseBound is true (street+house and locality groups), the
+// organisation phrase must be the direct head of the address: it is looked up
+// only within the current clause (the text since the last comma or sentence
+// end), so an unrelated exception word mentioned earlier in the sentence does
+// not suppress a personal address (e.g. "работаю в офисе, живу по адресу ...").
+// When clauseBound is false (a single labelled component), the whole
+// exception window is scanned so an organisation-address header in the same
+// or previous sentence still applies (e.g. "Адрес отделения банка. Город:
+// Москва"). Either way, a personal marker (живу, проживаю, ...) that sits
+// closer to pos than the organisation phrase always cancels the exception.
+func (d *addressDetector) hasException(t pii.Text, pos int, clauseBound bool) bool {
 	prefix := runeWindowBefore(t, pos, addrExceptionWindow)
+	if clauseBound {
+		prefix = lastClause(prefix)
+	}
+	orgIdx := lastExceptionIndex(prefix)
+	if orgIdx < 0 {
+		return false
+	}
+	markerIdx := lastMarkerIndex(prefix)
+	return markerIdx < orgIdx
+}
+
+// lastClause returns the tail of s after the last clause boundary (",", ".",
+// "!", "?", "\n"), or s unchanged when s contains no boundary.
+func lastClause(s string) string {
+	idx := strings.LastIndexAny(s, addrClauseBoundary)
+	if idx < 0 {
+		return s
+	}
+	return s[idx+1:]
+}
+
+// lastExceptionIndex returns the byte offset of the rightmost
+// organisation-address exception stem or phrase in s, or -1 when none is
+// found. s must already be lowercased.
+func lastExceptionIndex(s string) int {
+	best := -1
 	for _, stem := range addrExceptionStems {
-		if containsStem(prefix, stem) {
-			return true
+		if idx := lastStemIndex(s, stem); idx > best {
+			best = idx
 		}
 	}
 	for _, kw := range addrExceptionPhrases {
-		if containsWord(prefix, kw) {
-			return true
+		if idx := lastWordIndex(s, kw); idx > best {
+			best = idx
 		}
 	}
-	return false
+	return best
+}
+
+// lastMarkerIndex returns the byte offset of the rightmost personal-address
+// marker in s, or -1 when none is found. s must already be lowercased.
+func lastMarkerIndex(s string) int {
+	best := -1
+	for _, kw := range addrPersonalMarkers {
+		if idx := lastWordIndex(s, kw); idx > best {
+			best = idx
+		}
+	}
+	return best
 }
 
 // containsStem reports whether any word in s starts with stem. s must already
 // be lowercased.
 func containsStem(s, stem string) bool {
+	return lastStemIndex(s, stem) >= 0
+}
+
+// lastStemIndex returns the byte offset of the rightmost word in s that
+// starts with stem, or -1 when none is found. s must already be lowercased.
+func lastStemIndex(s, stem string) int {
+	best := -1
 	idx := 0
 	for {
 		pos := strings.Index(s[idx:], stem)
 		if pos < 0 {
-			return false
+			return best
 		}
 		start := idx + pos
 		if start == 0 || !isLetterRune(runeBefore(s, start)) {
-			return true
+			best = start
 		}
 		idx = start + 1
 	}
@@ -889,18 +997,25 @@ func followedByDigit(text string, pos int) bool {
 
 // containsWord reports whether kw appears in s as a whole word.
 func containsWord(s, kw string) bool {
+	return lastWordIndex(s, kw) >= 0
+}
+
+// lastWordIndex returns the byte offset of the rightmost whole-word occurrence
+// of kw in s, or -1 when none is found.
+func lastWordIndex(s, kw string) int {
+	best := -1
 	idx := 0
 	for {
 		pos := strings.Index(s[idx:], kw)
 		if pos < 0 {
-			return false
+			return best
 		}
 		start := idx + pos
 		end := start + len(kw)
 		leftOK := start == 0 || !isLetterRune(runeBefore(s, start))
 		rightOK := end == len(s) || !isLetterRune(decodedRune(s, end))
 		if leftOK && rightOK {
-			return true
+			best = start
 		}
 		idx = start + 1
 	}

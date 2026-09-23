@@ -50,7 +50,6 @@ func TestBirthplaceNegative(t *testing.T) {
 		{"noPlaceAfterPrefix", "родилась десятого октября тысяча девятьсот шестьдесят второго года в деревне"},
 		{"noPlaceAfterPrefixPeriod", "родился в деревне. Далее текст"},
 		{"noPlaceAfterPrefixComma", "родился в деревне, далее текст"},
-		{"noPlaceAfterPrefixLower", "родился в деревне малые вяземы"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -142,6 +141,10 @@ func TestBirthplaceDashAndPronoun(t *testing.T) {
 		{"место рождения — Челябинск", "Челябинск"},
 		{"Родилась я в Ташкенте", "Ташкенте"},
 		{"Родился в с. Верхние Киги, Башкирия", "с. Верхние Киги"},
+		{"родился в деревне малые вяземы", "малые вяземы"},
+		{"место рождения: село большие кайбицы", "село большие кайбицы"},
+		{"родилась в пос. Шушенское", "пос. Шушенское"},
+		{"уроженец г. Тихорецк", "г. Тихорецк"},
 	}
 	for _, c := range cases {
 		assertSpanValue(t, runPipeline(t, c.in), pii.CatBirthPlace, c.in, c.want)

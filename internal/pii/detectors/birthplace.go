@@ -25,6 +25,15 @@ var settlementPrefixes = []string{
 	"посёлоке", "поселке", "посёлка", "посёлок", "поселок", "деревня", "деревне",
 	"станица", "станице", "городе", "город", "гор.", settlementPrefixGorod, "пос.",
 	"с.", "ст.", "дер.", "д.", "пгт", "аул", "х.", "хутор", "п.", "рп", "село", "селе",
+	"кишлаке", "кишлак",
+}
+
+// birthStopWords are lowercase words that must not be treated as the start of
+// a lowercase place name following a settlement prefix (e.g. relative
+// pronouns that cannot begin a place name).
+var birthStopWords = map[string]bool{
+	"как": true, "где": true, "когда": true, "что": true, "который": true,
+	"которая": true, "которое": true, "которые": true,
 }
 
 var birthContextLowerRe = regexp.MustCompile(
@@ -63,7 +72,7 @@ func birthValueBody(upper bool) string {
 	// An optional pronoun and preposition between the context and the place
 	// (e.g. "Родилась я в Ташкенте"). These stay outside the captured value.
 	lead := `(?:я\s+)?(?:в\s+)?`
-	prefix := `(?:г\.|гор\.|город|городе|пос\.|посёлок|поселок|село|дер\.|деревня|деревне|станица|пгт|с\.|ст\.|аул|х\.|хутор|п\.|рп|д\.)?`
+	prefix := `(?:г\.|гор\.|город|городе|пос\.|посёлок|поселок|село|дер\.|деревня|деревне|станица|пгт|с\.|ст\.|аул|х\.|хутор|п\.|рп|д\.|кишлак|кишлаке)?`
 	word := `[а-яё-]+`
 	if upper {
 		word = `[А-ЯЁ][а-яё-]+`
@@ -161,7 +170,7 @@ func (d *birthplaceDetector) matchAtContext(t pii.Text, search string, ctxEnd in
 	// "Тула", "в деревне Малые Вяземы" keeps only "Малые Вяземы"), while the
 	// genitive/nominative forms (e.g. "уроженец города Казани", "аул Хучни") stay
 	// part of the value.
-	for _, p := range []string{"городе ", "деревне ", "посёлке ", "поселке ", "селе ", "станице "} {
+	for _, p := range []string{"городе ", "деревне ", "посёлке ", "поселке ", "селе ", "станице ", "кишлаке "} {
 		if strings.HasPrefix(value, p) {
 			start += len(p)
 			value = search[start:end]
@@ -235,7 +244,13 @@ func (d *birthplaceDetector) hasPlaceAfterPrefix(t pii.Text, start int, value st
 			return true
 		}
 	}
-	return false
+	// A lowercase place name is accepted too, as long as the first word is not
+	// a stop word (e.g. "родился в деревне малые вяземы").
+	fields := strings.Fields(lower)
+	if len(fields) == 0 {
+		return false
+	}
+	return !birthStopWords[fields[0]]
 }
 
 // validStart reports whether the birth-place value begins with a settlement
