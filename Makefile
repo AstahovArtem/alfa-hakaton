@@ -26,8 +26,10 @@ lint-full:
 	go run github.com/jgautheron/goconst/cmd/goconst@latest -min-length 2 -min-occurrences 3 ./...
 	$(GOBIN)/nestif --min 4 .
 
+PDN_CONFIG ?= configs/config.yaml
+
 run:
-	go run ./cmd/pdn-shield
+	PDN_CONFIG=$(PDN_CONFIG) go run ./cmd/pdn-shield
 
 accuracy:
 	go test -v -run TestAccuracy ./internal/pii
@@ -41,8 +43,13 @@ deploy:
 k8s-apply:
 	kubectl apply -k deploy/k8s
 
+# SYSTEM/API_KEY are optional; empty values are omitted entirely (a bare
+# "-system -api-key" would make the flag package swallow "-api-key" as the
+# value of -system).
 load-test:
-	go run ./loadtest -url $(URL) -rps $(RPS) -duration $(DURATION) -system $(SYSTEM) -api-key $(API_KEY)
+	go run ./loadtest -url $(URL) -rps $(RPS) -duration $(DURATION) \
+		$(if $(SYSTEM),-system $(SYSTEM)) \
+		$(if $(API_KEY),-api-key $(API_KEY))
 
 compose-up:
 	docker compose up -d --build

@@ -1,5 +1,6 @@
 server:
   addr: ":8080"
+  metrics_addr: ":9090"
   read_timeout: 5s
   write_timeout: 15s
   max_body_bytes: 2097152
@@ -14,7 +15,7 @@ llm:
   base_url: "https://alfagen.alfabank.ru/continue-dev/"
   api_key_env: MODEL_KEY
   model: "deepseek-ai/DeepSeek-V4-Flash-0731"
-  timeout: 60s
+  timeout: 12s
   stream_only: true
 logging:
   level: info
@@ -24,7 +25,7 @@ systems:
     enabled: true
     api_key: ""
     categories: []
-    strategy: partial
+    strategy: full
     unmask: true
     combo_rules: []
   - id: demo
@@ -32,6 +33,7 @@ systems:
     api_key_env: PDN_DEMO_KEY
     categories: []
     strategy: partial
+    allow_strategy_override: true
     unmask: true
   - id: chatbot
     enabled: true

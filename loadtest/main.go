@@ -47,25 +47,71 @@ type processResponse struct {
 	Result string `json:"result"`
 }
 
-// sample is one measured request.
-type sample struct {
-	kind string // "mask" or "unmask"
-	lat  time.Duration
-	code int
-	ok   bool // round-trip correctness for unmask
+// counters aggregates the run. All fields are safe for concurrent use: the
+// atomics need no external locking, and byCode/latencies are guarded by
+// their own mutexes.
+type counters struct {
+	// total is every HTTP request actually attempted (achieved load).
+	total atomic.Int64
+	// pairs is every mask+unmask round started (achieved pairs).
+	pairs atomic.Int64
+	// offeredPairs is every pair the ticker-driven generator tried to
+	// enqueue, whether or not the jobs buffer had room (offered load).
+	offeredPairs atomic.Int64
+	// droppedPairs is offered pairs discarded because the jobs buffer was
+	// full — the generator never blocks, so these are lost offered load,
+	// not achieved load.
+	droppedPairs atomic.Int64
+	// badRound counts failed pairs: a failed mask (including the case
+	// where mask itself never got a 200), a failed unmask, or a
+	// successful unmask whose content didn't match the original.
+	badRound atomic.Int64
+	// networkErrors counts requests that failed for a real reason
+	// (connection refused, per-request timeout, etc.) while the run was
+	// still active.
+	networkErrors atomic.Int64
+	// cancelledAtShutdown counts requests aborted because the run's
+	// context was cancelled (duration elapsed / Ctrl-C) — expected
+	// shutdown noise, not a network error.
+	cancelledAtShutdown atomic.Int64
+	// successOK counts requests that returned HTTP 200.
+	successOK atomic.Int64
+
+	codeMu sync.Mutex
+	byCode map[int]int64
+
+	latMu     sync.Mutex
+	maskLat   []time.Duration
+	unmaskLat []time.Duration
+
+	start time.Time
+	done  time.Time
 }
 
-// counters aggregates the run.
-type counters struct {
-	total       atomic.Int64
-	pairs       atomic.Int64
-	byCode      sync.Map // code -> int64
-	badRound    atomic.Int64
-	latencies   []sample
-	mu          sync.Mutex
-	start       time.Time
-	done        time.Time
-	reportedRPS float64
+// record stores one sample's outcome under the right counters.
+func (c *counters) record(kind string, lat time.Duration, code int, err error, cancelledAtShutdown bool) {
+	c.total.Add(1)
+
+	c.codeMu.Lock()
+	c.byCode[code]++
+	c.codeMu.Unlock()
+
+	switch {
+	case cancelledAtShutdown:
+		c.cancelledAtShutdown.Add(1)
+	case err != nil:
+		c.networkErrors.Add(1)
+	case code == http.StatusOK:
+		c.successOK.Add(1)
+	}
+
+	c.latMu.Lock()
+	if kind == kindMask {
+		c.maskLat = append(c.maskLat, lat)
+	} else {
+		c.unmaskLat = append(c.unmaskLat, lat)
+	}
+	c.latMu.Unlock()
 }
 
 func main() {
@@ -79,6 +125,7 @@ func main() {
 		system     = flag.String("system", "", "X-System-Id header; empty means the default checker system")
 		apiKey     = flag.String("api-key", "", "X-API-Key header; empty means no key")
 		reportPath = flag.String("report", "", "path to write the report; default ./loadtest-report-<ts>.md")
+		retry      = flag.Bool("retry", false, "retry each request up to 3 times (same payload_id) on non-200, emulating the checker")
 	)
 	flag.Parse()
 
@@ -106,14 +153,25 @@ func main() {
 	// Run prefix makes payload ids unique across runs.
 	runPrefix := fmt.Sprintf("lt-%d", time.Now().UnixNano())
 
-	var c counters
+	c := counters{byCode: make(map[int]int64)}
 	c.start = time.Now()
 
 	ctx, cancel := context.WithTimeout(context.Background(), *duration)
 	defer cancel()
 
-	// Worker pool.
-	jobs := make(chan int)
+	// Open-model generator: a ticker emits one tick per HTTP request at the
+	// target RPS. A pair (mask + unmask) consumes two ticks, so one job is
+	// emitted every two ticks. The jobs channel is buffered and the
+	// generator uses a non-blocking send, so it never blocks on a busy
+	// worker pool: if the buffer is full the pair is dropped and counted,
+	// instead of silently throttling the offered load like a blocking send
+	// would.
+	jobsBuffer := *workers * 4
+	if jobsBuffer < 1 {
+		jobsBuffer = 1
+	}
+	jobs := make(chan int, jobsBuffer)
+
 	var wg sync.WaitGroup
 	for i := 0; i < *workers; i++ {
 		wg.Add(1)
@@ -123,38 +181,32 @@ func main() {
 				ctx,
 				jobs,
 				items,
-				workerConfig{url: *url, runPrefix: runPrefix, system: *system, apiKey: *apiKey, client: client},
+				workerConfig{url: *url, runPrefix: runPrefix, system: *system, apiKey: *apiKey, client: client, retry: *retry},
 				&c,
 			)
 		}()
 	}
 
-	// Open-model generator: a ticker emits one tick per HTTP request at the
-	// target RPS. A pair (mask + unmask) consumes two ticks, so one job is
-	// emitted every two ticks. Workers pull from the pool, so the generator
-	// never blocks on the service.
 	interval := time.Second / time.Duration(*rps)
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
-	genDone := make(chan struct{})
-	go generateJobs(ctx, ticker, jobs, genDone)
+	// generateJobs is the sole sender on jobs and closes it once ctx is
+	// done, so workers (ranging over jobs) drain cleanly and exit on their
+	// own — no separate close-from-main step that could race with a send.
+	go generateJobs(ctx, ticker, jobs, &c)
 
-	<-ctx.Done()
-	close(jobs)
 	wg.Wait()
-	<-genDone
-
 	c.done = time.Now()
-	c.reportedRPS = float64(c.total.Load()) / c.done.Sub(c.start).Seconds()
 
-	report(&c, *rps, *duration, *url, *dataset, *workers, *reportPath)
+	report(&c, *rps, *duration, *url, *dataset, *workers, *retry, *reportPath)
 }
 
-// generateJobs emits one job every two ticks (a mask+unmask pair) until ctx is
-// done, then closes genDone.
-func generateJobs(ctx context.Context, ticker *time.Ticker, jobs chan<- int, genDone chan<- struct{}) {
-	defer close(genDone)
+// generateJobs emits one job every two ticks (a mask+unmask pair) until ctx
+// is done, then closes jobs. It never blocks: a full buffer means the pair
+// is dropped and counted rather than back-pressuring the ticker.
+func generateJobs(ctx context.Context, ticker *time.Ticker, jobs chan<- int, c *counters) {
+	defer close(jobs)
 	seq := int64(0)
 	ticks := int64(0)
 	for {
@@ -168,10 +220,11 @@ func generateJobs(ctx context.Context, ticker *time.Ticker, jobs chan<- int, gen
 				continue
 			}
 			seq++
+			c.offeredPairs.Add(1)
 			select {
 			case jobs <- int(seq):
-			case <-ctx.Done():
-				return
+			default:
+				c.droppedPairs.Add(1)
 			}
 		}
 	}
@@ -184,11 +237,13 @@ type workerConfig struct {
 	system    string
 	apiKey    string
 	client    *http.Client
+	retry     bool
 }
 
 // worker pulls job indices, runs a mask+unmask round-trip per job and records
 // samples. Each job gets a unique payload_id derived from the run prefix and
-// the job sequence.
+// the job sequence. worker returns (and stops pulling) once jobs is closed
+// and drained.
 func worker(ctx context.Context, jobs <-chan int, items []datasetItem, cfg workerConfig, c *counters) {
 	for seq := range jobs {
 		select {
@@ -202,21 +257,54 @@ func worker(ctx context.Context, jobs <-chan int, items []datasetItem, cfg worke
 
 		// Step 1: mask the original text.
 		mStart := time.Now()
-		masked, mCode, err := doProcess(ctx, cfg.client, cfg.url, cfg.system, cfg.apiKey, id, item.Text)
-		c.record(sample{kind: kindMask, lat: time.Since(mStart), code: mCode})
-		if err != nil || mCode != http.StatusOK {
+		masked, mCode, mErr := sendWithRetry(ctx, cfg.client, cfg.url, cfg.system, cfg.apiKey, id, item.Text, cfg.retry)
+		c.record(kindMask, time.Since(mStart), mCode, mErr, mErr != nil && ctx.Err() != nil)
+		if mErr != nil || mCode != http.StatusOK {
+			// The pair never got a masked payload to unmask: it failed.
+			c.badRound.Add(1)
 			continue
 		}
 
 		// Step 2: unmask with the returned mask; must restore the original.
 		uStart := time.Now()
-		restored, uCode, err := doProcess(ctx, cfg.client, cfg.url, cfg.system, cfg.apiKey, id, masked)
-		ok := err == nil && uCode == http.StatusOK && restored == item.Text
-		c.record(sample{kind: kindUnmask, lat: time.Since(uStart), code: uCode, ok: ok})
+		restored, uCode, uErr := sendWithRetry(ctx, cfg.client, cfg.url, cfg.system, cfg.apiKey, id, masked, cfg.retry)
+		c.record(kindUnmask, time.Since(uStart), uCode, uErr, uErr != nil && ctx.Err() != nil)
+		ok := uErr == nil && uCode == http.StatusOK && restored == item.Text
 		if !ok {
 			c.badRound.Add(1)
 		}
 	}
+}
+
+// maxRetryAttempts is the number of attempts (including the first) made per
+// request when -retry is set: one initial try plus up to 3 retries.
+const maxRetryAttempts = 4
+
+// sendWithRetry sends one /process request, retrying up to 3 additional
+// times with the same payload_id on a non-200 response when retry is true —
+// emulating the checker's own retry behavior. It stops retrying immediately
+// once the run's context is done (shutdown), so it never manufactures extra
+// load past the test window.
+func sendWithRetry(ctx context.Context, client *http.Client, url, system, apiKey, id, payload string, retry bool) (string, int, error) {
+	attempts := 1
+	if retry {
+		attempts = maxRetryAttempts
+	}
+	var (
+		result string
+		code   int
+		err    error
+	)
+	for i := 0; i < attempts; i++ {
+		result, code, err = doProcess(ctx, client, url, system, apiKey, id, payload)
+		if err == nil && code == http.StatusOK {
+			return result, code, nil
+		}
+		if ctx.Err() != nil {
+			break
+		}
+	}
+	return result, code, err
 }
 
 // doProcess sends one /process request and returns the result field.
@@ -247,21 +335,6 @@ func doProcess(ctx context.Context, client *http.Client, url, system, apiKey, id
 		return "", resp.StatusCode, err
 	}
 	return pr.Result, resp.StatusCode, nil
-}
-
-// record stores a sample and bumps counters.
-func (c *counters) record(s sample) {
-	c.total.Add(1)
-	if v, ok := c.byCode.Load(s.code); ok {
-		v.(*atomic.Int64).Add(1)
-	} else {
-		n := &atomic.Int64{}
-		n.Add(1)
-		c.byCode.Store(s.code, n)
-	}
-	c.mu.Lock()
-	c.latencies = append(c.latencies, s)
-	c.mu.Unlock()
 }
 
 // loadDataset reads the jsonl file into items.
@@ -299,16 +372,18 @@ func safePath(path string) string {
 }
 
 // report prints the summary to stdout and writes the report to the given path
-// (or a default location when path is empty).
-func report(c *counters, targetRPS int, duration time.Duration, url, dataset string, workers int, reportPath string) {
-	c.mu.Lock()
-	samples := c.latencies
-	c.mu.Unlock()
-
-	maskLat := latenciesFor(samples, kindMask)
-	unmaskLat := latenciesFor(samples, kindUnmask)
+// (or a default location when path is empty). The core sections (target/URL/
+// dataset, achieved RPS, totals, error table, 429/bad-round rates, and the
+// mask/unmask latency tables) keep their original headings and layout so
+// existing reports stay comparable; new sections are appended.
+func report(c *counters, targetRPS int, duration time.Duration, url, dataset string, workers int, retry bool, reportPath string) {
+	c.latMu.Lock()
+	maskLat := append([]time.Duration(nil), c.maskLat...)
+	unmaskLat := append([]time.Duration(nil), c.unmaskLat...)
+	c.latMu.Unlock()
 
 	elapsed := c.done.Sub(c.start).Seconds()
+	achievedRPS := float64(c.total.Load()) / elapsed
 	pairsPerSec := float64(c.pairs.Load()) / elapsed
 
 	var b strings.Builder
@@ -317,25 +392,44 @@ func report(c *counters, targetRPS int, duration time.Duration, url, dataset str
 	fmt.Fprintf(&b, "- Длительность: %s\n", duration)
 	fmt.Fprintf(&b, "- URL process: %s\n", url)
 	fmt.Fprintf(&b, "- Датасет: %s\n", dataset)
-	fmt.Fprintf(&b, "- Достигнутый RPS (запросов/с): %.2f\n", c.reportedRPS)
+	fmt.Fprintf(&b, "- Достигнутый RPS (запросов/с): %.2f\n", achievedRPS)
 	fmt.Fprintf(&b, "- Пар в секунду: %.2f\n", pairsPerSec)
 	fmt.Fprintf(&b, "- Всего запросов: %d\n", c.total.Load())
 	fmt.Fprintf(&b, "- Всего пар: %d\n", c.pairs.Load())
 	fmt.Fprintf(&b, "- Длительность прогона: %s\n", c.done.Sub(c.start).Round(time.Millisecond))
 	fmt.Fprintf(&b, "- keep-alive: MaxIdleConnsPerHost=%d\n", workers)
+	fmt.Fprintf(&b, "- retry: %v\n", retry)
+
 	fmt.Fprintf(&b, "\n## Ошибки по кодам\n\n")
 	fmt.Fprintf(&b, "| Код | Кол-во |\n|---|---|\n")
-	c.byCode.Range(func(k, v interface{}) bool {
-		fmt.Fprintf(&b, "| %d | %d |\n", k, v.(*atomic.Int64).Load())
-		return true
-	})
-	total := c.total.Load()
-	code429 := int64(0)
-	if v, ok := c.byCode.Load(http.StatusTooManyRequests); ok {
-		code429 = v.(*atomic.Int64).Load()
+	c.codeMu.Lock()
+	codes := make([]int, 0, len(c.byCode))
+	for code := range c.byCode {
+		codes = append(codes, code)
 	}
+	sort.Ints(codes)
+	for _, code := range codes {
+		fmt.Fprintf(&b, "| %d | %d |\n", code, c.byCode[code])
+	}
+	code429 := c.byCode[http.StatusTooManyRequests]
+	c.codeMu.Unlock()
+
+	total := c.total.Load()
 	fmt.Fprintf(&b, "\n- Доля 429: %.4f%%\n", pct(code429, total))
-	fmt.Fprintf(&b, "- Доля неверных round-trip: %.4f%%\n", pct(c.badRound.Load(), total))
+	fmt.Fprintf(&b, "- Доля неверных round-trip: %.4f%%\n", pct(c.badRound.Load(), c.pairs.Load()))
+
+	fmt.Fprintf(&b, "\n## Нагрузка: предложено / достигнуто / успешно\n\n")
+	offeredRequests := c.offeredPairs.Load() * 2
+	droppedRequests := c.droppedPairs.Load() * 2
+	offeredRPS := float64(offeredRequests) / duration.Seconds()
+	successfulRPS := float64(c.successOK.Load()) / elapsed
+	fmt.Fprintf(&b, "| Метрика | Запросов | RPS |\n|---|---|---|\n")
+	fmt.Fprintf(&b, "| Предложено (offered) | %d | %.2f |\n", offeredRequests, offeredRPS)
+	fmt.Fprintf(&b, "| Достигнуто (achieved, отправлено воркерами) | %d | %.2f |\n", total, achievedRPS)
+	fmt.Fprintf(&b, "| Успешно (200 OK) | %d | %.2f |\n", c.successOK.Load(), successfulRPS)
+	fmt.Fprintf(&b, "\n- Отброшено генератором (буфер jobs был полон): %d пар (%d запросов)\n", c.droppedPairs.Load(), droppedRequests)
+	fmt.Fprintf(&b, "- Сетевые ошибки (не считая отмену при остановке): %d\n", c.networkErrors.Load())
+	fmt.Fprintf(&b, "- Отменено при остановке (graceful shutdown, не ошибка): %d\n", c.cancelledAtShutdown.Load())
 
 	fmt.Fprintf(&b, "\n## Латентность mask\n\n")
 	writeLatency(&b, maskLat)
@@ -354,16 +448,6 @@ func report(c *counters, targetRPS int, duration time.Duration, url, dataset str
 		return
 	}
 	fmt.Printf("Отчёт сохранён: %s\n", path)
-}
-
-func latenciesFor(samples []sample, kind string) []time.Duration {
-	var out []time.Duration
-	for _, s := range samples {
-		if s.kind == kind {
-			out = append(out, s.lat)
-		}
-	}
-	return out
 }
 
 func writeLatency(b *strings.Builder, lat []time.Duration) {
