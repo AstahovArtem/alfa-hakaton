@@ -317,7 +317,7 @@ func accumulateRecord(
 		recordDetected(det, rec, byCat, match, matched, totalTP, totalFP)
 	}
 	for i, exp := range rec.Spans {
-		recordMissed(i, exp, byCat, matched, totalFN)
+		recordMissed(i, exp, rec, byCat, matched, totalFN)
 	}
 }
 
@@ -341,14 +341,20 @@ func recordDetected(
 		}
 		return
 	}
+	if os.Getenv("PDN_EVAL_DUMP_FP") == string(cat) {
+		fmt.Printf("FP %s %q in %q\n", cat, rec.Text[det.Start:det.End], rec.Text)
+	}
 	st.fp++
 	*totalFP++
 }
 
 // recordMissed updates the false-negative counters for an unmatched expected span.
-func recordMissed(i int, exp datasetSpan, byCat map[pii.Category]*stats, matched []bool, totalFN *int) {
+func recordMissed(i int, exp datasetSpan, rec datasetRecord, byCat map[pii.Category]*stats, matched []bool, totalFN *int) {
 	if matched[i] {
 		return
+	}
+	if os.Getenv("PDN_EVAL_DUMP_FN") == exp.Category {
+		fmt.Printf("FN %s %q in %q\n", exp.Category, rec.Text[exp.Start:exp.End], rec.Text)
 	}
 	ensureStats(byCat, pii.Category(exp.Category)).fn++
 	*totalFN++
