@@ -107,11 +107,25 @@ func (d *birthplaceDetector) DetectLower(t pii.Text) []pii.Span {
 		if ctxEndIsRodAbbrev(search, loc) {
 			continue
 		}
+		// A famous person's birth place is not personal data: when the subject
+		// before "родился/родилась" is a famous name (with no client marker and
+		// no other PII in the line), no birth_place span is created.
+		if isBornContext(search, loc) && famousSubjectBefore(t, loc[0]) {
+			continue
+		}
 		if span, ok := d.matchAtContext(t, search, loc[1], valueRe, valueIdx); ok {
 			spans = append(spans, span)
 		}
 	}
 	return spans
+}
+
+// isBornContext reports whether the context match at loc is a "родился" or
+// "родилась" keyword (as opposed to "место рождения", "уроженец", etc.). The
+// "родил" prefix covers "родился", "родилась" and "родились".
+func isBornContext(search string, loc []int) bool {
+	ctx := search[loc[0]:loc[1]]
+	return strings.HasPrefix(ctx, "родил")
 }
 
 // ctxEndIsRodAbbrev reports whether a context match is the "род." abbreviation
@@ -313,4 +327,72 @@ func isRegionKeyword(lower string) bool {
 func isRegionAdjective(lower string) bool {
 	return strings.HasSuffix(lower, "ский") || strings.HasSuffix(lower, "ская") ||
 		strings.HasSuffix(lower, sufOy) || strings.HasSuffix(lower, "ая")
+}
+
+// famousSubjectBefore reports whether the subject immediately before the
+// birth-place context at ctxStart is a famous person's name (from famous.txt),
+// with no client marker within 30 runes to the left and no other PII in the
+// line. When so, the birth place is not personal data and no span is created.
+func famousSubjectBefore(t pii.Text, ctxStart int) bool {
+	windowStart := subjectWindowStart(t, ctxStart)
+	subject := t.Raw[windowStart:ctxStart]
+	toks := tokenize(subject)
+	if len(toks) == 0 {
+		return false
+	}
+	dict := loadNamesDict()
+	// Check the last 2-3 tokens as a famous name sequence (e.g. "Александр
+	// Сергеевич Пушкин" or "Лев Толстой").
+	for n := 2; n <= 3 && n <= len(toks); n++ {
+		seq := toks[len(toks)-n:]
+		if !famousSeqMatch(dict, seq) {
+			continue
+		}
+		absStart := windowStart + seq[0].start
+		absEnd := windowStart + seq[len(seq)-1].end
+		// A client marker or another PII in the line means the name is the
+		// client's own, so the birth place is personal data.
+		if hasLeftContext(t, absStart, famousSubjectMarkers, 30) {
+			return false
+		}
+		if famousOtherPIISameLine(t, absStart, absEnd) {
+			return false
+		}
+		return true
+	}
+	return false
+}
+
+// subjectWindowStart returns the byte offset of the start of the subject window
+// (up to 40 runes) before ctxStart.
+func subjectWindowStart(t pii.Text, ctxStart int) int {
+	start := ctxStart
+	count := 0
+	for start > 0 && count < 40 {
+		_, size := utf8.DecodeLastRuneInString(t.Raw[:start])
+		start -= size
+		count++
+	}
+	return start
+}
+
+// famousSeqMatch reports whether the token sequence seq matches a famous
+// person's name from the dictionary, ignoring patronymics and initials.
+func famousSeqMatch(dict *namesDict, seq []token) bool {
+	var stems []string
+	for _, tok := range seq {
+		lower := strings.ToLower(tok.text)
+		// Ignore patronymics and initials: famous persons are matched on
+		// name + surname only.
+		if isPatronymic(lower) || isInitialToken(lower) {
+			continue
+		}
+		stems = append(stems, normalizeWord(lower))
+	}
+	for _, f := range dict.famous {
+		if sameMultiset(stems, f) {
+			return true
+		}
+	}
+	return false
 }

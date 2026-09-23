@@ -138,6 +138,10 @@ type namesDict struct {
 	nameStems    map[string]bool
 	surnameStems map[string]bool
 	famous       [][]string
+	// famousSurnames holds the normalised surnames of the famous persons, so a
+	// famous surname (e.g. "толстой") is recognised as a surname candidate even
+	// when it does not end in a common surname suffix.
+	famousSurnames map[string]bool
 }
 
 var (
@@ -148,9 +152,10 @@ var (
 func loadNamesDict() *namesDict {
 	namesOnce.Do(func() {
 		namesData = &namesDict{
-			names:        make(map[string]bool),
-			nameStems:    make(map[string]bool),
-			surnameStems: make(map[string]bool),
+			names:          make(map[string]bool),
+			nameStems:      make(map[string]bool),
+			surnameStems:   make(map[string]bool),
+			famousSurnames: make(map[string]bool),
 		}
 		for _, line := range readDict(dictFirstNames) {
 			namesData.names[line] = true
@@ -160,15 +165,24 @@ func loadNamesDict() *namesDict {
 			namesData.surnameStems[surnameStem(line)] = true
 		}
 		for _, line := range readDict("dict/famous.txt") {
-			words := strings.Fields(line)
-			var stems []string
-			for _, w := range words {
-				stems = append(stems, normalizeWord(w))
-			}
-			namesData.famous = append(namesData.famous, stems)
+			loadFamousLine(namesData, line)
 		}
 	})
 	return namesData
+}
+
+// loadFamousLine parses one famous.txt line into the dictionary: the normalised
+// name stems for the famous-person check and the normalised surname.
+func loadFamousLine(d *namesDict, line string) {
+	words := strings.Fields(line)
+	var stems []string
+	for _, w := range words {
+		stems = append(stems, normalizeWord(w))
+	}
+	d.famous = append(d.famous, stems)
+	if len(words) > 0 {
+		d.famousSurnames[normalizeWord(words[len(words)-1])] = true
+	}
 }
 
 func readDict(path string) []string {
@@ -228,9 +242,9 @@ func normalizeWord(lower string) string {
 
 var stopWords = map[string]bool{
 	"банк": true, "москва": true, ctxRussia: true, "российская": true, "федерация": true,
-	ctxOblast: true, ctxGorod: true, "улица": true, ctxDom: true, ctxClient: true, "паспорт": true,
+	ctxOblast: true, ctxGorod: true, "улица": true, ctxDom: true, ctxClient: true, ctxPasport: true,
 	ctxOtdelenie: true, "офис": true, "договор": true, "счёт": true, "карта": true, "номер": true,
-	"карты": true, "зачисления": true, "для": true, "на": true, stopWordPo: true, "от": true,
+	"карты": true, "зачисления": true, ctxDlya: true, "на": true, stopWordPo: true, "от": true,
 	stopWordGrazhdanin: true, stopWordGrazhdanka: true, "республики": true, stopWordRespublika: true,
 	"дата": true, "место": true, "рождения": true, "рождение": true, "рожден": true, "рождён": true,
 	"xxxx": true, "тест": true, "тестов": true, "тестовой": true, "тестовой среде": true,
@@ -243,15 +257,24 @@ var stopWords = map[string]bool{
 }
 
 var nameContext = []string{
-	ctxClient, "заявитель", stopWordGrazhdanin, stopWordGrazhdanka, "держатель", "владелец",
-	ctxFIO, "имя", ctxZovut, "меня зовут", "сотрудник", "менеджер",
+	ctxClient, ctxZayavitel, stopWordGrazhdanin, stopWordGrazhdanka, "держатель", "владелец",
+	ctxFIO, ctxImya, ctxZovut, "меня зовут", "сотрудник", "менеджер",
+}
+
+// famousSubjectMarkers are the subject markers that, when present within 30
+// runes to the left of a famous person's name, disable the famous-person
+// suppression: the name then belongs to the client and is PII.
+var famousSubjectMarkers = []string{
+	ctxClient, "клиентка", "заёмщик", "заемщик", ctxZayavitel, stopWordGrazhdanin,
+	stopWordGrazhdanka, ctxFIO, ctxFIOAbbrev, ctxImya, ctxZovut, ctxNaImya, ctxDlya,
+	ctxPasport, "тел",
 }
 
 // lowercaseNameContext are keywords that, when present to the left, allow a
 // full name to be accepted even when its tokens are not capitalised (e.g.
 // "клиент: ахметзянова зульфия ильгизовна").
 var lowercaseNameContext = []string{
-	ctxClient, ctxFIO, "ф.и.о.", "заёмщик", "заемщик", "имя", ctxZovut, "обращаться",
+	ctxClient, ctxFIO, ctxFIOAbbrev, "заёмщик", "заемщик", ctxImya, ctxZovut, "обращаться",
 	"представьтесь", "фамилию", "фамилия",
 }
 
@@ -356,6 +379,9 @@ func (d *namesDetector) isNameToken(lower string) bool {
 }
 
 func (d *namesDetector) isSurnameToken(lower string) (bool, bool) {
+	if d.dict.famousSurnames[normalizeWord(lower)] {
+		return true, false
+	}
 	return d.dictSurname(lower), suffixSurname(lower)
 }
 

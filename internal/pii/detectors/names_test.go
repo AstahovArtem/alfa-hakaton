@@ -372,3 +372,35 @@ func citizenNameSpan(text string, start, end int) bool {
 	val := text[start:end]
 	return val == "гражданин Республики" || val == "гражданка Республики"
 }
+
+// Point 4: a famous person's name is not suppressed when a subject marker
+// appears to the left or another PII span is present in the same line.
+func TestFullNameFamousNotSuppressedForClient(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"Клиент Толстой Лев Николаевич, тел. +79161234567", "Толстой Лев Николаевич"},
+		{"а клиент Лев Толстой оформил кредит", "Лев Толстой"},
+		{"Клиент Пушкин Александр Сергеевич, дата рождения 06.06.1985", "Пушкин Александр Сергеевич"},
+	}
+	for _, c := range cases {
+		assertSpanValue(t, runPipeline(t, c.in), pii.CatFullName, c.in, c.want)
+	}
+}
+
+// Point 4 negative: a famous person without a subject marker or other PII is
+// still suppressed.
+func TestFullNameFamousStillSuppressed(t *testing.T) {
+	cases := []string{
+		"Лев Толстой написал «Войну и мир»",
+		"Пушкин написал стихи",
+		"Поэт Александр Сергеевич Пушкин родился в Москве",
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c)
+		if hasCategory(t, res, pii.CatFullName) {
+			t.Errorf("famous person should not be PII: %q, got %+v", c, res.Spans)
+		}
+	}
+}

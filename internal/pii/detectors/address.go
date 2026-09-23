@@ -274,7 +274,7 @@ var bareStreetDurationWords = map[string]bool{
 // addrNonStreetWords are capitalised words that must not be treated as a bare
 // street name in a street+house pattern (e.g. "Паспорт 5414", "Серия 45 09").
 var addrNonStreetWords = map[string]bool{
-	"паспорт": true, "серия": true, "снилс": true, "инн": true,
+	ctxPasport: true, "серия": true, "снилс": true, "инн": true,
 	"телефон": true, "тел": true, "карта": true, "счёт": true, "счет": true,
 	"заказ": true, "договор": true, "код": true, "пин": true, "cvc": true,
 	"cvv": true, "выдан": true, "выдано": true, "получатель": true,

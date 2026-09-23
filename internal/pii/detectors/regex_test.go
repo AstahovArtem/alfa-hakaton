@@ -1,6 +1,7 @@
 package detectors
 
 import (
+	"strings"
 	"testing"
 
 	"pdn-shield/internal/pii"
@@ -1042,5 +1043,27 @@ func TestIDDocumentSpanValue(t *testing.T) {
 	}
 	for _, c := range cases {
 		assertSpanValue(t, runPipeline(t, c.in), pii.CatIDDocument, c.in, c.want)
+	}
+}
+
+// TestLoadRulesUnknownValidator verifies that a rule referencing a validator
+// that does not exist fails to load with the rule's name in the error.
+func TestLoadRulesUnknownValidator(t *testing.T) {
+	yaml := `
+rules:
+  - name: bogus_rule
+    category: phone
+    pattern: '\d+'
+    validator: nope
+`
+	_, err := LoadRules(strings.NewReader(yaml))
+	if err == nil {
+		t.Fatal("LoadRules with unknown validator should fail")
+	}
+	if !strings.Contains(err.Error(), "bogus_rule") {
+		t.Errorf("error should name the rule, got %q", err)
+	}
+	if !strings.Contains(err.Error(), "nope") {
+		t.Errorf("error should name the validator, got %q", err)
 	}
 }

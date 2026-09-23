@@ -36,6 +36,7 @@ func (s *Server) optionsFor(sys *configSystem) engine.Options {
 		Categories: sys.Categories,
 		Strategy:   sys.Strategy,
 		TTL:        s.cfg.Store.TTL,
+		Unmask:     sys.Unmask,
 	}
 	if opt.Strategy == "" {
 		opt.Strategy = strategyPartial

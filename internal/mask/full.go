@@ -13,14 +13,13 @@ import (
 type fullStrategy struct{}
 
 // fullServiceWords are the words kept intact by the full strategy: the shared
-// serviceWords plus short function words ("по", "в", "и") and the "ОУФМС"
-// abbreviation. Keys are lowercase.
+// serviceWords plus short function words ("по", "в", "и"). Keys are lowercase.
 var fullServiceWords = func() map[string]bool {
-	m := make(map[string]bool, len(serviceWords)+4)
+	m := make(map[string]bool, len(serviceWords)+3)
 	for sw := range serviceWords {
 		m[sw] = true
 	}
-	for _, sw := range []string{"по", "в", "и", "оуфмс"} {
+	for _, sw := range []string{"по", "в", "и"} {
 		m[sw] = true
 	}
 	return m

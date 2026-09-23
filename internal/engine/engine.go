@@ -34,6 +34,10 @@ type Options struct {
 	Strategy   string         // partial|token|synthetic
 	TTL        time.Duration
 	ComboRules []ComboRule
+	// Unmask, when false, forbids Process from restoring a stored mask: a
+	// payload that equals the stored mask is returned as-is (the mask itself)
+	// rather than unmasked.
+	Unmask bool
 }
 
 // ComboRule masks Category only if at least one of RequiresAny is present in
@@ -457,7 +461,7 @@ func (e *Engine) Process(ctx context.Context, id, payload string, opt Options) (
 	}
 
 	if exists {
-		return processExisting(rec, payload)
+		return processExisting(rec, payload, opt.Unmask)
 	}
 
 	// Unknown id: mask normally, reusing the already-loaded record so the store
@@ -472,9 +476,14 @@ func (e *Engine) Process(ctx context.Context, id, payload string, opt Options) (
 // processExisting resolves a Process call for a known id against the stored
 // record: unmask when the payload equals the mask, return the stored mask when
 // the payload equals the original text, otherwise attempt a partial restore.
-func processExisting(rec store.Record, payload string) (ProcessResult, error) {
-	// Payload equals the stored mask: unmask.
+// When unmask is false the stored mask is never restored: a payload that equals
+// the mask is returned as-is.
+func processExisting(rec store.Record, payload string, unmask bool) (ProcessResult, error) {
+	// Payload equals the stored mask: unmask, unless the system forbids it.
 	if rec.MaskedText == payload {
+		if !unmask {
+			return ProcessResult{Result: payload}, nil
+		}
 		restored, misses := mask.Restore(payload, rec.Replacements)
 		return ProcessResult{Result: restored, Unmasked: true, Misses: misses}, nil
 	}

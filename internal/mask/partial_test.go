@@ -103,7 +103,7 @@ func TestPartialWords(t *testing.T) {
 		want  string
 	}{
 		{"address", pii.CatAddress, "ул. Ленина, д. 5, кв. 12", "ул. Л*****, д. *, кв. **"},
-		{"issuer", pii.CatPassportIssuer, "ГУ МВД России по г. Москве", "ГУ МВД России п* г. М*****"},
+		{"issuer", pii.CatPassportIssuer, "ГУ МВД России по г. Москве", "Г* М** Р***** п* г. М*****"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -12,7 +12,7 @@ import (
 // "my name is Tigran Avakyan", "name: Ivanov Ivan"). Without such context Latin
 // words are left untouched.
 var latinNameContext = []string{
-	"my name is", "name:", "имя:", ctxClient, "заявитель", "фио:", "ф.и.о.",
+	"my name is", "name:", "имя:", ctxClient, ctxZayavitel, "фио:", ctxFIOAbbrev,
 }
 
 // foreignNameContext are keywords that, when present to the left, allow a run of
@@ -21,7 +21,7 @@ var latinNameContext = []string{
 // or "ЛИ ЧЖИ ХУН" after "Данные для пропуска:").
 var foreignNameContext = []string{
 	"обращаться", ctxZovut, "фамилию", "фамилия", ctxFIO, "представьтесь", "пропуска",
-	"для", "на имя",
+	ctxDlya, ctxNaImya,
 }
 
 func (d *namesDetector) detectLatinNames(t pii.Text, toks []token, covered []bool) []pii.Span {

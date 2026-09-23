@@ -185,3 +185,26 @@ func TestBirthplaceRodNotInGorod(t *testing.T) {
 		t.Errorf("birth_place should not detect %q, got %+v", in, res.Spans)
 	}
 }
+
+// Point 5: a famous person's birth place is not personal data.
+func TestBirthplaceFamousPersonNegative(t *testing.T) {
+	cases := []string{
+		"Поэт Александр Сергеевич Пушкин родился в Москве.",
+		"Лев Толстой родился в Ясной Поляне.",
+	}
+	for _, c := range cases {
+		res := runPipeline(t, c)
+		if hasCategory(t, res, pii.CatBirthPlace) {
+			t.Errorf("birth_place should not detect famous person %q, got %+v", c, res.Spans)
+		}
+	}
+}
+
+// Point 5: a client with a famous person's name still has a birth place.
+func TestBirthplaceFamousNameClient(t *testing.T) {
+	in := "Клиент Пушкин Александр Сергеевич родился в Москве."
+	res := runPipeline(t, in)
+	if !hasCategory(t, res, pii.CatBirthPlace) {
+		t.Errorf("birth_place should detect client %q, got %+v", in, res.Spans)
+	}
+}

@@ -144,6 +144,68 @@ func TestProcessMaskThenUnmask(t *testing.T) {
 	unmaskAndVerify(t, ts, mres.Result)
 }
 
+// TestProcessNoUnmaskForChatbot verifies that a system with unmask:false never
+// restores the original text through /process: a repeated /process with the
+// stored mask returns the mask itself, not the source.
+func TestProcessNoUnmaskForChatbot(t *testing.T) {
+	os.Setenv("PDN_CHATBOT_KEY", "chatbot-key")
+	defer os.Unsetenv("PDN_CHATBOT_KEY")
+	_, ts := testServer(t, testConfig())
+	headers := map[string]string{"X-System-Id": "chatbot", "X-API-Key": "chatbot-key"}
+
+	// chatbot masks through /process.
+	resp, data := doJSON(t, ts, "POST", "/process", headers, map[string]string{
+		"payload":    testText,
+		"payload_id": "docChat",
+	})
+	if resp.StatusCode != 200 {
+		t.Fatalf("mask status = %d, body %s", resp.StatusCode, data)
+	}
+	var mres processResponse
+	if err := json.Unmarshal(data, &mres); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if mres.Result == testText {
+		t.Fatalf("masked result equals original")
+	}
+
+	// Repeated /process with the mask must return the mask, not the source.
+	resp2, data2 := doJSON(t, ts, "POST", "/process", headers, map[string]string{
+		"payload":    mres.Result,
+		"payload_id": "docChat",
+	})
+	if resp2.StatusCode != 200 {
+		t.Fatalf("repeat status = %d, body %s", resp2.StatusCode, data2)
+	}
+	var ures processResponse
+	if err := json.Unmarshal(data2, &ures); err != nil {
+		t.Fatalf("unmarshal2: %v", err)
+	}
+	if ures.Result != mres.Result {
+		t.Errorf("chatbot /process with mask = %q, want mask %q (must not unmask)", ures.Result, mres.Result)
+	}
+	if ures.Result == testText {
+		t.Errorf("chatbot /process leaked the original text")
+	}
+
+	// checker keeps the previous behaviour: /process with the mask restores the
+	// original text.
+	resp3, data3 := doJSON(t, ts, "POST", "/process", nil, map[string]string{
+		"payload":    mres.Result,
+		"payload_id": "docChat",
+	})
+	if resp3.StatusCode != 200 {
+		t.Fatalf("checker status = %d, body %s", resp3.StatusCode, data3)
+	}
+	var cres processResponse
+	if err := json.Unmarshal(data3, &cres); err != nil {
+		t.Fatalf("unmarshal3: %v", err)
+	}
+	if cres.Result != testText {
+		t.Errorf("checker /process with mask = %q, want original %q", cres.Result, testText)
+	}
+}
+
 // maskAndVerify masks testText and verifies the result hides PII.
 func maskAndVerify(t *testing.T, ts *httptest.Server) processResponse {
 	t.Helper()

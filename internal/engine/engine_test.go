@@ -161,7 +161,7 @@ func TestEngineComboRules(t *testing.T) {
 func TestEngineProcessContract(t *testing.T) {
 	e := testEngine(t)
 	ctx := context.Background()
-	opt := Options{Strategy: "partial", TTL: time.Minute}
+	opt := Options{Strategy: "partial", TTL: time.Minute, Unmask: true}
 
 	masked := processMask(t, e, ctx, opt)
 	processIdempotent(t, e, ctx, opt, masked)
@@ -236,7 +236,7 @@ func TestEngineProcessUnknownID(t *testing.T) {
 func TestEngineProcessPartialRestore(t *testing.T) {
 	e := testEngine(t)
 	ctx := context.Background()
-	opt := Options{Strategy: "partial", TTL: time.Minute}
+	opt := Options{Strategy: "partial", TTL: time.Minute, Unmask: true}
 
 	// Mask a text with two PII values so the record has two replacements.
 	text := "Клиент Иванов Иван Иванович, тел +7 (916) 123-45-67"
@@ -364,7 +364,7 @@ func TestProcessStoreCallCount(t *testing.T) {
 	}
 	e := New(p, cs, strategies)
 	ctx := context.Background()
-	opt := Options{Strategy: "partial", TTL: time.Minute}
+	opt := Options{Strategy: "partial", TTL: time.Minute, Unmask: true}
 
 	// Mask: 1 GET (miss) + 1 SET.
 	res := processOrFail(t, ctx, e, "c1", testText, opt)

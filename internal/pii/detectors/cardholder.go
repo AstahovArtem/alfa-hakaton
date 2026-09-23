@@ -29,7 +29,7 @@ var cardholderStop = map[string]bool{
 
 var cardholderContext = []string{
 	"держатель", "держателя", "держателю", "держателем", "владелец карты", "cardholder", "card holder",
-	"name on card", "имя на карте", "имя держателя", "на имя", "эмбоссированное имя", "cardholder:",
+	"name on card", "имя на карте", "имя держателя", ctxNaImya, "эмбоссированное имя", "cardholder:",
 }
 
 var cardNumRe = regexp.MustCompile(`(?:\d[ -]?){13,19}`)

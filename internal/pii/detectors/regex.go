@@ -146,6 +146,9 @@ func compileRule(rule *Rule) error {
 		return fmt.Errorf("rule %q: %w", rule.Name, err)
 	}
 	rule.re = re
+	if err := validateRuleValidator(rule); err != nil {
+		return err
+	}
 	if rule.MatchLower {
 		// Compile a case-insensitive variant for the Raw fallback path used
 		// when the lowercased text has a different byte length.
@@ -180,6 +183,19 @@ func compileRule(rule *Rule) error {
 		rc := &rule.Reclassify[j]
 		rc.Context = lowerAll(rc.Context)
 		rc.ContextAfter = lowerAll(rc.ContextAfter)
+	}
+	return nil
+}
+
+// validateRuleValidator reports an error when a rule references a validator
+// that does not exist, so a typo in rules.yaml fails at load time instead of
+// silently skipping the validator.
+func validateRuleValidator(rule *Rule) error {
+	if rule.Validator == "" {
+		return nil
+	}
+	if _, ok := Validators[rule.Validator]; !ok {
+		return fmt.Errorf("rule %q: unknown validator %q", rule.Name, rule.Validator)
 	}
 	return nil
 }

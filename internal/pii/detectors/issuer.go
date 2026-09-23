@@ -48,6 +48,17 @@ var issuerGapWordRe = regexp.MustCompile(
 	`(?i)(?:в|г\.?|гор\.?|мне|был|была|паспорт)(?:[^\p{L}]|$)|клиент\s*:\s*|оператор\s*:\s*|` + dateWordsRe.String(),
 )
 
+// issuerDateGapRe matches a full date that may sit between a context keyword
+// and the issuing authority value, in any form: numeric ("31.01.2001"), a
+// numeric day with a month in words ("15 мая 2010 года", "5 марта 2015 г.") or
+// a date written fully in words. The words "года", "г." and "г" after the date
+// are part of the gap. Leading whitespace is consumed so the date is matched as
+// a single gap unit even when the numeric day would otherwise be swallowed by
+// the non-letter gap regex.
+var issuerDateGapRe = regexp.MustCompile(
+	`(?i)^\s*(?:\d{1,2}[./-]\d{1,2}[./-]\d{4}|\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря|янв|фев|мар|апр|май|июн|июл|авг|сен|сент|окт|ноя|дек)\.?\s+\d{4}|` + dateWordsRe.String() + `)(?:\s+(?:года|г\.|г))?`,
+)
+
 // issuerOrganKeywordRe matches the keywords that confirm an "отделение/отдел"
 // start word is an issuing authority rather than a bank/post/medical branch.
 // Each keyword is matched as a whole word so "по" does not match inside
@@ -168,9 +179,13 @@ func findIssuerStart(search string, from int, startRe, gapRe *regexp.Regexp) int
 }
 
 // consumeIssuerGap advances pos over allowed gap content (non-letter runs,
-// dialogue labels, filler words and dates-in-words) and returns the new
-// position. It returns pos unchanged when no allowed gap content starts at pos.
+// dialogue labels, filler words, dates-in-words and full dates) and returns the
+// new position. It returns pos unchanged when no allowed gap content starts at
+// pos.
 func consumeIssuerGap(search string, pos, windowEnd int, gapRe *regexp.Regexp) int {
+	if loc := issuerDateGapRe.FindStringIndex(search[pos:windowEnd]); loc != nil && loc[1] > 0 {
+		return pos + loc[1]
+	}
 	if loc := gapRe.FindStringIndex(search[pos:windowEnd]); loc != nil && loc[1] > 0 {
 		return pos + loc[1]
 	}

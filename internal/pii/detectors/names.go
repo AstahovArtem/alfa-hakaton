@@ -1,6 +1,7 @@
 package detectors
 
 import (
+	"regexp"
 	"strings"
 	"unicode/utf8"
 
@@ -89,6 +90,17 @@ const (
 	stopWordPo         = "по"
 )
 
+// Subject-marker literals shared across the name-context lists and the
+// famous-person suppression, defined once to keep goconst clean.
+const (
+	ctxZayavitel = "заявитель"
+	ctxImya      = "имя"
+	ctxDlya      = "для"
+	ctxNaImya    = "на имя"
+	ctxFIOAbbrev = "ф.и.о."
+	ctxPasport   = "паспорт"
+)
+
 type namesDetector struct {
 	dict *namesDict
 }
@@ -153,7 +165,7 @@ func (d *namesDetector) processCandidate(
 	if covered[ci] {
 		return 1
 	}
-	if handled, adv := d.turkicPatronymic(text, nt, cands, i, covered, spans); handled {
+	if handled, adv := d.turkicPatronymic(text, nt, cands, i, t, covered, spans); handled {
 		return adv
 	}
 	if handled, adv := d.threeTokenName(text, nt, cands, i, t, covered, spans); handled {
@@ -207,6 +219,7 @@ func (d *namesDetector) turkicPatronymic(
 	nt []nameToken,
 	cands []int,
 	i int,
+	t pii.Text,
 	covered []bool,
 	spans *[]pii.Span,
 ) (bool, int) {
@@ -218,7 +231,7 @@ func (d *namesDetector) turkicPatronymic(
 		return false, 0
 	}
 	seq := []nameToken{nt[cands[i]], nt[mid1], nt[mid2], nt[cands[i+1]]}
-	if d.isFamous(seq) {
+	if d.isFamous(t, seq) {
 		return false, 0
 	}
 	*spans = append(
@@ -371,7 +384,7 @@ func (d *namesDetector) surnameGapName(
 func (d *namesDetector) emitGapName(ctx nameMatchCtx, i, mid int, conf float64) (bool, int) {
 	nt, cands, covered, spans := ctx.nt, ctx.cands, ctx.covered, ctx.spans
 	seq := []nameToken{nt[cands[i]], nt[mid], nt[cands[i+1]]}
-	if d.isFamous(seq) {
+	if d.isFamous(ctx.t, seq) {
 		return false, 0
 	}
 	start := seq[0].start
@@ -408,7 +421,7 @@ func (d *namesDetector) patrSurnameName(
 		return false, 0
 	}
 	seq := []nameToken{nt[mid], nt[cands[i]], nt[cands[i+1]]}
-	if d.isFamous(seq) {
+	if d.isFamous(t, seq) {
 		return false, 0
 	}
 	*spans = append(
@@ -455,7 +468,7 @@ func (d *namesDetector) surnameUnknownName(
 		return false, 0
 	}
 	seq := []nameToken{nt[ci], next}
-	if d.isFamous(seq) {
+	if d.isFamous(t, seq) {
 		return false, 0
 	}
 	*spans = append(
@@ -468,7 +481,7 @@ func (d *namesDetector) surnameUnknownName(
 }
 
 func (d *namesDetector) validSeq(seq []nameToken, t pii.Text) (bool, float64) {
-	if d.isFamous(seq) {
+	if d.isFamous(t, seq) {
 		return false, 0
 	}
 	n := len(seq)
@@ -593,22 +606,38 @@ func (d *namesDetector) hasDictOrPatr(seq []nameToken) bool {
 	return false
 }
 
-func (d *namesDetector) isFamous(seq []nameToken) bool {
+func (d *namesDetector) isFamous(t pii.Text, seq []nameToken) bool {
 	var stems []string
-	for _, t := range seq {
+	for _, tok := range seq {
 		// Ignore patronymics and initials: famous persons are matched on
 		// name + surname only.
-		if t.isPatr || t.isInitial {
+		if tok.isPatr || tok.isInitial {
 			continue
 		}
-		stems = append(stems, normalizeWord(t.lower))
+		stems = append(stems, normalizeWord(tok.lower))
 	}
+	famous := false
 	for _, f := range d.dict.famous {
 		if sameMultiset(stems, f) {
-			return true
+			famous = true
+			break
 		}
 	}
-	return false
+	if !famous {
+		return false
+	}
+	// Suppression by famous.txt is not applied when a subject marker appears
+	// within 30 runes to the left (e.g. "клиент Лев Толстой") or when another
+	// PII span is present in the same line (e.g. a phone or birth date next to
+	// the name). In those cases the famous person's name is the client's own
+	// name and must be masked.
+	if hasLeftContext(t, seq[0].start, famousSubjectMarkers, 30) {
+		return false
+	}
+	if famousOtherPIISameLine(t, seq[0].start, seq[len(seq)-1].end) {
+		return false
+	}
+	return true
 }
 
 func sameMultiset(a, b []string) bool {
@@ -626,6 +655,80 @@ func sameMultiset(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+// famousOtherPIIRe matches the other personal-data spans that, when present in
+// the same line as a famous person's name, disable the famous-person
+// suppression: phone, passport, birth date, email, snils and inn. Card numbers
+// are checked separately with a Luhn validation (see containsLuhnCard) because
+// a bare digit-run pattern would also match ISBNs and other non-card numbers.
+var famousOtherPIIRe = regexp.MustCompile(
+	`(?i)(?:\+7|8|7)[\s(-]*\d{3,4}[\s)-]*\d{2,3}[\s-]*\d{2}[\s-]*\d{2}|` +
+		`\b\d{4}\s+\d{6}\b|` +
+		`\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b|` +
+		`[\p{L}\p{N}._%+\-]+@[\p{L}\p{N}.\-]+\.\p{L}{2,}|` +
+		`\b\d{3}[\s-]\d{3}[\s-]\d{3}[\s-]\d{2}\b|` +
+		`\b\d{12}\b`,
+)
+
+// famousOtherPIISameLine reports whether another PII span (phone, passport,
+// birth date, email, snils, inn or card number) appears in the same line as the
+// name sequence [start,end). The name sequence itself is excluded so its own
+// tokens do not count as the other PII.
+func famousOtherPIISameLine(t pii.Text, start, end int) bool {
+	lineStart := start
+	for lineStart > 0 && t.Raw[lineStart-1] != '\n' {
+		lineStart--
+	}
+	lineEnd := end
+	for lineEnd < len(t.Raw) && t.Raw[lineEnd] != '\n' {
+		lineEnd++
+	}
+	line := t.Raw[lineStart:lineEnd]
+	// Exclude the name sequence itself from the search.
+	before := line[:start-lineStart]
+	after := line[end-lineStart:]
+	return famousOtherPIIRe.MatchString(before) || famousOtherPIIRe.MatchString(after) ||
+		containsLuhnCard(before) || containsLuhnCard(after)
+}
+
+// containsLuhnCard reports whether s contains a Luhn-valid card number: a run
+// of 13-19 digits (with optional spaces or dashes between groups).
+func containsLuhnCard(s string) bool {
+	digits := ""
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= '0' && c <= '9' {
+			digits += string(c)
+			continue
+		}
+		if c == ' ' || c == '-' {
+			continue
+		}
+		digits = ""
+	}
+	if len(digits) < 13 || len(digits) > 19 {
+		return false
+	}
+	return luhnValid(digits)
+}
+
+// luhnValid reports whether the digit string passes the Luhn checksum.
+func luhnValid(d string) bool {
+	sum := 0
+	double := false
+	for i := len(d) - 1; i >= 0; i-- {
+		n := int(d[i] - '0')
+		if double {
+			n *= 2
+			if n > 9 {
+				n -= 9
+			}
+		}
+		sum += n
+		double = !double
+	}
+	return sum%10 == 0
 }
 
 // hasLeftContext reports whether any keyword appears within the last window
