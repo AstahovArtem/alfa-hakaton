@@ -181,18 +181,32 @@ func (d *namesDetector) processCandidate(
 	if handled, adv := d.patrSurnameName(text, nt, cands, i, t, covered, spans); handled {
 		return adv
 	}
+	if handled, adv := d.greetingNamePatr(nt, cands, i, t, covered, spans); handled {
+		return adv
+	}
 	if handled, adv := d.surnameUnknownName(text, nt, cands, i, t, covered, spans); handled {
 		return adv
 	}
-	if handled, adv := d.singleNameWithContext(nt, cands, i, t, covered, spans); handled {
+	if handled, adv := d.singleNameWithContext(text, nt, cands, i, t, covered, spans); handled {
 		return adv
 	}
 	return 1
 }
 
-// singleNameWithContext emits a single given name when a name context keyword
-// appears to the left.
+// singleNameWithContext emits a single given name, surname or patronymic
+// token when a name context keyword appears to the left (e.g. "клиент
+// Иванов", "Фамилия: Воронцова", "Свидетель Козлова показала", "3. Отчество:
+// Дмитриевна"). A bare surname/patronymic needs the context anchor because,
+// unlike a dictionary given name, it is only a structural suffix guess and
+// could otherwise be an unrelated word. It also requires the surname/
+// patronymic token to not sit directly next to another uncovered name-like
+// token: when it does, the pair likely belongs together as a multi-token name
+// that the earlier, more specific rules failed to combine (e.g. a declined
+// given name misclassified as a surname by the famous-person suffix guess),
+// and emitting just one side alone would be a wrong partial match rather than
+// a useful one.
 func (d *namesDetector) singleNameWithContext(
+	text string,
 	nt []nameToken,
 	cands []int,
 	i int,
@@ -201,15 +215,48 @@ func (d *namesDetector) singleNameWithContext(
 	spans *[]pii.Span,
 ) (bool, int) {
 	tok := nt[cands[i]]
-	if !tok.isName || !hasLeftContext(t, tok.start, nameContext, 30) {
+	conf := 0.8
+	switch {
+	case tok.isName:
+		if !hasLeftContext(t, tok.start, nameContext, 30) {
+			return false, 0
+		}
+	case tok.isSurnameLike() || tok.isPatr:
+		// A bare surname/patronymic is only a structural suffix guess (the
+		// suffix heuristics match many ordinary Russian words, e.g. relational
+		// adjectives like "фишингового" or short-form adjectives like
+		// "готова"), so it is accepted only next to an explicit field-label
+		// word, not the wider role-marker context used for a dictionary given
+		// name.
+		if !hasLeftContext(t, tok.start, fieldLabelContext, 25) {
+			return false, 0
+		}
+		conf = 0.75
+		if hasAdjacentUncoveredNameLike(text, nt, covered, cands[i]) {
+			return false, 0
+		}
+	default:
 		return false, 0
 	}
 	*spans = append(
 		*spans,
-		pii.Span{Start: tok.start, End: tok.end, Category: pii.CatFullName, Detector: d.Name(), Confidence: 0.8},
+		pii.Span{Start: tok.start, End: tok.end, Category: pii.CatFullName, Detector: d.Name(), Confidence: conf},
 	)
 	covered[cands[i]] = true
 	return true, 1
+}
+
+// hasAdjacentUncoveredNameLike reports whether the token immediately before or
+// after nt[idx] (separated only by whitespace) is itself an uncovered
+// name-like token.
+func hasAdjacentUncoveredNameLike(text string, nt []nameToken, covered []bool, idx int) bool {
+	if idx > 0 && !covered[idx-1] && nt[idx-1].isNameLike() && onlyWhitespace(text, nt[idx-1].end, nt[idx].start) {
+		return true
+	}
+	if idx+1 < len(nt) && !covered[idx+1] && nt[idx+1].isNameLike() && onlyWhitespace(text, nt[idx].end, nt[idx+1].start) {
+		return true
+	}
+	return false
 }
 
 // turkicPatronymic handles a 4-token Turkic patronymic: surname + name + name +
@@ -227,7 +274,7 @@ func (d *namesDetector) turkicPatronymic(
 	if i+1 >= len(cands) || !isSurnamePatrMarkerPair(nt, cands, i) {
 		return false, 0
 	}
-	mid1, mid2, ok := twoNameGap(nt, cands[i], cands[i+1])
+	mid1, mid2, ok := twoNameGap(text, nt, cands[i], cands[i+1])
 	if !ok {
 		return false, 0
 	}
@@ -270,14 +317,35 @@ func (d *namesDetector) threeTokenName(
 		start = extStart
 		covered[cands[i-1]] = true
 	}
+	end := seq[2].end
+	if extEnd, ok := trailingPatrMarkerEnd(text, nt, cands[i+2]); ok {
+		end = extEnd
+		covered[cands[i+2]+1] = true
+	}
 	*spans = append(
 		*spans,
-		pii.Span{Start: start, End: seq[2].end, Category: pii.CatFullName, Detector: d.Name(), Confidence: conf},
+		pii.Span{Start: start, End: end, Category: pii.CatFullName, Detector: d.Name(), Confidence: conf},
 	)
 	covered[cands[i]] = true
 	covered[cands[i+1]] = true
 	covered[cands[i+2]] = true
 	return true, 3
+}
+
+// trailingPatrMarkerEnd returns the end position extended to include a Turkic
+// patronymic marker (e.g. "кызы", "оглы", "улы") immediately following the
+// token at nt index lastIdx, and whether such a marker is present (e.g.
+// "Ахмедова С. Ф. кызы", where the marker follows a surname+initials triple
+// instead of the two-given-names sequence turkicPatronymic expects).
+func trailingPatrMarkerEnd(text string, nt []nameToken, lastIdx int) (int, bool) {
+	if lastIdx+1 >= len(nt) {
+		return 0, false
+	}
+	next := nt[lastIdx+1]
+	if !next.isPatrMarker || !onlyWhitespace(text, nt[lastIdx].end, next.start) {
+		return 0, false
+	}
+	return next.end, true
 }
 
 // twoTokenName handles a two-token name sequence.
@@ -308,13 +376,49 @@ func (d *namesDetector) twoTokenName(
 	if !ok {
 		return false, 0
 	}
+	start := seq[0].start
+	if extStart, ok := hyphenSurnameStart(text, nt, cands[i], start); ok {
+		start = extStart
+		covered[cands[i]-1] = true
+	}
 	*spans = append(
 		*spans,
-		pii.Span{Start: seq[0].start, End: seq[1].end, Category: pii.CatFullName, Detector: d.Name(), Confidence: conf},
+		pii.Span{Start: start, End: seq[1].end, Category: pii.CatFullName, Detector: d.Name(), Confidence: conf},
 	)
 	covered[cands[i]] = true
 	covered[cands[i+1]] = true
 	return true, 2
+}
+
+// hyphenSurnameStart returns the start of an unrecognised hyphenated
+// capitalised token that immediately precedes a validated name+patronymic
+// pair at nt index ci (e.g. "Кравец-Задорожная" before "Оксана Витальевна",
+// "Мюллер-Шмидт" before "Анна Карловна", "Волкову-Брандт" before "Александру
+// Евгеньевну"), and whether such a token is present. It is not in the name or
+// surname dictionaries (a compound or foreign surname unrecognised by the
+// suffix heuristics) and not itself declined the same way, but the hyphen
+// combined with direct adjacency to a confirmed given name is a strong enough
+// signal to treat it as the surname. When no such token is present it returns
+// seqStart and false.
+func hyphenSurnameStart(text string, nt []nameToken, ci int, seqStart int) (int, bool) {
+	if ci == 0 {
+		return seqStart, false
+	}
+	prev := nt[ci-1]
+	if prev.isNameLike() || stopWords[prev.lower] {
+		return seqStart, false
+	}
+	if !strings.Contains(prev.text, "-") {
+		return seqStart, false
+	}
+	if !onlyWhitespace(text, prev.end, nt[ci].start) {
+		return seqStart, false
+	}
+	r, _ := utf8.DecodeRuneInString(prev.text)
+	if !isUpperRune(r) {
+		return seqStart, false
+	}
+	return prev.start, true
 }
 
 // surnamePrecedesFamousPatr reports whether the token immediately before
@@ -399,10 +503,10 @@ func (d *namesDetector) surnameGapName(
 		return false, 0
 	}
 	ctx := nameMatchCtx{text: text, nt: nt, cands: cands, t: t, covered: covered, spans: spans}
-	if mid, ok := singleNameGap(nt, cands[i], cands[i+1]); ok {
+	if mid, ok := singleNameGap(text, nt, cands[i], cands[i+1]); ok {
 		return d.emitGapName(ctx, i, mid, 0.95)
 	}
-	if mid, ok := lowercaseNameGap(nt, cands[i], cands[i+1], t); ok {
+	if mid, ok := lowercaseNameGap(text, nt, cands[i], cands[i+1], t); ok {
 		return d.emitGapName(ctx, i, mid, 0.9)
 	}
 	return false, 0
@@ -463,6 +567,43 @@ func (d *namesDetector) patrSurnameName(
 	return true, 2
 }
 
+// greetingNamePatr handles an unknown given name (not in the dictionary, e.g.
+// a foreign name) followed by a patronymic, where a polite-address greeting
+// ("Уважаемый", "Уважаемая", "Уважаемые") immediately to the left confirms the
+// pair names the letter's addressee, e.g. "Уважаемая Севиль Эльдаровна!".
+// Unlike seq2NamePatr, this does not require the given name to be in the
+// dictionary.
+func (d *namesDetector) greetingNamePatr(
+	nt []nameToken,
+	cands []int,
+	i int,
+	t pii.Text,
+	covered []bool,
+	spans *[]pii.Span,
+) (bool, int) {
+	if !nt[cands[i]].isPatr {
+		return false, 0
+	}
+	mid, ok := unknownNameBefore(nt, cands[i])
+	if !ok {
+		return false, 0
+	}
+	if !hasLeftContext(t, nt[mid].start, greetingContext, 20) {
+		return false, 0
+	}
+	seq := []nameToken{nt[mid], nt[cands[i]]}
+	if d.isFamous(t, seq) {
+		return false, 0
+	}
+	*spans = append(
+		*spans,
+		pii.Span{Start: seq[0].start, End: seq[1].end, Category: pii.CatFullName, Detector: d.Name(), Confidence: 0.85},
+	)
+	covered[mid] = true
+	covered[cands[i]] = true
+	return true, 1
+}
+
 // surnameUnknownName handles a surname + unknown given name sequence where the
 // given name is not in the dictionary but a name context keyword (e.g. "зовут")
 // appears to the left (e.g. "зовут Каримов Бахтиёр").
@@ -486,7 +627,7 @@ func (d *namesDetector) surnameUnknownName(
 	if next.isNameLike() || stopWords[next.lower] {
 		return false, 0
 	}
-	if !onlyWhitespace(text, nt[ci].end, next.start) {
+	if !onlyWhitespace(text, nt[ci].end, next.start) || strings.Contains(text[nt[ci].end:next.start], "\n") {
 		return false, 0
 	}
 	r, _ := utf8.DecodeRuneInString(next.text)
@@ -543,8 +684,15 @@ func (d *namesDetector) validSeq3(seq []nameToken, t pii.Text) (bool, float64) {
 	return false, 0
 }
 
+// seq3SurnameNamePatr matches surname + given-name + patronymic. The middle
+// token only needs to not itself be a patronymic or initial: it may be a
+// dictionary given name, or merely guessed as a surname by its suffix (many
+// feminine and Turkic given names, e.g. "Мадина", "Эльчин", share surname-like
+// endings), since sitting between a confirmed surname and a confirmed
+// patronymic is strong evidence on its own (the same reasoning surnameGapName
+// already applies to a middle token with no classification at all).
 func (d *namesDetector) seq3SurnameNamePatr(seq []nameToken) (bool, float64) {
-	if seq[0].isSurnameLike() && seq[1].isName && seq[2].isPatr {
+	if seq[0].isSurnameLike() && !seq[1].isPatr && !seq[1].isInitial && seq[2].isPatr {
 		if d.hasDictOrPatr(seq) {
 			return true, 0.95
 		}
@@ -700,13 +848,15 @@ func sameMultiset(a, b []string) bool {
 
 // famousOtherPIIRe matches the other personal-data spans that, when present in
 // the same line as a famous person's name, disable the famous-person
-// suppression: phone, passport, birth date, email, snils and inn. Card numbers
-// are checked separately with a Luhn validation (see containsLuhnCard) because
-// a bare digit-run pattern would also match ISBNs and other non-card numbers.
+// suppression: phone, passport, birth date (numeric or in words, e.g. "1999
+// года рождения"), email, snils and inn. Card numbers are checked separately
+// with a Luhn validation (see containsLuhnCard) because a bare digit-run
+// pattern would also match ISBNs and other non-card numbers.
 var famousOtherPIIRe = regexp.MustCompile(
 	`(?i)(?:\+7|8|7)[\s(-]*\d{3,4}[\s)-]*\d{2,3}[\s-]*\d{2}[\s-]*\d{2}|` +
 		`\b\d{4}\s+\d{6}\b|` +
 		`\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b|` +
+		`\b\d{4}\s+года\s+рожд|` +
 		`[\p{L}\p{N}._%+\-]+@[\p{L}\p{N}.\-]+\.\p{L}{2,}|` +
 		`\b\d{3}[\s-]\d{3}[\s-]\d{3}[\s-]\d{2}\b|` +
 		`\b\d{12}\b`,
@@ -796,16 +946,37 @@ func hasRightContext(t pii.Text, pos int, keywords []string, window int) bool {
 	return false
 }
 
+// onlyWhitespaceOrParen reports whether the byte range [a,b) contains only
+// whitespace and parentheses (e.g. ") " or " ("). It is used at the edges of a
+// gap name to allow a surname's maiden-name aside (e.g. "Сафина (Ганиева)
+// Гульнара Ильдаровна") while still rejecting a field-label separator such as
+// ": " (e.g. "Юсупова Рустама: основной") or other punctuation.
+func onlyWhitespaceOrParen(text string, a, b int) bool {
+	s := strings.TrimSpace(text[a:b])
+	s = strings.TrimFunc(s, func(r rune) bool { return r == '(' || r == ')' })
+	return strings.TrimSpace(s) == ""
+}
+
 // singleNameGap reports whether there is exactly one non-candidate token
-// between candidate indices a and b, and that token looks like a given name
-// (capitalised, not a stopword). It returns the token index and true when so.
-func singleNameGap(nt []nameToken, a, b int) (int, bool) {
+// between candidate indices a and b, that token looks like a given name
+// (capitalised, not a stopword), and the token is separated from both anchors
+// by whitespace/parentheses only. It returns the token index and true when
+// so. The restricted gap keeps a field-label word (e.g. "2. Имя: Екатерина\n3.
+// Отчество: Дмитриевна", "Юсупова Рустама: основной") from being mistaken for
+// the given name that bridges a surname to a patronymic: a genuine gap name
+// sits between the surname and patronymic with nothing but a space (or a
+// maiden-surname aside in parentheses), while a label/punctuation-separated
+// field does not.
+func singleNameGap(text string, nt []nameToken, a, b int) (int, bool) {
 	if b-a != 2 {
 		return 0, false
 	}
 	mid := a + 1
+	if !onlyWhitespaceOrParen(text, nt[a].end, nt[mid].start) || !onlyWhitespaceOrParen(text, nt[mid].end, nt[b].start) {
+		return 0, false
+	}
 	t := nt[mid]
-	if t.isNameLikeNoMarker() {
+	if t.isNameLikeConfident() {
 		return 0, false
 	}
 	if stopWords[t.lower] {
@@ -820,13 +991,19 @@ func singleNameGap(nt []nameToken, a, b int) (int, bool) {
 
 // twoNameGap reports whether there are exactly two non-candidate tokens between
 // candidate indices a and b, both looking like given names (capitalised, not
-// stopwords). It returns the two token indices and true when so. This supports
+// stopwords), with each token separated from its neighbours by whitespace
+// only. It returns the two token indices and true when so. This supports
 // Turkic patronymics of the form "name1 name2 кызы/оглы/улы".
-func twoNameGap(nt []nameToken, a, b int) (int, int, bool) {
+func twoNameGap(text string, nt []nameToken, a, b int) (int, int, bool) {
 	if b-a != 3 {
 		return 0, 0, false
 	}
 	mid1, mid2 := a+1, a+2
+	if !onlyWhitespaceOrParen(text, nt[a].end, nt[mid1].start) ||
+		!onlyWhitespaceOrParen(text, nt[mid1].end, nt[mid2].start) ||
+		!onlyWhitespaceOrParen(text, nt[mid2].end, nt[b].start) {
+		return 0, 0, false
+	}
 	for _, mid := range []int{mid1, mid2} {
 		t := nt[mid]
 		if t.isNameLike() {
@@ -845,16 +1022,20 @@ func twoNameGap(nt []nameToken, a, b int) (int, int, bool) {
 
 // lowercaseNameGap reports whether there is exactly one non-candidate token
 // between candidate indices a and b that looks like a given name but is not
-// capitalised. It is accepted only when a name context keyword appears within
-// 40 runes to the left (e.g. "клиент: ахметзянова зульфия ильгизовна") or the
-// sequence occupies the whole line.
-func lowercaseNameGap(nt []nameToken, a, b int, t pii.Text) (int, bool) {
+// capitalised, separated from both anchors by whitespace only. It is accepted
+// only when a name context keyword appears within 40 runes to the left (e.g.
+// "клиент: ахметзянова зульфия ильгизовна") or the sequence occupies the
+// whole line.
+func lowercaseNameGap(text string, nt []nameToken, a, b int, t pii.Text) (int, bool) {
 	if b-a != 2 {
 		return 0, false
 	}
 	mid := a + 1
+	if !onlyWhitespaceOrParen(text, nt[a].end, nt[mid].start) || !onlyWhitespaceOrParen(text, nt[mid].end, nt[b].start) {
+		return 0, false
+	}
 	tok := nt[mid]
-	if tok.isNameLike() {
+	if tok.isNameLikeConfident() || tok.isPatrMarker {
 		return 0, false
 	}
 	if stopWords[tok.lower] {
