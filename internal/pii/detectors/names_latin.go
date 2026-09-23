@@ -10,9 +10,12 @@ import (
 // latinNameContext are keywords that, when present to the left, allow a pair of
 // Latin words with capital initials to be accepted as a full name (e.g.
 // "my name is Tigran Avakyan", "name: Ivanov Ivan"). Without such context Latin
-// words are left untouched.
+// words are left untouched. The same list gates lowercase Latin words too (see
+// detectLowercaseLatinNames), but only when the label sits immediately before
+// the run, not just anywhere within a wide window.
 var latinNameContext = []string{
-	"my name is", "name:", "имя:", ctxClient, ctxZayavitel, "фио:", ctxFIOAbbrev,
+	"my name is", "name:", "full name:", "имя:", ctxClient, ctxZayavitel, "фио:", ctxFIOAbbrev,
+	"client:",
 }
 
 // foreignNameContext are keywords that, when present to the left, allow a run of
@@ -58,6 +61,74 @@ func collectCapitalized(toks []token, i, j int, covered []bool) []int {
 	return capIdx
 }
 
+// detectLowercaseLatinNames finds a short run (2-4 words) of lowercase Latin
+// words that sits immediately after an explicit name label, e.g. "name:
+// tigran avakyan", "ФИО: tigran avakyan", "client: ivan petrov". The label
+// must be directly adjacent (only whitespace/punctuation in between), not
+// just present somewhere earlier in the text: a wide window would let an
+// unrelated label (e.g. a "клиент:" a few sentences back) turn ordinary
+// lowercase English words into false-positive names.
+func (d *namesDetector) detectLowercaseLatinNames(t pii.Text, toks []token, covered []bool) []pii.Span {
+	text := t.Raw
+	var spans []pii.Span
+	for i := 0; i < len(toks); i++ {
+		if covered[i] || !isLowercaseLatinCandidate(toks[i]) {
+			continue
+		}
+		if !hasImmediateLabel(t, toks[i].start) {
+			continue
+		}
+		j := i
+		for j-i < 3 && j+1 < len(toks) && !covered[j+1] && isLowercaseLatinCandidate(toks[j+1]) &&
+			onlyWhitespace(text, toks[j].end, toks[j+1].start) {
+			j++
+		}
+		if j == i {
+			continue
+		}
+		spans = append(
+			spans,
+			pii.Span{
+				Start:      toks[i].start,
+				End:        toks[j].end,
+				Category:   pii.CatFullName,
+				Detector:   d.Name(),
+				Confidence: 0.85,
+			},
+		)
+		for k := i; k <= j; k++ {
+			covered[k] = true
+		}
+		i = j
+	}
+	return spans
+}
+
+// isLowercaseLatinCandidate reports whether a token is a lowercase Latin word
+// of two or more letters (a plausible given name or surname once labelled).
+func isLowercaseLatinCandidate(tok token) bool {
+	if !isLatinToken(tok) || isCapitalized(tok.text) {
+		return false
+	}
+	return utf8.RuneCountInString(tok.text) >= 2
+}
+
+// hasImmediateLabel reports whether one of latinNameContext's labels ends
+// exactly at pos, modulo trailing whitespace (e.g. "name: " or "client: "
+// right before pos). Unlike hasLeftContext's wide window, this requires the
+// label to be immediately adjacent, so a label used earlier in the text does
+// not license unrelated lowercase words further along as names.
+func hasImmediateLabel(t pii.Text, pos int) bool {
+	for _, kw := range latinNameContext {
+		n := utf8.RuneCountInString(kw) + 2
+		window := strings.TrimRight(runeWindowBefore(t, pos, n), " \t")
+		if strings.HasSuffix(window, kw) {
+			return true
+		}
+	}
+	return false
+}
+
 // emitLatinSpans emits spans for consecutive capitalized words (2 or 3) that
 // follow a context keyword.
 func (d *namesDetector) emitLatinSpans(t pii.Text, toks []token, capIdx []int, covered []bool) []pii.Span {
@@ -65,6 +136,9 @@ func (d *namesDetector) emitLatinSpans(t pii.Text, toks []token, capIdx []int, c
 	var spans []pii.Span
 	for k := 0; k+1 < len(capIdx); k++ {
 		a, b := capIdx[k], capIdx[k+1]
+		if covered[a] || covered[b] {
+			continue
+		}
 		if !onlyWhitespace(text, toks[a].end, toks[b].start) {
 			continue
 		}
