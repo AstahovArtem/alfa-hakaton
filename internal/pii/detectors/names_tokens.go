@@ -108,6 +108,19 @@ func (t nameToken) isNameLikeNoMarker() bool {
 	return t.isCoreName()
 }
 
+// isNameLikeConfident reports whether the token is confidently classified as
+// a given name (dictionary), a dictionary surname, a patronymic or an
+// initial. It excludes a bare surname *guess* (a structural suffix match with
+// no dictionary backing), which is too weak a signal to disqualify the token
+// from instead playing the unknown-given-name role in a gap between a surname
+// and a patronymic (e.g. "Хасанова Мадина", "Мамедов Эльчин Гусейнович":
+// "Мадина"/"Эльчин" are themselves suffix-guessed as surnames, since many
+// feminine and Turkic given names share surname-like endings, but that guess
+// must not block them from being recognised as the given name here).
+func (t nameToken) isNameLikeConfident() bool {
+	return t.isName || t.isSurname || t.isPatr || t.isInitial
+}
+
 // isCoreName reports whether the token is a given name, surname or patronymic.
 func (t nameToken) isCoreName() bool {
 	return t.isNameOrSurname() || t.isPatr || t.isInitial
@@ -255,12 +268,44 @@ var stopWords = map[string]bool{
 	"октябрь": true, monthOctober: true, "ноябрь": true, monthNovember: true, "декабрь": true, monthDecember: true,
 	"понедельник": true, "вторник": true, "среда": true, "четверг": true, "пятница": true,
 	"суббота": true, "воскресенье": true,
+	// Ordinary Russian adjectives that coincidentally end in a derived
+	// patronymic case suffix (e.g. "основной" ends in "-овной", the same
+	// letters as the instrumental feminine patronymic suffix), so the naive
+	// suffix check in isPatronymic would otherwise misclassify them.
+	"основной": true,
+	// Inflected forms of "гражданин" ("citizen"): the "-ин" ending makes the
+	// suffix-guess surname check misclassify them, and only the nominative
+	// singular/plural forms are covered by stopWordGrazhdanin/Grazhdanka above.
+	"гражданина": true, "гражданину": true, "гражданином": true, "гражданине": true,
+	// Form-field labels and dialogue speaker/role markers: never names
+	// themselves, but used as context anchors elsewhere, so they must not be
+	// mistaken for the unknown given name that bridges a surname to a
+	// patronymic (e.g. "2. Имя: Екатерина\n3. Отчество: Дмитриевна").
+	ctxImya: true, "фамилия": true, "фамилию": true, "отчество": true, "свидетель": true,
+	"клиентка": true, "заёмщик": true, "заемщик": true, "созаёмщик": true, "созаемщик": true,
+	ctxZayavitel: true, "оператор": true,
 }
 
+// nameContext are keywords that, when present to the left of a name-like
+// token, confirm it names a real person rather than an unrelated word (e.g.
+// "клиент Иванов", "Фамилия: Воронцова", "Свидетель Козлова показала").
 var nameContext = []string{
-	ctxClient, ctxZayavitel, stopWordGrazhdanin, stopWordGrazhdanka, "держатель", "владелец",
+	ctxClient, "клиентка", ctxZayavitel, stopWordGrazhdanin, stopWordGrazhdanka, "держатель", "владелец",
 	ctxFIO, ctxImya, ctxZovut, "меня зовут", "сотрудник", "менеджер",
+	"фамилия", "фамилию", "отчество", "свидетель",
+	"заёмщик", "заемщик", "созаёмщик", "созаемщик", "поручитель", "получатель", "отправитель",
+	"вкладчик", "представитель",
 }
+
+// fieldLabelContext are explicit identity-field labels used by
+// singleNameWithContext to accept a bare surname or patronymic (a structural
+// suffix guess, not a dictionary hit). It is deliberately narrower than
+// nameContext: a role marker like "клиент" or "получатель" sits close to
+// enough ordinary Russian words (e.g. relational adjectives ending in "-ого",
+// short-form adjectives ending in "-ова") that pairing it with a bare
+// suffix-guessed token would cost too much precision, while these labels only
+// ever introduce an actual name field.
+var fieldLabelContext = []string{"фамилия", "фамилию", "отчество", "свидетель"}
 
 // famousSubjectMarkers are the client/role subject markers that, when present
 // within a short window on either side of a famous person's name, disable the
@@ -295,7 +340,14 @@ var familyRelationRe = regexp.MustCompile(
 // names a person and must be masked once such a context confirms it).
 var personActionContext = []string{
 	"позвонил", "позвонила", "звонил", "звонила", "обратился", "обратилась", "пришёл", "пришла",
+	"просил", "просила", "попросил", "попросила",
 }
+
+// greetingContext are polite-address greeting words used by greetingNamePatr:
+// when one appears immediately to the left of an unknown given name followed
+// by a patronymic, the pair names the letter's addressee (e.g. "Уважаемая
+// Севиль Эльдаровна!").
+var greetingContext = []string{"уважаемый", "уважаемая", "уважаемые"}
 
 // lowercaseNameContext are keywords that, when present to the left, allow a
 // full name to be accepted even when its tokens are not capitalised (e.g.
@@ -325,6 +377,16 @@ func (d *namesDetector) classify(
 	return
 }
 
+// fleetingVowelNameStems maps a case-suffix-stripped stem that lost its
+// fleeting vowel (e.g. "павл" from "Павла", "Павлу", "Павлом", "Павле") to its
+// restored dictionary form ("павел"). Without this, a declined form of such a
+// name can fail isNameToken and, worse, coincide with an unrelated famous
+// surname's own normalised stem (e.g. "Павлов"), causing the declined given
+// name to be misclassified as a surname instead.
+var fleetingVowelNameStems = map[string]string{
+	"павл": "павел",
+}
+
 func (d *namesDetector) isNameToken(lower string) bool {
 	if d.dict.names[lower] {
 		return true
@@ -333,6 +395,9 @@ func (d *namesDetector) isNameToken(lower string) bool {
 		if strings.HasSuffix(lower, e) {
 			stem := lower[:len(lower)-len(e)]
 			if d.dict.names[stem] || d.dict.nameStems[stem] {
+				return true
+			}
+			if full, ok := fleetingVowelNameStems[stem]; ok && d.dict.names[full] {
 				return true
 			}
 		}
